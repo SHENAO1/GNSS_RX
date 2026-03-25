@@ -105,17 +105,39 @@ run_capture_analysis
 
 不传参时，脚本会自动分析数据目录下最新的一组有效采集。
 
-如果你想分析指定采集，也可以传入 stem 路径或 `.json` 路径：
+如果你想分析指定采集，也可以传入 stem 路径或 `.json` 路径。
 
-```matlab
-run_capture_analysis('/mnt/hgfs/GongXiangDocument/GNSS_RX_Data/2026/2026_03_25/20260325_085401_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf150000000_dur2p0s')
+**路径结构说明**
+
+每次采集的文件存放在以 stem 命名的子目录里：
+
+```
+GNSS_RX_Data/2026/<YYYY_MM_DD>/<stem>/<stem>.sc16
+                                      <stem>.json
 ```
 
-或者：
+因此传入 stem 路径时，需要包含子目录名和文件名（**stem 出现两次**）：
+
+**Windows 宿主机 MATLAB（VMware 共享目录）：**
 
 ```matlab
-run_capture_analysis('/mnt/hgfs/GongXiangDocument/GNSS_RX_Data/2026/2026_03_25/20260325_085401_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf150000000_dur2p0s.json')
+run_capture_analysis('C:\VMwareVirtualMachines\GongXiangDocument\GNSS_RX_Data\2026\2026_03_25\20260325_090729_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf150000000_dur2p0s\20260325_090729_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf150000000_dur2p0s')
 ```
+
+**Linux VM 中的 MATLAB（或本地 Linux）：**
+
+```matlab
+run_capture_analysis('/mnt/hgfs/GongXiangDocument/GNSS_RX_Data/2026/2026_03_25/20260325_090729_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf150000000_dur2p0s/20260325_090729_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf150000000_dur2p0s')
+```
+
+也可以直接传入 `.json` 文件路径（效果相同）：
+
+```matlab
+run_capture_analysis('C:\...\20260325_090729_..._dur2p0s\20260325_090729_..._dur2p0s.json')
+```
+
+> **注意**：传入路径时必须与 MATLAB 实际运行的操作系统路径格式匹配。
+> 在 Windows 宿主机 MATLAB 中使用 Linux 路径（`/mnt/hgfs/...`）会导致文件找不到的错误。
 
 ## 输出结果
 
