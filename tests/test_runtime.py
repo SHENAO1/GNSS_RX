@@ -73,7 +73,8 @@ class TestRxRuntimeConfig(unittest.TestCase):
             when=datetime(2026, 3, 23, 19, 5, 30),
         )
         expected_stem = (
-            "/mnt/hgfs/GongXiangDocument/GNSS_RX_Data/2026/2026-03-23/"
+            "/mnt/hgfs/GongXiangDocument/GNSS_RX_Data/2026/2026_03_23/"
+            "20260323_190530_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur2p0s/"
             "20260323_190530_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur2p0s"
         )
         self.assertEqual(str(data_path), f"{expected_stem}.sc16")

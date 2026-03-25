@@ -1,70 +1,111 @@
 function [samples, meta, paths] = load_gnss_rx_capture(stem_or_json_path)
-%LOAD_GNSS_RX_CAPTURE 读取一组 GNSS_RX 采集文件并还原为复数基带。
+%LOAD_GNSS_RX_CAPTURE 读取一组 GNSS_RX 采集文件，输出复数基带样本、元数据和路径信息。
+%
+%   GNSS 接收机的数据采集结果由两个文件组成：
+%       .sc16  —— 原始 IQ 数据（SC16 格式：每个复数样本由两个 int16 整数组成，
+%                 分别代表 I 分量和 Q 分量，交织存储）
+%       .json  —— 元数据（记录采样率、中心频率、采集时长等参数）
+%
+%   本函数同时接受以下三种输入形式：
+%       load_gnss_rx_capture('/path/to/capture')       % stem 路径（不带扩展名）
+%       load_gnss_rx_capture('/path/to/capture.json')  % .json 路径
+%       load_gnss_rx_capture('/path/to/capture.sc16')  % .sc16 路径
+%
+%   输出：
+%       samples  —— 复数基带样本列向量，归一化到 [-1, 1]（I 为实部，Q 为虚部）
+%       meta     —— 元数据结构体（解析自 .json，包含 sample_rate_hz 等字段）
+%       paths    —— 路径信息结构体（包含各文件路径和分析结果目录）
 
+% 检查输入参数，不允许为空，否则无从知道要读哪组文件。
 if nargin < 1 || strlength(string(stem_or_json_path)) == 0
     error('GNSS_RX:MissingCapturePath', ...
-        'Provide a capture stem path or a .json path.');
+        '请提供采集文件的 stem 路径或 .json 路径。');
 end
 
-input_path = string(stem_or_json_path);
-input_path = strip(input_path);
+% 转换为 string 类型并去除前后空格，避免因误输入空格导致路径解析失败。
+input_path = strip(string(stem_or_json_path));
 
-if endsWith(lower(input_path), ".json")
+% 根据文件扩展名判断用户传入的是哪种路径，统一推导出 stem_path 和 json_path。
+% 使用 fileparts 而不是字符串替换，避免路径中目录名包含 .json 时出错。
+[folder, name, ext] = fileparts(char(input_path));
+ext_lower = lower(ext);
+if strcmp(ext_lower, '.json')
+    % 传入的是 .json 路径
     json_path = input_path;
-    stem_path = erase(input_path, ".json");
-elseif endsWith(lower(input_path), ".sc16")
-    stem_path = erase(input_path, ".sc16");
+    stem_path = string(fullfile(folder, name));
+elseif strcmp(ext_lower, '.sc16')
+    % 传入的是 .sc16 路径
+    stem_path = string(fullfile(folder, name));
     json_path = stem_path + ".json";
 else
+    % 传入的是 stem 路径（不带扩展名），直接补全即可
     stem_path = input_path;
     json_path = stem_path + ".json";
 end
 
+% 推导 .sc16 文件路径（统一在推导出 stem_path 之后拼出）。
 sc16_path = stem_path + ".sc16";
 
-% MATLAB 侧强制要求 .json 和 .sc16 成对存在，避免只分析到半组文件。
+% 强制要求 .json 和 .sc16 成对存在，避免读到"半组"文件而产生误导性结果。
 if ~isfile(json_path)
-    error('GNSS_RX:MissingJson', 'JSON sidecar not found: %s', json_path);
+    error('GNSS_RX:MissingJson', '未找到元数据文件：%s', json_path);
 end
 if ~isfile(sc16_path)
-    error('GNSS_RX:MissingSc16', 'SC16 file not found: %s', sc16_path);
+    error('GNSS_RX:MissingSc16', '未找到 IQ 数据文件：%s', sc16_path);
 end
 
-meta = jsondecode(fileread(json_path));
+% 读取并解析 .json 元数据文件。
+% jsondecode 会把 JSON 对象转成 MATLAB 结构体，字段名与 JSON 键名一一对应。
+meta = jsondecode(fileread(char(json_path)));
 
-% Python 侧导出的是 little-endian 交织 int16，这里按 I/Q 成对读回。
-fid = fopen(sc16_path, 'rb', 'ieee-le');
+% 以二进制模式打开 .sc16 文件，指定字节序为 little-endian（低字节在前）。
+% 这与 Python 端 GNU Radio 写入时的字节序一致。
+fid = fopen(char(sc16_path), 'rb', 'ieee-le');
 if fid < 0
-    error('GNSS_RX:OpenFailed', 'Failed to open SC16 file: %s', sc16_path);
+    error('GNSS_RX:OpenFailed', '无法打开 IQ 数据文件：%s', sc16_path);
 end
-raw_iq = fread(fid, inf, 'int16=>double');
-fclose(fid);
+% 使用 onCleanup 确保即使后续发生错误，文件句柄也一定会被关闭，避免资源泄漏。
+file_cleanup = onCleanup(@() fclose(fid)); %#ok<NASGU>
 
+% 读取所有 int16 数据并转换为 double，方便后续浮点运算。
+% SC16 格式：奇数位置为 I 分量，偶数位置为 Q 分量，交织存储。
+raw_iq = fread(fid, inf, 'int16=>double');
+
+% 检查样本数是否为偶数。SC16 格式每个复数样本由 I 和 Q 各一个 int16 组成，
+% 若总数为奇数，说明文件不完整或写入时出错。
 if mod(numel(raw_iq), 2) ~= 0
     error('GNSS_RX:MalformedSc16', ...
-        'SC16 file has an odd number of int16 values: %s', sc16_path);
+        'IQ 数据文件中 int16 数值数量为奇数，文件可能不完整：%s', sc16_path);
 end
 
-% GNSS_RX 当前把满量程复数样本映射到 [-32767, 32767]，这里再归一化回 [-1, 1]。
+% 将交织的 int16 分离为 I、Q 分量，并归一化到 [-1, 1]。
+% GNSS_RX 使用 32767 作为满量程值（int16 最大正值为 32767）。
+% 奇数下标（1, 3, 5, ...）为 I 分量，偶数下标（2, 4, 6, ...）为 Q 分量。
 i_samples = raw_iq(1:2:end) ./ 32767.0;
 q_samples = raw_iq(2:2:end) ./ 32767.0;
+
+% 组合成复数基带信号：实部 = I，虚部 = Q。
+% 这是软件无线电（SDR）领域的标准表示方式。
 samples = complex(i_samples, q_samples);
 
-% 元数据里的 samples_captured 应与实际复数样本数匹配；不一致时发 warning。
+% 交叉验证：元数据中记录的样本数应与实际读取的复数样本数一致。
+% 如果不一致，发出警告（不直接报错，以便后续分析仍能继续进行）。
 if isfield(meta, 'samples_captured') && meta.samples_captured ~= numel(samples)
     warning('GNSS_RX:SampleCountMismatch', ...
-        'samples_captured=%d but loaded complex sample count=%d', ...
+        '元数据记录样本数 %d，但实际读取到 %d 个复数样本，两者不符。', ...
         meta.samples_captured, numel(samples));
 end
 
-capture_dir = string(fileparts(json_path));
+% 整理路径信息结构体，将后续分析和保存结果时需要用到的路径统一打包。
+% analysis_dir 使用 stem_name 作为子目录，确保不同采集文件的分析结果互不覆盖。
+capture_dir = string(fileparts(char(json_path)));
 [~, stem_name_only, ~] = fileparts(char(stem_path));
-% paths 统一整理后续分析与结果保存要用到的所有关键路径。
+
 paths = struct();
-paths.capture_dir = char(capture_dir);
-paths.stem_name = stem_name_only;
-paths.stem_path = char(stem_path);
-paths.json_path = char(json_path);
-paths.sc16_path = char(sc16_path);
-paths.analysis_dir = fullfile(paths.capture_dir, 'analysis');
+paths.capture_dir  = char(capture_dir);
+paths.stem_name    = stem_name_only;
+paths.stem_path    = char(stem_path);
+paths.json_path    = char(json_path);
+paths.sc16_path    = char(sc16_path);
+paths.analysis_dir = fullfile(char(capture_dir), 'analysis', stem_name_only);
 end

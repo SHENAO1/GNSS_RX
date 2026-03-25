@@ -1,14 +1,31 @@
 function result = run_capture_analysis(stem_or_json_path, cfg)
-%RUN_CAPTURE_ANALYSIS 加载一组 GNSS_RX 采集文件，绘图并执行 PRN1 捕获。
+%RUN_CAPTURE_ANALYSIS GNSS_RX 数据分析主入口：加载采集文件、绘图、执行信号捕获。
+%
+%   这是整个 MATLAB 分析链的顶层入口函数，按以下步骤自动完成：
+%     1. 加载最新（或指定）采集文件（.sc16 IQ 数据 + .json 元数据）
+%     2. 绘制时域、频谱、IQ 散点总览图（快速目视检查信号质量）
+%     3. 对 PRN1 执行 Doppler × 码相位二维捕获搜索（寻找信号在哪里）
+%     4. 对 PRN1~32 进行多星对比扫描，确认信号来自哪颗卫星
+%     5. 将图片和摘要 JSON/MAT 保存到 analysis/<stem>/ 目录
+%
+%   用法示例：
+%     result = run_capture_analysis()                          % 自动分析最新采集
+%     result = run_capture_analysis('/path/to/capture.json')  % 分析指定文件
+%     result = run_capture_analysis('', cfg)                  % 自动分析 + 自定义配置
+%
+%   输出 result 结构体包含 samples、meta、paths、acq_result、survey 等所有中间结果，
+%   方便在命令窗口中进一步交互式分析。
 
-script_dir = fileparts(mfilename('fullpath'));
-matlab_root = fileparts(script_dir);
+% 将 functions/ 目录加入 MATLAB 搜索路径，确保能找到各子函数。
+% 使用 exist 检查避免重复加载（不影响功能，只是更整洁）。
+script_dir    = fileparts(mfilename('fullpath'));
+matlab_root   = fileparts(script_dir);
 functions_dir = fullfile(matlab_root, 'functions');
-% 入口脚本运行时自动把 functions/ 加入路径，避免手工 addpath。
 if exist(functions_dir, 'dir') == 7
     addpath(functions_dir);
 end
 
+% 处理输入参数：未提供路径时默认为空字符串（后续自动找最新文件）。
 if nargin < 1
     stem_or_json_path = '';
 end
@@ -16,28 +33,35 @@ if nargin < 2 || isempty(cfg)
     cfg = build_default_cfg();
 end
 
+% 如果配置中没有指定数据根目录，就自动解析默认路径。
 if ~isfield(cfg, 'capture_root_dir') || isempty(cfg.capture_root_dir)
     cfg.capture_root_dir = gnss_rx_resolve_data_dir();
 end
 
-% 不传路径时，默认分析共享目录下最新的一组 .sc16 + .json。
+% 若未指定具体文件，自动在数据根目录下找最新的完整采集文件对。
 if strlength(string(stem_or_json_path)) == 0
     stem_or_json_path = find_latest_capture(cfg.capture_root_dir);
 end
 
 fprintf('【GNSS_RX】分析目标文件：\n  %s\n', char(string(stem_or_json_path)));
 
+% 步骤 1：加载 IQ 数据和元数据。
 [samples, meta, paths] = load_gnss_rx_capture(stem_or_json_path);
+
+% 步骤 2：绘制时域、频谱、IQ 散点总览图。
 figures = plot_capture_overview(samples, meta, paths, cfg);
+
+% 步骤 3：对 PRN1 执行捕获搜索（寻找最佳 Doppler 和码相位）。
 acq_result = run_prn1_acquisition(samples, meta, cfg);
 
-% 多星对比搜索（PRN1~32），用于直观判断是哪颗星被捕获
-survey = run_multi_prn_survey(samples, meta, cfg);
+% 步骤 4：对 PRN1~32 进行多星对比扫描（判断是哪颗卫星，或有几颗卫星可见）。
+survey     = run_multi_prn_survey(samples, meta, cfg);
 fig_survey = plot_multi_prn_survey(survey, paths, cfg);
 
+% 步骤 5：保存分析产物（图片 + 摘要文件）。
 save_info = save_analysis_artifacts(meta, paths, figures, acq_result, cfg);
 
-% 额外保存多星对比图
+% 额外保存多星对比图（优先用 exportgraphics 控制分辨率，失败则回退到 saveas）。
 if cfg.save_png && isfield(save_info, 'analysis_dir')
     survey_png = fullfile(save_info.analysis_dir, 'multi_prn_survey.png');
     try
@@ -47,13 +71,14 @@ if cfg.save_png && isfield(save_info, 'analysis_dir')
     end
 end
 
+% 在命令窗口打印分析摘要，便于快速确认结果。
 fprintf('分析结果已保存至：\n  %s\n', save_info.analysis_dir);
 if acq_result.detected
     detected_str = '成功';
 else
     detected_str = '失败';
 end
-fprintf('捕获结果：%s | 峰值指标：%.3f | 次峰比：%.3f\n', ...
+fprintf('PRN1 捕获结果：%s | 峰值指标：%.3f | 次峰比：%.3f\n', ...
     detected_str, acq_result.peak_metric, acq_result.second_peak_ratio);
 fprintf('最佳多普勒：%.1f Hz | 码相位：%d 个采样点\n', ...
     acq_result.best_doppler_hz, acq_result.best_code_phase_samples);
@@ -62,36 +87,38 @@ n_detected = sum(survey.detected);
 if n_detected > 0
     detected_prns = survey.prn_list(survey.detected);
     prn_str = strjoin(arrayfun(@(x) num2str(x), detected_prns, 'UniformOutput', false), ', ');
-    fprintf('多星搜索：PRN %s 捕获成功（共 %d/%d 颗）\n', prn_str, n_detected, numel(survey.prn_list));
+    fprintf('多星扫描：PRN %s 捕获成功（共 %d/%d 颗）\n', prn_str, n_detected, numel(survey.prn_list));
 else
-    fprintf('多星搜索：全部 %d 颗星未捕获\n', numel(survey.prn_list));
+    fprintf('多星扫描：全部 %d 颗星未捕获\n', numel(survey.prn_list));
 end
 
+% 将所有中间结果打包返回，方便在命令窗口中交互式进一步分析。
 result = struct( ...
-    'samples', samples, ...
-    'meta', meta, ...
-    'paths', paths, ...
-    'figures', figures, ...
+    'samples',    samples, ...
+    'meta',       meta, ...
+    'paths',      paths, ...
+    'figures',    figures, ...
     'acq_result', acq_result, ...
-    'survey', survey, ...
+    'survey',     survey, ...
     'fig_survey', fig_survey, ...
-    'save_info', save_info);
+    'save_info',  save_info);
 end
+
 
 function cfg = build_default_cfg()
-% 默认配置优先服务”先跑通分析链”，而不是追求最重的搜索或绘图分辨率。
+%BUILD_DEFAULT_CFG 构建分析链的默认配置，目标是”先跑通、快出结果”。
 cfg = struct();
-cfg.capture_root_dir = gnss_rx_resolve_data_dir();
-cfg.time_plot_samples = 5000;
-cfg.scatter_plot_samples = 20000;
-cfg.spectrum_fft_len = 65536;
-cfg.noncoherent_ms = 10;
-cfg.doppler_min_hz = -10000;
-cfg.doppler_max_hz = 10000;
-cfg.doppler_step_hz = 500;
-cfg.detection_threshold = 2.5;
-cfg.figure_visibility = 'on';
-cfg.save_png = true;
-cfg.save_json_summary = true;
-cfg.save_mat_summary = true;
+cfg.capture_root_dir     = gnss_rx_resolve_data_dir();
+cfg.time_plot_samples    = 5000;        % 时域图采样点数
+cfg.scatter_plot_samples = 20000;       % IQ 散点图采样点数
+cfg.spectrum_fft_len     = 65536;       % 频谱 FFT 点数
+cfg.noncoherent_ms       = 10;          % 非相干累加毫秒数
+cfg.doppler_min_hz       = -10000;      % Doppler 搜索下限（Hz）
+cfg.doppler_max_hz       =  10000;      % Doppler 搜索上限（Hz）
+cfg.doppler_step_hz      = 500;         % Doppler 搜索步长（Hz）
+cfg.detection_threshold  = 2.5;         % 次峰比判决门限
+cfg.figure_visibility    = 'on';        % 图窗显示（'off' 用于无头批量模式）
+cfg.save_png             = true;        % 是否保存 PNG 图片
+cfg.save_json_summary    = true;        % 是否保存 JSON 摘要
+cfg.save_mat_summary     = true;        % 是否保存 MAT 摘要
 end

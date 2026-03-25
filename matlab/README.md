@@ -97,13 +97,21 @@ GNSS_RX_DATA_DIR = '/mnt/hgfs/GongXiangDocument/GNSS_RX_Data';
 1. 确认 `GNSS_RX_Data` 目录中已经有接收端导出的 `.sc16 + .json` 文件对。
 2. 如有需要，先同步 `matlab/` 到共享目录。
 3. 配置 `gnss_rx_user_paths.m` 或设置 `GNSS_RX_DATA_DIR`。
-4. 在 MATLAB 中打开 `scripts/run_capture_analysis.m` 并运行：
+4. 在 MATLAB 中切换到本目录，运行主入口：
 
 ```matlab
+cd('C:\VMwareVirtualMachines\GongXiangDocument\GNSS_RX_matlab')
 run_capture_analysis
 ```
 
 不传参时，脚本会自动分析数据目录下最新的一组有效采集。
+
+如果你是在 Linux 本机 MATLAB 中运行，也可以直接进入仓库目录：
+
+```matlab
+cd('/home/shen/projects/GNSS_RX/matlab')
+run_capture_analysis
+```
 
 如果你想分析指定采集，也可以传入 stem 路径或 `.json` 路径。
 
@@ -173,3 +181,20 @@ PRN 通常接近 1.0 附近的噪底水平。
 - 默认采集根目录仍兼容 VMware 共享目录路径。
 - `find_latest_capture.m` 会自动跳过 `analysis/` 目录，只从原始采集目录中找最新文件。
 - 捕获搜索支持 PRN1~32，单 PRN 详细结果来自 `run_prn1_acquisition.m`，多星对比来自 `run_multi_prn_survey.m`。
+
+## 常见联调命令
+
+如果你想从头走完整条链路，推荐按这个顺序：
+
+```bash
+cd /home/shen/projects/GNSS_RX
+PYTHONPATH=src python3 scripts/record_rx.py --dry-run
+PYTHONPATH=/home/shen/projects/gnss_tx/src:src python3 scripts/gen_synthetic_capture.py --snr-db 10 --duration 2
+./scripts/sync_matlab.sh /mnt/hgfs/GongXiangDocument/GNSS_RX_matlab
+```
+
+然后在 MATLAB 中运行：
+
+```matlab
+run_capture_analysis
+```

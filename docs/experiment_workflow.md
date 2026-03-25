@@ -31,7 +31,7 @@
 
 当前实现默认将采集结果存放到 VMware 共享目录：
 
-`/mnt/hgfs/GongXiangDocument/GNSS_RX_Data/<YYYY>/<YYYY-MM-DD>/`
+`/mnt/hgfs/GongXiangDocument/GNSS_RX_Data/<YYYY>/<YYYY_MM_DD>/`
 
 文件 stem 不再建议手工命名，而是由程序自动生成，默认格式为：
 
@@ -48,8 +48,8 @@
 
 推荐在宿主机 MATLAB 中按以下步骤操作：
 
-1. 打开 `GNSS_RX/matlab/scripts/run_capture_analysis.m`
-2. 确认 `cfg.capture_root_dir` 指向实际可见的共享目录根路径
+1. 确认 `GNSS_RX/matlab/gnss_rx_user_paths.m` 已填写实际数据目录，或设置了 `GNSS_RX_DATA_DIR`
+2. 打开 `GNSS_RX/matlab/scripts/run_capture_analysis.m`
 3. 直接运行 `run_capture_analysis`
    - 若不传参，脚本会自动寻找共享目录下最新的一组 `.sc16 + .json`
    - 若传入 stem 或 `.json` 路径，则会分析指定采集
@@ -58,6 +58,7 @@
    - `overview_spectrum.png`
    - `iq_scatter.png`
    - `prn1_acquisition.png`
+   - `multi_prn_survey.png`
    - `analysis_summary.json`
    - `analysis_summary.mat`
 

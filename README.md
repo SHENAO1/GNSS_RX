@@ -41,6 +41,17 @@ GNSS_RX/
 └── tests/              单元测试与集成测试
 ```
 
+各目录的细化说明和运行方法见对应 README：
+
+- [`configs/README.md`](configs/README.md)：如何选择和切换接收配置
+- [`docs/README.md`](docs/README.md)：文档索引，以及按文档复现实验的入口命令
+- [`experiments/README.md`](experiments/README.md)：实验记录怎么写，如何复现实验
+- [`matlab/README.md`](matlab/README.md)：MATLAB 离线分析的运行方法
+- [`results/README.md`](results/README.md)：采集结果和分析结果的目录说明
+- [`scripts/README.md`](scripts/README.md)：各 CLI 脚本的直接运行方式
+- [`src/README.md`](src/README.md)：Python 包结构与调用关系
+- [`tests/README.md`](tests/README.md)：测试命令和验证范围
+
 ---
 
 ## 环境依赖
