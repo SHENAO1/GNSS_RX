@@ -1,0 +1,17 @@
+# 用于 PRN1 零中频采集的接收端基线配置。
+# 这个文件刻意只描述 RX 侧参数；与之匹配的 TX 配置
+# 仍由同级的 gnss_tx 项目维护。
+usrp_addr: "type=b200"
+center_freq_hz: 100000000.0
+sample_rate_hz: 4092000.0
+rx_gain_db: 20.0
+bandwidth_hz: 4092000.0
+antenna: "RX2"
+duration_s: 2.0
+output_base_dir: "/mnt/hgfs/GongXiangDocument/GNSS_RX_Data"
+use_timestamped_stem: true
+clock_source: "internal"
+time_source: "internal"
+signal_mode: "spread"
+prn_id: 1
+tx_profile_reference: "../gnss_tx/configs/tx_b210_visible_spectrum.yaml"

@@ -1,0 +1,19 @@
+# RX 设备固定配置：USRP serial=193982（空收 OTA 版本）
+# 在 rx_prn1_capture.yaml 基础上，将 usrp_addr 固定到序列号，
+# 防止双USRP环境下随机选择错误设备。
+# OTA 说明：无衰减器，rx_gain 提高至 35 dB 补偿空间路径损耗；
+# 若频谱明显饱和（FM强站），可适当降低或改变 center_freq。
+usrp_addr: "serial=193982"
+center_freq_hz: 150000000.0
+sample_rate_hz: 4092000.0
+rx_gain_db: 35.0
+bandwidth_hz: 4092000.0
+antenna: "RX2"
+duration_s: 2.0
+output_base_dir: "/mnt/hgfs/GongXiangDocument/GNSS_RX_Data"
+use_timestamped_stem: true
+clock_source: "internal"
+time_source: "internal"
+signal_mode: "spread"
+prn_id: 1
+tx_profile_reference: "../gnss_tx/configs/tx_b210_sn8003272.yaml"

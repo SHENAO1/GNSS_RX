@@ -1,0 +1,17 @@
+% GNSS_RX 用户本地路径配置模板
+%
+% 使用方法：
+%   1. 将此文件复制为 matlab/gnss_rx_user_paths.m
+%   2. 修改下方 GNSS_RX_DATA_DIR 的值为你本地实际路径
+%   3. 不要将 gnss_rx_user_paths.m 提交到 git（已在 .gitignore 中排除）
+%
+% 典型路径值：
+%   Windows (VMware 共享文件夹)：'C:\VMwareVirtualMachines\GongXiangDocument\GNSS_RX_Data'
+%   Linux   (VMware hgfs 挂载)：  '/mnt/hgfs/GongXiangDocument/GNSS_RX_Data'
+%   本地独立目录：                 'D:\GNSS_Data'  或  '/home/yourname/gnss_data'
+%
+% 此目录应包含按日期组织的 .sc16 + .json 采集文件对，例如：
+%   <GNSS_RX_DATA_DIR>/2026/2026_03_25/<stem>.sc16
+%   <GNSS_RX_DATA_DIR>/2026/2026_03_25/<stem>.json
+
+GNSS_RX_DATA_DIR = '/mnt/hgfs/GongXiangDocument/GNSS_RX_Data';
