@@ -6,7 +6,7 @@
 ## 当前配置文件
 
 - `rx_prn1_capture.yaml`
-  默认基线配置，适合标准 PRN1 零中频采集。
+  默认基线配置，适合标准单星零中频采集；默认 `prn_id=1`，也可被 CLI 覆盖为 `1~32`。
 - `rx_prn1_sn193982.yaml`
   固定到 `serial=193982` 的 OTA 配置，避免双 USRP 环境选错设备。
 
@@ -51,4 +51,14 @@ PYTHONPATH=/home/shen/projects/gnss_tx/src:src \
 ```bash
 cd /home/shen/projects/GNSS_RX
 PYTHONPATH=src python3 scripts/record_rx.py --config configs/rx_prn1_capture.yaml --dry-run
+```
+
+也可以在不改 YAML 的情况下临时切换目标 PRN：
+
+```bash
+cd /home/shen/projects/GNSS_RX
+PYTHONPATH=src python3 scripts/record_rx.py \
+  --config configs/rx_prn1_capture.yaml \
+  --prn-id 7 \
+  --dry-run
 ```

@@ -1,6 +1,6 @@
 # GNSS_RX
 
-`GNSS_RX` 是 `gnss_tx` 发射机工作区的配套接收机项目。它通过兼容 UHD 的 USRP 采集单通道零中频 IQ 数据，以 `SC16` 格式存储，并附带 JSON 元数据，供 MATLAB 离线执行 GPS L1 C/A PRN1 捕获。
+`GNSS_RX` 是 `gnss_tx` 发射机工作区的配套接收机项目。它通过兼容 UHD 的 USRP 采集单通道零中频 IQ 数据，以 `SC16` 格式存储，并附带 JSON 元数据，供 MATLAB 离线执行 GPS L1 C/A 单 PRN 捕获与多星对比分析。
 
 ## 功能概述
 
@@ -8,7 +8,7 @@
 - 自动生成带时间戳和参数标签的文件名
 - `.sc16`（交织 int16 IQ）+ `.json`（元数据）文件对输出
 - 无硬件合成信号生成，用于算法验证
-- MATLAB 离线分析链：加载、绘图、PRN1 捕获、多星搜索、结果归档
+- MATLAB 离线分析链：加载、绘图、PRN1 详细捕获、多星搜索、结果归档
 
 当前发射端 / 接收端约定：
 
@@ -18,6 +18,10 @@ sample_rate_hz = 4.092e6
 signal_mode    = spread
 prn_id         = 1
 ```
+
+说明：
+- RX 运行时配置、文件命名和 metadata 当前支持记录 `PRN1~32`。
+- MATLAB 详细二维捕获图入口仍是 `run_prn1_acquisition.m`，因此“单 PRN 详细捕获”目前只对 `PRN1` 提供专用图；其他 PRN 请通过 `run_multi_prn_survey.m` 判断是否捕获成功。
 
 ---
 
@@ -211,12 +215,30 @@ PYTHONPATH=src python3 scripts/record_rx.py \
   --config configs/rx_prn1_capture.yaml
 ```
 
+切换接收记录的目标 PRN：
+
+```bash
+PYTHONPATH=src python3 scripts/record_rx.py \
+  --config configs/rx_prn1_capture.yaml \
+  --prn-id 7 \
+  --dry-run
+```
+
 覆盖关键参数（命令行参数优先级高于 YAML）：
 
 ```bash
 PYTHONPATH=src python3 scripts/record_rx.py \
   --duration 5 \
   --rx-gain 30
+```
+
+同时覆盖接收记录的 PRN 标签：
+
+```bash
+PYTHONPATH=src python3 scripts/record_rx.py \
+  --duration 5 \
+  --rx-gain 30 \
+  --prn-id 7
 ```
 
 指定固定设备（双 USRP 环境避免随机选错）：
@@ -232,6 +254,7 @@ PYTHONPATH=src python3 scripts/record_rx.py \
 
 ```
 usage: record_rx.py [-h] [--config CONFIG]
+                    [--prn-id PRN_ID]
                     [--center-freq CENTER_FREQ_HZ]
                     [--sample-rate SAMPLE_RATE_HZ]
                     [--rx-gain RX_GAIN_DB]
@@ -245,6 +268,7 @@ usage: record_rx.py [-h] [--config CONFIG]
 | 参数 | 说明 | 示例 |
 |------|------|------|
 | `--config` | YAML 配置文件路径 | `--config configs/rx_prn1_capture.yaml` |
+| `--prn-id` | 覆盖目标 PRN 编号（1~32） | `--prn-id 7` |
 | `--center-freq` | 中心频率（Hz） | `--center-freq 150e6` |
 | `--sample-rate` | 采样率（Hz） | `--sample-rate 4092000` |
 | `--rx-gain` | 接收增益（dB） | `--rx-gain 35` |
@@ -291,6 +315,8 @@ PYTHONPATH=src python3 scripts/record_rx.py \
 在天线或线缆回环到位之前，可以用合成信号验证捕获算法是否正确工作。
 
 ### 生成合成 PRN1 采集文件
+
+> 当前 `gen_synthetic_capture.py` 仍固定生成 PRN1 合成信号，用于验证 MATLAB 现有的 PRN1 详细捕获链。它不会自动跟随 `record_rx.py --prn-id` 切换。
 
 ```bash
 cd /home/shen/projects/GNSS_RX
@@ -348,7 +374,7 @@ result = run_capture_analysis( ...
 **预期结果：**
 
 - `detected = true`，控制台打印 `捕获结果：成功`
-- `multi_prn_survey.png`：PRN1 柱子明显高于红色阈值线（次峰比 ≥ 2.5），PRN2~32 接近噪底
+- `multi_prn_survey.png`：目标 PRN 对应的柱子应明显高于红色阈值线（次峰比 ≥ 2.5），其他 PRN 通常接近噪底
 
 ---
 
@@ -389,7 +415,7 @@ PYTHONPATH=src python3 -m unittest tests.test_flowgraph -v
 示例：
 
 ```
-20260325_143000_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur2p0s
+20260325_143000_rawiq_sc16_zeroif_prn7_spread_sr4092000_cf100000000_dur2p0s
 ```
 
 | 片段 | 含义 |
@@ -398,7 +424,7 @@ PYTHONPATH=src python3 -m unittest tests.test_flowgraph -v
 | `rawiq` | 原始 IQ 数据标识 |
 | `sc16` | 样本格式 |
 | `zeroif` | 零中频模式 |
-| `prn1` | PRN 编号 |
+| `prn7` | PRN 编号 |
 | `spread` | 信号模式 |
 | `sr4092000` | 采样率 4.092 MHz |
 | `cf100000000` | 中心频率 100 MHz |
@@ -419,9 +445,9 @@ PYTHONPATH=src python3 -m unittest tests.test_flowgraph -v
   "bandwidth_hz": 4092000.0,
   "center_freq_hz": 100000000.0,
   "complex_layout": "iq_int16_interleaved_le",
-  "data_file": "20260325_143000_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur2p0s.sc16",
+  "data_file": "20260325_143000_rawiq_sc16_zeroif_prn7_spread_sr4092000_cf100000000_dur2p0s.sc16",
   "duration_s": 2.0,
-  "prn_id": 1,
+  "prn_id": 7,
   "rx_gain_db": 20.0,
   "sample_format": "sc16",
   "sample_rate_hz": 4092000.0,
@@ -482,7 +508,7 @@ PYTHONPATH=src python3 scripts/record_rx.py
 |------|------|
 | Tone bring-up | 发射单音，录制 2 秒，用 FFT 确认窄峰 |
 | Spread capture | 切回 spread 模式，录制 2 秒 |
-| MATLAB acquisition | 运行 `run_capture_analysis()`，检查 PRN1 捕获峰值 |
+| MATLAB acquisition | 运行 `run_capture_analysis()`；若是 PRN1，看详细捕获图；若是其他 PRN，看多星扫描结果 |
 | 硬件回环验证 | TX→30~50 dB 衰减器→RX2，预期与软件回环结果一致 |
 
 详细说明见 [docs/experiment_workflow.md](docs/experiment_workflow.md)。

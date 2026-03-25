@@ -32,6 +32,11 @@ class TestMetadata(unittest.TestCase):
         self.assertEqual(parsed["data_file"], "demo.sc16")
         self.assertEqual(parsed["signal_mode"], "spread")
 
+    def test_metadata_preserves_selected_prn(self) -> None:
+        config = RxRuntimeConfig(bandwidth_hz=4.092e6, prn_id=7)
+        metadata = build_capture_metadata(config=config, samples_captured=2048, data_path=Path("demo.sc16"))
+        self.assertEqual(metadata.prn_id, 7)
+
 
 if __name__ == "__main__":
     unittest.main()

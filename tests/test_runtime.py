@@ -9,6 +9,8 @@ from pathlib import Path
 from gnss_rx.runtime import (
     DEFAULT_OUTPUT_BASE_DIR,
     RxRuntimeConfig,
+    SUPPORTED_PRN_MAX,
+    SUPPORTED_PRN_MIN,
     apply_overrides,
     build_timestamped_capture_stem,
     load_rx_runtime_config,
@@ -85,6 +87,17 @@ class TestRxRuntimeConfig(unittest.TestCase):
         data_path, metadata_path = resolve_capture_paths(Path("/project"), config)
         self.assertEqual(str(data_path), "/project/results/captures/manual_capture.sc16")
         self.assertEqual(str(metadata_path), "/project/results/captures/manual_capture.json")
+
+    def test_build_timestamped_capture_stem_tracks_selected_prn(self) -> None:
+        config = RxRuntimeConfig(bandwidth_hz=4.092e6, prn_id=7)
+        stem = build_timestamped_capture_stem(config, datetime(2026, 3, 23, 19, 5, 30))
+        self.assertIn("_prn7_", stem)
+
+    def test_prn_range_validation_rejects_values_outside_supported_range(self) -> None:
+        with self.assertRaises(ValueError):
+            RxRuntimeConfig(prn_id=SUPPORTED_PRN_MIN - 1, bandwidth_hz=4.092e6).validate()
+        with self.assertRaises(ValueError):
+            RxRuntimeConfig(prn_id=SUPPORTED_PRN_MAX + 1, bandwidth_hz=4.092e6).validate()
 
 
 if __name__ == "__main__":

@@ -21,8 +21,11 @@ from gnss_rx.runtime import (
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="录制一段 GNSS_RX 零中频采集数据，用于离线 PRN1 捕获。")
+    parser = argparse.ArgumentParser(
+        description="录制一段 GNSS_RX 零中频采集数据，用于离线单星 PRN 捕获与多星对比分析。"
+    )
     parser.add_argument("--config", default="configs/rx_prn1_capture.yaml")
+    parser.add_argument("--prn-id", type=int)
     parser.add_argument("--center-freq", type=float, dest="center_freq_hz")
     parser.add_argument("--sample-rate", type=float, dest="sample_rate_hz")
     parser.add_argument("--rx-gain", type=float, dest="rx_gain_db")
@@ -40,6 +43,7 @@ def main(argv: list[str] | None = None) -> int:
     config = apply_overrides(
         config,
         center_freq_hz=args.center_freq_hz,
+        prn_id=args.prn_id,
         sample_rate_hz=args.sample_rate_hz,
         rx_gain_db=args.rx_gain_db,
         bandwidth_hz=args.bandwidth_hz,

@@ -12,6 +12,8 @@ DEFAULT_OUTPUT_BASE_DIR = os.environ.get(
     "GNSS_RX_DATA_DIR",
     "/mnt/hgfs/GongXiangDocument/GNSS_RX_Data",
 )
+SUPPORTED_PRN_MIN = 1
+SUPPORTED_PRN_MAX = 32
 TIMESTAMP_FORMAT = "%Y%m%d_%H%M%S"
 DATE_DIRECTORY_FORMAT = "%Y_%m_%d"
 
@@ -49,8 +51,10 @@ class RxRuntimeConfig:
             raise ValueError("antenna 不能为空。")
         if self.signal_mode not in {"spread", "tone"}:
             raise ValueError("signal_mode 必须是以下之一：spread、tone。")
-        if self.prn_id != 1:
-            raise NotImplementedError("v1 目前只支持 PRN1 的采集元数据。")
+        if not SUPPORTED_PRN_MIN <= self.prn_id <= SUPPORTED_PRN_MAX:
+            raise ValueError(
+                f"prn_id 必须在支持范围 {SUPPORTED_PRN_MIN}~{SUPPORTED_PRN_MAX} 内。"
+            )
         if not self.output_base_dir:
             raise ValueError("output_base_dir 不能为空。")
         if self.output_stem is not None and not self.output_stem:
@@ -177,6 +181,8 @@ def format_matlab_handoff(config: RxRuntimeConfig, *, data_path: Path, metadata_
 __all__ = [
     "DEFAULT_OUTPUT_BASE_DIR",
     "RxRuntimeConfig",
+    "SUPPORTED_PRN_MAX",
+    "SUPPORTED_PRN_MIN",
     "apply_overrides",
     "build_timestamped_capture_stem",
     "format_capture_tag",

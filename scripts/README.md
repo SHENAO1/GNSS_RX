@@ -33,6 +33,7 @@ PYTHONPATH=src python3 scripts/record_rx.py --config configs/rx_prn1_capture.yam
 cd /home/shen/projects/GNSS_RX
 PYTHONPATH=src python3 scripts/record_rx.py \
   --config configs/rx_prn1_capture.yaml \
+  --prn-id 7 \
   --duration 5 \
   --rx-gain 30
 ```
@@ -70,3 +71,7 @@ PYTHONPATH=src python3 scripts/record_rx.py
 ```matlab
 run_capture_analysis
 ```
+
+说明：
+- `record_rx.py` 现在支持 `--prn-id` 覆盖，影响采集 metadata、文件命名和 MATLAB 交接摘要。
+- `gen_synthetic_capture.py` 目前仍固定生成 PRN1 合成信号，用于验证 MATLAB 现有的 PRN1 详细捕获链。

@@ -11,7 +11,8 @@
    - 使用相同的零中频配置录制
 3. `MATLAB acquisition`
    - 加载 `.sc16 + .json`
-   - 搜索 `PRN1`
+   - 若目标是 `PRN1`，查看详细捕获图
+   - 无论目标 PRN 是多少，都查看多星扫描结果
    - 运行 `matlab/scripts/run_capture_analysis.m`
    - 检查生成的时域图、频谱图、IQ 散点图和 acquisition 图
 4. `Archive results`
@@ -24,8 +25,8 @@
 接收端的第一个里程碑不是导航解码，而是：
 
 - 采集文件能够正确加载
-- PRN1 能产生明显的捕获峰值
-- 其他 PRN 不会出现同等级的峰值
+- 目标 PRN 能在多星扫描中产生明显捕获峰值
+- 非目标 PRN 不会出现同等级的峰值
 
 ## 建议的文件命名
 
@@ -39,7 +40,7 @@
 
 例如：
 
-- `20260323_190530_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur2p0s`
+- `20260323_190530_rawiq_sc16_zeroif_prn7_spread_sr4092000_cf100000000_dur2p0s`
 - `20260323_191200_rawiq_sc16_zeroif_prn1_tone_sr4092000_cf100000000_dur2p0s`
 
 同一次采集生成的 `.sc16` 和 `.json` 会自动共享同一个 stem，因此 MATLAB 端应始终成对读取共享目录中的同名文件。
@@ -57,7 +58,7 @@
    - `overview_time.png`
    - `overview_spectrum.png`
    - `iq_scatter.png`
-   - `prn1_acquisition.png`
+   - `prn1_acquisition.png`（仅当目标就是 PRN1 时直接代表详细捕获图）
    - `multi_prn_survey.png`
    - `analysis_summary.json`
    - `analysis_summary.mat`

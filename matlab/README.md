@@ -1,7 +1,7 @@
 # GNSS_RX MATLAB 工作区
 
 这个目录提供 `GNSS_RX` 的 MATLAB 离线分析链，负责读取接收端导出的
-`.sc16 + .json` 采集文件，完成快速可视化、`PRN1` 捕获和结果归档。
+`.sc16 + .json` 采集文件，完成快速可视化、`PRN1` 详细捕获、多星对比和结果归档。
 
 ## 功能介绍
 
@@ -10,7 +10,7 @@
 - 自动加载一组 `GNSS_RX` 采集文件：`.sc16 + .json`
 - 自动解析采集根目录，支持用户本地配置、环境变量和默认路径
 - 绘制基础图像：时域、频谱、IQ 散点
-- 运行带 Doppler 搜索的离线 `PRN1` 捕获
+- 运行带 Doppler 搜索的离线 `PRN1` 详细捕获
 - 运行 `PRN1~32` 多星对比搜索，快速确认是否真的抓到目标星
 - 将图片和摘要结果保存到采集日期目录下的 `analysis/<stem>/`
 
@@ -26,6 +26,7 @@
   生成时域图、频谱图和 IQ 散点图。
 - `functions/run_prn1_acquisition.m`
   对 PRN1 做 Doppler + code phase 搜索。
+  当前详细二维捕获图只覆盖 PRN1。
 - `functions/run_multi_prn_survey.m`
   对 PRN1~32 做批量搜索，生成多星对比结果。
 - `functions/save_analysis_artifacts.m`
@@ -173,14 +174,14 @@ run_capture_analysis('C:\...\20260325_090729_..._dur2p0s\20260325_090729_..._dur
 - 蓝色柱：未捕获
 - 红色虚线：判决门限，默认 2.5
 
-当接收端真正收到 PRN1 信号时，PRN1 对应的柱子应明显高于阈值线，其余
+当接收端真正收到目标 PRN 信号时，该 PRN 对应的柱子应明显高于阈值线，其余
 PRN 通常接近 1.0 附近的噪底水平。
 
 ## 说明
 
 - 默认采集根目录仍兼容 VMware 共享目录路径。
 - `find_latest_capture.m` 会自动跳过 `analysis/` 目录，只从原始采集目录中找最新文件。
-- 捕获搜索支持 PRN1~32，单 PRN 详细结果来自 `run_prn1_acquisition.m`，多星对比来自 `run_multi_prn_survey.m`。
+- 捕获搜索支持 PRN1~32；其中单 PRN 详细结果当前只对 `PRN1` 提供，其他 PRN 请以 `run_multi_prn_survey.m` 的结果为主。
 
 ## 常见联调命令
 

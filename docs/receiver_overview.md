@@ -3,7 +3,7 @@
 ## 目标
 
 `GNSS_RX` 负责录制原始零中频采集数据，并将其交给 MATLAB，对同级
-`gnss_tx` 项目发射的 PRN1 信号执行离线捕获。
+`gnss_tx` 项目发射的单星 GPS L1 C/A 信号执行离线捕获。
 
 v1 链路如下：
 
@@ -42,10 +42,10 @@ USRP source -> zero-IF complex samples -> SC16 writer -> JSON sidecar
 | `clock_source` | `"internal"` | UHD 时钟源，双 USRP OTA 时可改为 `"external"` |
 | `time_source` | `"internal"` | UHD 时间源 |
 | `signal_mode` | `"spread"` | 信号模式，`spread`（扩频）或 `tone`（单音） |
-| `prn_id` | `1` | PRN 编号，v1 只支持 1 |
+| `prn_id` | `1` | PRN 编号，当前支持 `1~32` |
 | `tx_profile_reference` | 相对路径 | 对应发射端配置文件的引用路径（仅记录，不做解析） |
 
-**`validate()` 方法**：对所有字段做范围和逻辑校验，返回 `self`。不合法时抛出 `ValueError` / `NotImplementedError`。
+**`validate()` 方法**：对所有字段做范围和逻辑校验，返回 `self`。不合法时抛出 `ValueError`。
 
 **`capture_samples` 属性**：`int(round(sample_rate_hz * duration_s))`，用于 `head` 块截断。
 
@@ -169,6 +169,7 @@ usrp_source -> blocks.head(sizeof_gr_complex, capture_samples) -> Sc16CaptureSin
 | 参数 | 说明 |
 |------|------|
 | `--config` | YAML 配置文件路径（默认 `configs/rx_prn1_capture.yaml`） |
+| `--prn-id` | 覆盖目标 PRN 编号（支持 1~32） |
 | `--center-freq` | 覆盖中心频率（Hz） |
 | `--sample-rate` | 覆盖采样率（Hz） |
 | `--rx-gain` | 覆盖接收增益（dB） |
@@ -197,7 +198,7 @@ usrp_source -> blocks.head(sizeof_gr_complex, capture_samples) -> Sc16CaptureSin
 
 **信号生成流程**：
 
-1. 调用 `gnss_tx.signal.spreader.GpsL1CaBpskGenerator(prn_id=1, samples_per_chip, amplitude)` 生成纯净 PRN1 BPSK 基带信号（仅 I 支路，Q 恒为 0）
+1. 调用 `gnss_tx.signal.spreader.GpsL1CaBpskGenerator(prn_id=1, samples_per_chip, amplitude)` 生成纯净 PRN1 BPSK 基带信号（仅 I 支路，Q 恒为 0）；当前合成脚本仍固定使用 PRN1
 2. 叠加复数 AWGN：`noise_power = signal_power / snr_linear`，实部虚部各为 `N(0, noise_power/2)`
 3. 输出文件 stem 末尾追加 `_synthetic` 标签，与真实采集区分
 4. 调用 `write_sc16_file()` 落盘，构建 `CaptureMetadata`（`usrp_addr="synthetic"`, `antenna="synthetic"`），写 JSON
@@ -242,9 +243,9 @@ usrp_source -> blocks.head(sizeof_gr_complex, capture_samples) -> Sc16CaptureSin
   "bandwidth_hz": 4092000.0,
   "center_freq_hz": 100000000.0,
   "complex_layout": "iq_int16_interleaved_le",
-  "data_file": "20260325_143000_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur2p0s.sc16",
+  "data_file": "20260325_143000_rawiq_sc16_zeroif_prn7_spread_sr4092000_cf100000000_dur2p0s.sc16",
   "duration_s": 2.0,
-  "prn_id": 1,
+  "prn_id": 7,
   "rx_gain_db": 20.0,
   "sample_format": "sc16",
   "sample_rate_hz": 4092000.0,
@@ -269,7 +270,7 @@ usrp_source -> blocks.head(sizeof_gr_complex, capture_samples) -> Sc16CaptureSin
 
 stem 命名示例：
 ```
-20260325_143000_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur2p0s
+20260325_143000_rawiq_sc16_zeroif_prn7_spread_sr4092000_cf100000000_dur2p0s
 ```
 
 ---
@@ -308,13 +309,14 @@ stem 命名示例：
 - 自动生成带时间戳和关键采集参数标签的文件 stem
 - CLI 提供 dry-run、设备发现输出和 MATLAB 交接摘要
 - 无硬件合成信号生成（gen_synthetic_capture.py），用于算法验证
-- MATLAB 离线分析链：加载、绘图、PRN1 捕获、多星搜索、结果归档
+- MATLAB 离线分析链：加载、绘图、PRN1 详细捕获、多星搜索、结果归档
 
 ## 当前未实现能力
 
 - 不实现完整 GNSS 接收机链路（无 tracking、无导航解算）
 - 不做实时 acquisition 或多 PRN 并行采集
-- 当前元数据和运行时校验只支持 `PRN1`
+- 当前元数据、文件命名和运行时校验支持 `PRN1~32`
+- MATLAB 的单 PRN 详细二维捕获入口仍固定为 `PRN1`
 - 不包含 MATLAB 算法本体的在线推断部分
 
 ## 验证覆盖
@@ -330,7 +332,7 @@ stem 命名示例：
 
 ## 后续扩展点
 
-- 扩展 PRN1 之外的多 PRN 支持
+- 将 MATLAB 的单 PRN 详细二维捕获入口从 `PRN1` 泛化到任意目标 PRN
 - 增加 SigMF 或更丰富的实验元数据
 - 在不破坏主录制路径的前提下增加预览、实时频谱或在线 acquisition 分支
 - 引入更强的结果归档与实验记录机制
