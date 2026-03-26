@@ -131,13 +131,35 @@ PYTHONPATH=src python3 scripts/record_rx.py --config configs/rx_all32prn.yaml
 
 ---
 
-### 步骤 4：增加 MATLAB 积分时间（提升算法灵敏度）
+### ✅ 步骤 4：增加 MATLAB 积分时间（提升算法灵敏度）
 
-当前 MATLAB 每颗 PRN 只积分 10 ms。将积分时间增加到 100 ms（10× 非相干累加），理论 SNR 提升约 10 dB：
+非相干累加时间从 10 ms 增加到 100 ms（10×），理论 SNR 提升约 **+10 dB**：
 
-修改 `matlab/functions/run_prn_acquisition.m`（或 `run_multi_prn_survey.m`）中的积分时间参数。
+| `noncoherent_ms` | 积分增益 | 说明 |
+|-----------------|---------|------|
+| 10 ms（原值） | 基准 | 实验④次峰比约 1.4 |
+| 100 ms（新值） | **+10 dB** | 预期次峰比超过 2.5 |
 
-- [ ] 此步在硬件链路验证通过后再考虑，主要用于提升灵敏度下限
+已修改以下三处默认值（均改为 100）：
+- `matlab/scripts/run_capture_analysis.m`：`cfg.noncoherent_ms = 100`
+- `matlab/functions/run_multi_prn_survey.m`：`cfg.noncoherent_ms = 100`
+- `matlab/functions/run_prn_acquisition.m`：`cfg.noncoherent_ms = 100`
+
+> 注意：2 秒采集文件含 2000 ms 数据，100 ms 积分足够。运行时间约为原来 10×。
+
+**amplitude 不可超过 0.5 的原因**：
+
+对 N 颗 PRN 叠加，信号峰值 = √N × amplitude，须不超过 DAC 上限 1.0：
+
+| amplitude | N=4 峰值 | DAC 状态 |
+|-----------|---------|----------|
+| 0.5 | √4 × 0.5 = **1.0** | 安全上限 ✅ |
+| 1.0 | √4 × 1.0 = **2.0** | 削波 ❌ |
+| 2.0 | √4 × 2.0 = **4.0** | 严重削波 ❌ |
+
+削波会破坏 C/A 码的自相关特性，使相关峰变宽消失，不可通过提升 amplitude 代替 tx_gain。
+
+- [x] 已修改 MATLAB 积分时间为 100 ms
 
 ---
 

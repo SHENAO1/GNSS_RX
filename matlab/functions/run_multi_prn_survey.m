@@ -140,7 +140,7 @@ if ~isfield(cfg, 'prn_list') || isempty(cfg.prn_list)
     cfg.prn_list = 1:32;            % 默认搜索全部 32 颗 GPS 卫星
 end
 if ~isfield(cfg, 'noncoherent_ms') || isempty(cfg.noncoherent_ms)
-    cfg.noncoherent_ms = 10;        % 非相干累加毫秒数
+    cfg.noncoherent_ms = 100;       % 非相干累加毫秒数（100 ms ≈ +10 dB vs 10 ms）
 end
 if ~isfield(cfg, 'doppler_min_hz') || isempty(cfg.doppler_min_hz)
     cfg.doppler_min_hz = -10000;    % Doppler 搜索下限（Hz）
