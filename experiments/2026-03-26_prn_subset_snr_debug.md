@@ -15,8 +15,12 @@
 | ①    | `tx_b210_visible_spectrum.yaml --tx-gain 20` | 20 dB | 1.0 | PRN1（单星） | **3.216** | **捕获成功** |
 | ②    | `--prn-ids 1,5,10,15`（默认配置） | 0 dB | 0.25 | 4 星叠加 | 1.011 | 失败 |
 | ③    | `tx_b210_visible_spectrum.yaml --prn-ids 1,5,10,15 --amplitude 0.5` | 10 dB | 0.5 | 4 星叠加 | 1.001 | 失败 |
+| ④    | `tx_b210_visible_spectrum.yaml --prn-ids 1,5,10,15 --amplitude 0.5 --tx-gain 30`（等 TX 启动后再采集） | 30 dB | 0.5 | 4 星叠加 | ~1.4（PRN1）/ ~1.35（PRN5,10）/ ~1.25（PRN15） | **部分可见，未过门限** |
 
-> 三次 RX 均使用 `--config configs/rx_all32prn.yaml`，采集时长 2 秒。
+> 四次 RX 均使用 `--config configs/rx_all32prn.yaml`，采集时长 2 秒。
+
+**实验④关键发现**：PRN 1、5、10、15 的次峰比已明显高于其余 28 颗（~1.0），
+**信号链路和码选择均正确**，仅差 SNR 不足以过 2.5 门限。
 
 ---
 
@@ -64,7 +68,7 @@ per_prn_amplitude = amplitude × tx_scale(tx_gain) / sqrt(N)
 
 按优先级依次尝试，每步确认后再进行下一步。
 
-### 步骤 1：验证 TX 启动时序（解决原因 A）
+### ✅ 步骤 1：验证 TX 启动时序（解决原因 A）
 
 TX 启动后**等待 5~10 秒**再启动 RX，确保 TX 已稳定出流：
 
@@ -80,21 +84,22 @@ cd /home/shen/projects/GNSS_RX
 PYTHONPATH=src python3 scripts/record_rx.py --config configs/rx_all32prn.yaml
 ```
 
-- [ ] 预期：若次峰比从 1.001 升至 1.1 以上，说明时序是主因
-- [ ] 若次峰比仍低于 2.5，进行步骤 2
+- [x] 实验④验证：等待 TX 出流后采集，PRN 1/5/10/15 次峰比升至 ~1.4，时序问题已解决
+- [x] 信号链路正确，进入步骤 2 解决 SNR 不足
 
 ---
 
-### 步骤 2：提升 TX 增益（解决原因 B）
+### ⏳ 步骤 2：进一步提升 TX 增益过门限
 
-将 tx_gain 提升到 30 dB，补偿多星 SNR 分摊：
+实验④ tx_gain=30 dB 时次峰比约 1.4，距门限 2.5 仍有约 5 dB 差距。
+继续提升 tx_gain：
 
 ```bash
 # 终端 1
 cd ~/projects/gnss_tx
 PYTHONPATH=src python3 scripts/run_tx.py \
     --config configs/tx_b210_visible_spectrum.yaml \
-    --prn-ids 1,5,10,15 --amplitude 0.5 --tx-gain 30
+    --prn-ids 1,5,10,15 --amplitude 0.5 --tx-gain 40
 
 # 终端 2（等 TX 启动完成）
 cd /home/shen/projects/GNSS_RX
@@ -102,6 +107,7 @@ PYTHONPATH=src python3 scripts/record_rx.py --config configs/rx_all32prn.yaml
 ```
 
 - [ ] 预期：PRN 1、5、10、15 的柱状图超过红线 2.5
+- [ ] 若仍不过，考虑步骤 4（增加 MATLAB 积分时间）代替继续升增益
 
 ---
 
