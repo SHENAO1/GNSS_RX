@@ -11,7 +11,7 @@ function survey = run_multi_prn_survey(samples, meta, cfg)
 %     meta     —— 元数据结构体（来自 load_gnss_rx_capture，须含 sample_rate_hz）
 %     cfg      —— 可选配置，支持以下字段：
 %                   prn_list            要搜索的 PRN 编号列表（默认 1:32）
-%                   noncoherent_ms      非相干累加毫秒数（默认 10）
+%                   noncoherent_ms      非相干累加毫秒数（默认 20）
 %                   doppler_min_hz      Doppler 搜索下限 Hz（默认 -10000）
 %                   doppler_max_hz      Doppler 搜索上限 Hz（默认 10000）
 %                   doppler_step_hz     Doppler 搜索步长 Hz（默认 500）
@@ -140,7 +140,7 @@ if ~isfield(cfg, 'prn_list') || isempty(cfg.prn_list)
     cfg.prn_list = 1:32;            % 默认搜索全部 32 颗 GPS 卫星
 end
 if ~isfield(cfg, 'noncoherent_ms') || isempty(cfg.noncoherent_ms)
-    cfg.noncoherent_ms = 20;        % 非相干累加毫秒数（20 ms 为速度/灵敏度折中）
+    cfg.noncoherent_ms = 10;        % 非相干累加毫秒数（10 ms 为当前默认）
 end
 if ~isfield(cfg, 'doppler_min_hz') || isempty(cfg.doppler_min_hz)
     cfg.doppler_min_hz = -10000;    % Doppler 搜索下限（Hz）

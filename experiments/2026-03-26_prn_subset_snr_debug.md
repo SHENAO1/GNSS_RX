@@ -197,8 +197,8 @@ PYTHONPATH=src python3 scripts/record_rx.py --config configs/rx_all32prn.yaml
 | 积分时间 | 相对 100ms | 预期次峰比（估算） | 运行时间 |
 |---------|-----------|--------------|--------|
 | 100 ms | 基准 | 8.5 | 慢（已验证） |
-| **20 ms** | −7 dB | **~6.4（实测）** | **5× 快（当前默认）** ✅ |
-| **10 ms** | −10 dB | **~5.2（实测）** | **10× 快** ✅ |
+| **20 ms** | −7 dB | **~6.4（实测）** | 5× 快 ✅ |
+| **10 ms** | −10 dB | **~5.2（实测）** | **10× 快（当前默认）** ✅ |
 
 - [x] 用实验⑥采集文件重跑 `noncoherent_ms=20`，次峰比 6.1 / 6.3 / 6.7 / 6.3，**全部通过**（5× 提速）
 - [x] 用实验⑥采集文件重跑 `noncoherent_ms=10`，次峰比 5.1 / 5.6 / 5.6 / 4.6，**全部通过**（10× 提速）
@@ -240,13 +240,72 @@ PYTHONPATH=src python3 scripts/record_rx.py --config configs/rx_all32prn.yaml
 
 ---
 
-### 阶段三：SNR 边界测试（可选）
+### 阶段三：SNR 边界测试
 
-目标：了解链路的 SNR 余量，确定 tx_gain 的最低可用值。
+目标：固定 `noncoherent_ms=20`，逐步降低 `tx_gain`，找到捕获失败的临界点。
 
-- [ ] 固定 `noncoherent_ms=20`，逐步降低 `tx_gain`：35 → 30 → 25 → 20
-- [ ] 记录每个增益下次峰比，找到捕获失败的临界点
-- [ ] 绘制 tx_gain vs 次峰比 曲线
+MATLAB 默认积分时间已固定为 20ms，无需每次传参，直接调用即可。
+
+#### 操作流程
+
+每次实验步骤相同：先在终端 1 启动 TX（等待稳定），再在终端 2 采集，最后在 MATLAB 分析。
+
+**终端 1（TX）—— 每次只改 `--tx-gain` 数值：**
+
+```bash
+# tx_gain = 35（当前已验证基准）
+cd ~/projects/gnss_tx
+PYTHONPATH=src python3 scripts/run_tx.py \
+    --config configs/tx_b210_visible_spectrum.yaml \
+    --prn-ids 1,5,10,15 --amplitude 0.5 --tx-gain 35
+
+# tx_gain = 30
+cd ~/projects/gnss_tx
+PYTHONPATH=src python3 scripts/run_tx.py \
+    --config configs/tx_b210_visible_spectrum.yaml \
+    --prn-ids 1,5,10,15 --amplitude 0.5 --tx-gain 30
+
+# tx_gain = 25
+cd ~/projects/gnss_tx
+PYTHONPATH=src python3 scripts/run_tx.py \
+    --config configs/tx_b210_visible_spectrum.yaml \
+    --prn-ids 1,5,10,15 --amplitude 0.5 --tx-gain 25
+
+# tx_gain = 20
+cd ~/projects/gnss_tx
+PYTHONPATH=src python3 scripts/run_tx.py \
+    --config configs/tx_b210_visible_spectrum.yaml \
+    --prn-ids 1,5,10,15 --amplitude 0.5 --tx-gain 20
+```
+
+**终端 2（RX）—— 每次相同，等 TX 稳定后运行：**
+
+```bash
+cd /home/shen/projects/GNSS_RX
+PYTHONPATH=src python3 scripts/record_rx.py --config configs/rx_all32prn.yaml
+```
+
+**MATLAB 分析 —— 不传第二个参数，直接使用默认 20ms：**
+
+```matlab
+% 不带路径：自动加载最新采集文件
+result = run_capture_analysis();
+
+% 带完整路径（替换为实际文件名）：
+result = run_capture_analysis('C:\VMwareVirtualMachines\GongXiangDocument\GNSS_RX_Data\2026\...\<stem>.json');
+```
+
+#### 结果记录
+
+| tx_gain | 次峰比 PRN1 | 次峰比 PRN5 | 次峰比 PRN10 | 次峰比 PRN15 | 结论 |
+|---------|------------|------------|-------------|-------------|------|
+| 35 dB   | 6.1（实测） | 6.3        | 6.7         | 6.3         | ✅ 通过 |
+| 30 dB   |            |            |             |             | 待测 |
+| 25 dB   |            |            |             |             | 待测 |
+| 20 dB   |            |            |             |             | 待测 |
+
+- [ ] 完成各增益下的捕获测试，填写结果表格
+- [ ] 找到捕获失败的临界 tx_gain 值
 
 ---
 
