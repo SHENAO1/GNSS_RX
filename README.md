@@ -54,6 +54,18 @@ GNSS_RX/
 
 ---
 
+## 架构图索引
+
+项目各模块的架构图均以 [draw.io](https://app.diagrams.net/) 格式保存，可用 draw.io 桌面版或 VS Code draw.io 插件直接打开：
+
+| 文件 | 说明 |
+|------|------|
+| [docs/system_architecture.drawio](docs/system_architecture.drawio) | 系统整体架构：TX → RF → RX → MATLAB 端到端流程 |
+| [src/gnss_rx/architecture.drawio](src/gnss_rx/architecture.drawio) | Python 核心包（`gnss_rx`）模块结构与数据流 |
+| [matlab/architecture.drawio](matlab/architecture.drawio) | MATLAB 离线分析链：`run_capture_analysis` 函数调用关系 |
+
+---
+
 ## 环境依赖
 
 ```bash
@@ -126,13 +138,22 @@ run_capture_analysis
 | 字段 | 说明 |
 |------|------|
 | `sample_format` | `"sc16"` |
+| `complex_layout` | `"iq_int16_interleaved_le"`（I/Q 交错，小端序 int16） |
 | `sample_rate_hz` | 采样率（Hz） |
 | `center_freq_hz` | 中心频率（Hz） |
-| `prn_id` | 目标 PRN（单星模式） |
+| `duration_s` | 配置的采集时长（秒） |
+| `samples_captured` | 实际写入磁盘的样本数 |
+| `rx_gain_db` | 接收增益（dB） |
+| `bandwidth_hz` | RF 滤波器带宽（Hz），未指定时为 `null` |
+| `antenna` | 天线端口（如 `"RX2"`） |
+| `usrp_addr` | USRP 设备地址（如 `"type=b200"`） |
+| `zero_if` | 是否零中频，固定为 `true` |
+| `signal_mode` | TX 端信号模式，`"spread"` 或 `"tone"` |
+| `prn_id` | 目标 PRN（单星模式；多星时仅作兼容保留） |
 | `all_prns` | `true` = 多星叠加模式 |
 | `prn_ids` | 多星模式时为 `[1, 2, ..., 32]`，单星时为 `null` |
-| `signal_mode` | `"spread"` |
-| `complex_layout` | `"iq_int16_interleaved_le"` |
+| `tx_profile_reference` | 对应 TX 端配置文件路径，便于追溯发射参数 |
+| `data_file` | 对应的 `.sc16` 数据文件名（仅文件名，不含路径） |
 
 ---
 

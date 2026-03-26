@@ -99,7 +99,7 @@ PYTHONPATH=/home/shen/projects/gnss_tx/src:src \
 
 | 参数 | 默认值 | 说明 |
 |------|--------|------|
-| `--config` | `configs/rx_prn1_capture.yaml` | 复用采样率、中心频率等参数 |
+| `--config` | `configs/rx_prn1_sn193982.yaml` | 复用采样率、中心频率等参数 |
 | `--prn-id` | `1` | 目标 PRN（单星模式，1~32） |
 | `--all-prns` | 无（flag） | 生成 PRN 1~32 叠加合成信号（需 gnss_tx 在 PYTHONPATH 中） |
 | `--snr-db` | `10` | 信噪比（dB），降低到 0 可测算法鲁棒性 |
