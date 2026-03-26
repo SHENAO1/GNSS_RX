@@ -11,7 +11,7 @@
 |------|------|------|
 | `rx_prn1_capture.yaml` | 单星 PRN1 | 默认基线配置，标准单星零中频采集 |
 | `rx_prn1_sn193982.yaml` | 单星 PRN1 | 固定设备 serial=193982，双 USRP 环境避免选错设备 |
-| `rx_all32prn.yaml` | 32星叠加 | 对应 TX 端 `tx_b210_all32prn.yaml`，采集并记录全部 32 颗 PRN 的叠加信号 |
+| `rx_all32prn.yaml` | 32星叠加 | 对应 TX 端 `tx_b210_all32prn.yaml` 或 `tx_b210_prn_subset.yaml`，采集多星叠加信号供 MATLAB 多星扫描 |
 
 ---
 
@@ -53,17 +53,20 @@ PYTHONPATH=src python3 scripts/record_rx.py \
     --config configs/rx_prn1_capture.yaml --prn-id 7
 ```
 
-### 32星叠加采集
+### 32星或子集叠加采集
 
 ```bash
 # 干运行
 PYTHONPATH=src python3 scripts/record_rx.py \
     --config configs/rx_all32prn.yaml --dry-run
 
-# 正式采集（TX 端须运行 tx_b210_all32prn.yaml）
+# 正式采集（TX 端运行 tx_b210_all32prn.yaml 或 --prn-ids 子集）
 PYTHONPATH=src python3 scripts/record_rx.py \
     --config configs/rx_all32prn.yaml
 ```
+
+> TX 端发射 PRN 子集（如 `--prn-ids 1,5,10,15`）时，RX 端仍使用 `rx_all32prn.yaml` 采集；
+> MATLAB 多星扫描结果中只有发射的那几颗 PRN 会出现捕获峰，可用于验证收发链路对齐。
 
 ### OTA 空收（固定设备序列号）
 

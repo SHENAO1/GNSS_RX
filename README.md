@@ -136,6 +136,67 @@ run_capture_analysis
 
 ---
 
+## 端到端实验流程
+
+### 基本流程（TX + RX）
+
+```
+gnss_tx（发射）→ RF → GNSS_RX（采集）→ MATLAB（捕获分析）
+```
+
+**1. 单星验证**
+```bash
+# TX 端发射 PRN7，持续发射
+cd ~/projects/gnss_tx
+PYTHONPATH=src python3 scripts/run_tx.py \
+    --config configs/tx_b210_visible_spectrum.yaml --prn-id 7
+
+# RX 端采集 2 秒（另一终端）
+cd /home/shen/projects/GNSS_RX
+PYTHONPATH=src python3 scripts/record_rx.py \
+    --config configs/rx_prn1_capture.yaml --prn-id 7
+```
+
+**2. PRN 子集验证**（推荐用于确认收发链路对齐）
+
+TX 端发射指定子集，RX 端用多星扫描验证恰好捕获到了这几颗：
+
+```bash
+# TX 端：发射 PRN 1,5,10,15 的叠加信号
+cd ~/projects/gnss_tx
+PYTHONPATH=src python3 scripts/run_tx.py --prn-ids 1,5,10,15 --duration 60
+
+# RX 端：采集多星叠加信号（另一终端）
+cd /home/shen/projects/GNSS_RX
+PYTHONPATH=src python3 scripts/record_rx.py --config configs/rx_all32prn.yaml
+```
+
+MATLAB 多星扫描结果中，PRN 1、5、10、15 应出现捕获峰，其余 PRN 不应出现同级别峰值。
+
+**3. MATLAB 分析**
+```bash
+# 同步 MATLAB 代码到宿主机共享目录
+rsync -av --delete matlab/ /mnt/hgfs/GongXiangDocument/GNSS_RX_matlab/
+```
+在 MATLAB 中运行 `run_capture_analysis`，查看时域图、频谱图、捕获图、多星扫描图及 JSON 摘要。
+
+详细操作步骤见 [docs/experiment_workflow.md](docs/experiment_workflow.md)。
+
+### 无硬件验证（合成数据）
+
+```bash
+cd /home/shen/projects/GNSS_RX
+
+# 生成合成数据（SNR=10 dB，PRN1）
+PYTHONPATH=/home/shen/projects/gnss_tx/src:src \
+    python3 scripts/gen_synthetic_capture.py --snr-db 10
+
+# 同步并运行 MATLAB 分析
+rsync -av --delete matlab/ /mnt/hgfs/GongXiangDocument/GNSS_RX_matlab/
+```
+
+---
+
 ## 单元测试
 
 ```bash
