@@ -16,6 +16,7 @@
 | ②    | `--prn-ids 1,5,10,15`（默认配置） | 0 dB | 0.25 | 4 星叠加 | 1.011 | 失败 |
 | ③    | `tx_b210_visible_spectrum.yaml --prn-ids 1,5,10,15 --amplitude 0.5` | 10 dB | 0.5 | 4 星叠加 | 1.001 | 失败 |
 | ④    | `tx_b210_visible_spectrum.yaml --prn-ids 1,5,10,15 --amplitude 0.5 --tx-gain 30`（等 TX 启动后再采集） | 30 dB | 0.5 | 4 星叠加 | ~1.4（PRN1）/ ~1.35（PRN5,10）/ ~1.25（PRN15） | **部分可见，未过门限** |
+| ⑤    | 同④文件，MATLAB 积分时间改为 100ms（重新分析） | 30 dB | 0.5 | 4 星叠加 | ~2.25（PRN1）/ ~2.0（PRN5）/ **~2.4（PRN10）** / ~2.2（PRN15） | **峰值显著升高，差约 0.1~0.5 未过门限** |
 
 > 四次 RX 均使用 `--config configs/rx_all32prn.yaml`，采集时长 2 秒。
 
@@ -106,8 +107,8 @@ cd /home/shen/projects/GNSS_RX
 PYTHONPATH=src python3 scripts/record_rx.py --config configs/rx_all32prn.yaml
 ```
 
-- [ ] 预期：PRN 1、5、10、15 的柱状图超过红线 2.5
-- [ ] 若仍不过，考虑步骤 4（增加 MATLAB 积分时间）代替继续升增益
+- [ ] 下一步：重新采集（TX tx_gain=35，100ms 积分），预期 4 颗 PRN 全部过 2.5
+- [x] 步骤 4（100ms 积分）已验证有效：次峰比从 ~1.4 升至 ~2.0~2.4，差 0.1~0.5 即可过门限
 
 ---
 
