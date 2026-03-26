@@ -28,6 +28,8 @@ cd /home/shen/projects/GNSS_RX
 PYTHONPATH=src python3 scripts/record_rx.py --dry-run
 ```
 
+`--dry-run` 是**演练模式**：加载配置、打印将要执行的采集参数和输出路径，但**不连接 USRP 硬件、不采集任何数据**，打印完后直接退出。适合在没有硬件时验证配置是否正确，或正式采集前预览参数。
+
 或生成合成采集文件：
 
 ```bash
