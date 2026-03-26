@@ -34,6 +34,9 @@ class RxRuntimeConfig:
     time_source: str = "internal"
     signal_mode: str = "spread"
     prn_id: int = 1
+    # True 时表示对应的 TX 端发射了 PRN 1~32 全部叠加信号。
+    # 此时 prn_id 字段仅作兼容保留，不参与捕获判决。
+    all_prns: bool = False
     tx_profile_reference: str = "../gnss_tx/configs/tx_b210_visible_spectrum.yaml"
 
     def validate(self) -> "RxRuntimeConfig":
@@ -51,7 +54,7 @@ class RxRuntimeConfig:
             raise ValueError("antenna 不能为空。")
         if self.signal_mode not in {"spread", "tone"}:
             raise ValueError("signal_mode 必须是以下之一：spread、tone。")
-        if not SUPPORTED_PRN_MIN <= self.prn_id <= SUPPORTED_PRN_MAX:
+        if not self.all_prns and not SUPPORTED_PRN_MIN <= self.prn_id <= SUPPORTED_PRN_MAX:
             raise ValueError(
                 f"prn_id 必须在支持范围 {SUPPORTED_PRN_MIN}~{SUPPORTED_PRN_MAX} 内。"
             )
@@ -101,13 +104,14 @@ def format_capture_tag(value: float, *, keep_decimal: bool = False) -> str:
 
 def build_timestamped_capture_stem(config: RxRuntimeConfig, when: datetime) -> str:
     timestamp = when.strftime(TIMESTAMP_FORMAT)
+    prn_tag = "prn_all32" if config.all_prns else f"prn{config.prn_id}"
     return "_".join(
         [
             timestamp,
             "rawiq",
             "sc16",
             "zeroif",
-            f"prn{config.prn_id}",
+            prn_tag,
             config.signal_mode,
             f"sr{format_capture_tag(config.sample_rate_hz)}",
             f"cf{format_capture_tag(config.center_freq_hz)}",

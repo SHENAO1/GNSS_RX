@@ -99,6 +99,21 @@ class TestRxRuntimeConfig(unittest.TestCase):
         with self.assertRaises(ValueError):
             RxRuntimeConfig(prn_id=SUPPORTED_PRN_MAX + 1, bandwidth_hz=4.092e6).validate()
 
+    def test_all_prns_mode_skips_prn_id_range_validation(self) -> None:
+        # all_prns=True 时 prn_id 超出范围不应抛出 ValueError
+        config = RxRuntimeConfig(prn_id=0, bandwidth_hz=4.092e6, all_prns=True)
+        config.validate()  # 不应抛出异常
+
+    def test_all_prns_stem_contains_prn_all32_tag(self) -> None:
+        config = RxRuntimeConfig(bandwidth_hz=4.092e6, all_prns=True)
+        stem = build_timestamped_capture_stem(config, datetime(2026, 3, 26, 0, 0, 0))
+        self.assertIn("prn_all32", stem)
+        self.assertNotIn("prn1", stem)
+
+    def test_default_config_all_prns_is_false(self) -> None:
+        config = RxRuntimeConfig(bandwidth_hz=4.092e6)
+        self.assertFalse(config.all_prns)
+
 
 if __name__ == "__main__":
     unittest.main()

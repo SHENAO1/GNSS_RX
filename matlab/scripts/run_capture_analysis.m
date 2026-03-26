@@ -51,8 +51,8 @@ fprintf('【GNSS_RX】分析目标文件：\n  %s\n', char(string(stem_or_json_p
 % 步骤 2：绘制时域、频谱、IQ 散点总览图。
 figures = plot_capture_overview(samples, meta, paths, cfg);
 
-% 步骤 3：对 PRN1 执行捕获搜索（寻找最佳 Doppler 和码相位）。
-acq_result = run_prn1_acquisition(samples, meta, cfg);
+% 步骤 3：对目标 PRN 执行捕获搜索（PRN 编号从 meta.prn_id 读取，默认 PRN1）。
+acq_result = run_prn_acquisition(samples, meta, cfg);
 
 % 步骤 4：对 PRN1~32 进行多星对比扫描（判断是哪颗卫星，或有几颗卫星可见）。
 survey     = run_multi_prn_survey(samples, meta, cfg);
@@ -78,8 +78,9 @@ if acq_result.detected
 else
     detected_str = '失败';
 end
-fprintf('PRN1 捕获结果：%s | 峰值指标：%.3f | 次峰比：%.3f\n', ...
-    detected_str, acq_result.peak_metric, acq_result.second_peak_ratio);
+acq_prn = acq_result.target_prn;
+fprintf('PRN%d 捕获结果：%s | 峰值指标：%.3f | 次峰比：%.3f\n', ...
+    acq_prn, detected_str, acq_result.peak_metric, acq_result.second_peak_ratio);
 fprintf('最佳多普勒：%.1f Hz | 码相位：%d 个采样点\n', ...
     acq_result.best_doppler_hz, acq_result.best_code_phase_samples);
 

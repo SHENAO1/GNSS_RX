@@ -1,0 +1,17 @@
+# 32星叠加接收配置：对应 TX 端 tx_b210_all32prn.yaml
+# all_prns: true 时元数据记录 PRN 1~32 叠加场景，prn_id 字段仅作兼容保留
+usrp_addr: "type=b200"
+center_freq_hz: 100000000.0
+sample_rate_hz: 4092000.0
+rx_gain_db: 20.0
+bandwidth_hz: 4092000.0
+antenna: "RX2"
+duration_s: 2.0
+output_base_dir: "/mnt/hgfs/GongXiangDocument/GNSS_RX_Data"
+use_timestamped_stem: true
+clock_source: "internal"
+time_source: "internal"
+signal_mode: "spread"
+prn_id: 1
+all_prns: true
+tx_profile_reference: "../gnss_tx/configs/tx_b210_all32prn.yaml"

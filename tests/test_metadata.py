@@ -37,6 +37,28 @@ class TestMetadata(unittest.TestCase):
         metadata = build_capture_metadata(config=config, samples_captured=2048, data_path=Path("demo.sc16"))
         self.assertEqual(metadata.prn_id, 7)
 
+    def test_single_prn_metadata_has_all_prns_false_and_no_prn_ids(self) -> None:
+        config = RxRuntimeConfig(bandwidth_hz=4.092e6, prn_id=5)
+        metadata = build_capture_metadata(config=config, samples_captured=2048, data_path=Path("demo.sc16"))
+        self.assertFalse(metadata.all_prns)
+        self.assertIsNone(metadata.prn_ids)
+
+    def test_all_prns_metadata_sets_all_prns_flag_and_prn_ids_list(self) -> None:
+        config = RxRuntimeConfig(bandwidth_hz=4.092e6, all_prns=True)
+        metadata = build_capture_metadata(config=config, samples_captured=2048, data_path=Path("demo.sc16"))
+        self.assertTrue(metadata.all_prns)
+        self.assertEqual(metadata.prn_ids, list(range(1, 33)))
+
+    def test_all_prns_metadata_serializes_prn_ids_to_json(self) -> None:
+        config = RxRuntimeConfig(bandwidth_hz=4.092e6, all_prns=True)
+        metadata = build_capture_metadata(config=config, samples_captured=2048, data_path=Path("demo.sc16"))
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "demo.json"
+            write_metadata_json(path, metadata)
+            parsed = json.loads(path.read_text(encoding="utf-8"))
+        self.assertTrue(parsed["all_prns"])
+        self.assertEqual(parsed["prn_ids"], list(range(1, 33)))
+
 
 if __name__ == "__main__":
     unittest.main()

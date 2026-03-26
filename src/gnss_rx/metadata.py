@@ -25,6 +25,10 @@ class CaptureMetadata:
     zero_if: bool
     signal_mode: str
     prn_id: int
+    # True 时表示对应 TX 端发射了 PRN 1~32 叠加信号，prn_id 字段此时仅作兼容保留。
+    all_prns: bool
+    # 多星场景下记录实际叠加的 PRN 编号列表；单星场景下为 None。
+    prn_ids: list | None
     tx_profile_reference: str
     data_file: str
 
@@ -44,6 +48,8 @@ def build_capture_metadata(config: RxRuntimeConfig, *, samples_captured: int, da
         zero_if=True,
         signal_mode=config.signal_mode,
         prn_id=config.prn_id,
+        all_prns=config.all_prns,
+        prn_ids=list(range(1, 33)) if config.all_prns else None,
         tx_profile_reference=config.tx_profile_reference,
         data_file=str(data_path.name),
     )
