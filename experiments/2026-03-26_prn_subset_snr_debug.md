@@ -1,0 +1,145 @@
+# 2026-03-26 多星子集捕获失败分析
+
+**日期**：2026-03-26
+**分支**：gnss_tx `feat/prn-subset-tx` / GNSS_RX `feat/multi-prn-rx`
+**目标**：在单星 PRN1 捕获成功的基础上，验证多星子集（PRN 1,5,10,15）的端到端收发链路
+
+---
+
+## 实验记录
+
+### 配置与结果汇总
+
+| 序号 | TX 配置 | tx_gain | amplitude | 发射 PRN | 次峰比 | 结论 |
+|------|---------|---------|-----------|---------|--------|------|
+| ①    | `tx_b210_visible_spectrum.yaml --tx-gain 20` | 20 dB | 1.0 | PRN1（单星） | **3.216** | **捕获成功** |
+| ②    | `--prn-ids 1,5,10,15`（默认配置） | 0 dB | 0.25 | 4 星叠加 | 1.011 | 失败 |
+| ③    | `tx_b210_visible_spectrum.yaml --prn-ids 1,5,10,15 --amplitude 0.5` | 10 dB | 0.5 | 4 星叠加 | 1.001 | 失败 |
+
+> 三次 RX 均使用 `--config configs/rx_all32prn.yaml`，采集时长 2 秒。
+
+---
+
+## 失败原因分析
+
+### 原因 A：TX 启动时序问题（首要怀疑）
+
+GNU Radio + USRP 流图从启动到实际出流约需 **2~3 秒**（USRP 固件握手 + 流图初始化）。
+RX 采集窗口只有 **2 秒**（`duration_s: 2.0`）。
+
+若用户启动 TX 后立刻运行 RX 命令，可能整个 2 秒录制窗口都落在 TX 出流之前，录到的是纯噪声。
+
+**佐证**：
+- 实验③的次峰比 1.001，比实验②的 1.011 还低，说明不是"信号弱"而是"信号完全不在录制窗口内"
+- 实验①之所以成功，可能是用户在 TX 启动后等待了足够长时间再启动 RX
+
+---
+
+### 原因 B：每颗 PRN 的 SNR 不足（结构性原因）
+
+多星叠加时，TX 发出的是 N 颗 PRN 的合并信号，经 √N 功率归一化。
+RX 端相关器对单颗 PRN 的有效输入幅度为：
+
+```
+per_prn_amplitude = amplitude × tx_scale(tx_gain) / sqrt(N)
+```
+
+以实验①为基准做 SNR 预算：
+
+| | 实验① 基准 | 实验③ 子集 |
+|--|-----------|-----------|
+| tx_gain | 20 dB | 10 dB |
+| amplitude | 1.0 | 0.5 |
+| 每星有效幅度（相对） | `1.0` | `0.5 / sqrt(4) = 0.125` |
+| 幅度差 | 基准 | **−18 dB**（幅度）→ **−18 dB** SNR |
+| TX 增益差 | 基准 | **−10 dB** |
+| **每星 SNR 总差** | 基准 | **约 −28 dB** |
+
+实验①本身次峰比仅 3.216（阈值 2.5），属于刚刚通过。
+任何方向的 SNR 下降都会导致失败。
+
+---
+
+## 下一步操作清单
+
+按优先级依次尝试，每步确认后再进行下一步。
+
+### 步骤 1：验证 TX 启动时序（解决原因 A）
+
+TX 启动后**等待 5~10 秒**再启动 RX，确保 TX 已稳定出流：
+
+```bash
+# 终端 1：启动 TX，等待出现 "Press Ctrl-C to stop" 提示再切换终端
+cd ~/projects/gnss_tx
+PYTHONPATH=src python3 scripts/run_tx.py \
+    --config configs/tx_b210_visible_spectrum.yaml \
+    --prn-ids 1,5,10,15 --amplitude 0.5
+
+# 终端 2：看到 TX 启动完成后再运行（约等 5 秒）
+cd /home/shen/projects/GNSS_RX
+PYTHONPATH=src python3 scripts/record_rx.py --config configs/rx_all32prn.yaml
+```
+
+- [ ] 预期：若次峰比从 1.001 升至 1.1 以上，说明时序是主因
+- [ ] 若次峰比仍低于 2.5，进行步骤 2
+
+---
+
+### 步骤 2：提升 TX 增益（解决原因 B）
+
+将 tx_gain 提升到 30 dB，补偿多星 SNR 分摊：
+
+```bash
+# 终端 1
+cd ~/projects/gnss_tx
+PYTHONPATH=src python3 scripts/run_tx.py \
+    --config configs/tx_b210_visible_spectrum.yaml \
+    --prn-ids 1,5,10,15 --amplitude 0.5 --tx-gain 30
+
+# 终端 2（等 TX 启动完成）
+cd /home/shen/projects/GNSS_RX
+PYTHONPATH=src python3 scripts/record_rx.py --config configs/rx_all32prn.yaml
+```
+
+- [ ] 预期：PRN 1、5、10、15 的柱状图超过红线 2.5
+
+---
+
+### 步骤 3：先用 2-PRN 子集缩小问题范围
+
+2 颗 PRN 叠加的每星 SNR 损失只有 1/√2（约 −3 dB），比 4 颗（−6 dB）更容易通过：
+
+```bash
+# TX
+cd ~/projects/gnss_tx
+PYTHONPATH=src python3 scripts/run_tx.py \
+    --config configs/tx_b210_visible_spectrum.yaml \
+    --prn-ids 1,5 --amplitude 0.7 --tx-gain 20
+
+# RX（等 TX 启动完成）
+cd /home/shen/projects/GNSS_RX
+PYTHONPATH=src python3 scripts/record_rx.py --config configs/rx_all32prn.yaml
+```
+
+- [ ] 若 PRN 1、5 出峰，说明链路正常，逐步增加 PRN 数量验证
+
+---
+
+### 步骤 4：增加 MATLAB 积分时间（提升算法灵敏度）
+
+当前 MATLAB 每颗 PRN 只积分 10 ms。将积分时间增加到 100 ms（10× 非相干累加），理论 SNR 提升约 10 dB：
+
+修改 `matlab/functions/run_prn_acquisition.m`（或 `run_multi_prn_survey.m`）中的积分时间参数。
+
+- [ ] 此步在硬件链路验证通过后再考虑，主要用于提升灵敏度下限
+
+---
+
+## 参考配置文件
+
+| 文件 | 路径 |
+|------|------|
+| TX 子集配置 | `gnss_tx/configs/tx_b210_prn_subset.yaml` |
+| TX 可见谱配置 | `gnss_tx/configs/tx_b210_visible_spectrum.yaml` |
+| RX 多星采集配置 | `GNSS_RX/configs/rx_all32prn.yaml` |
+| MATLAB 分析入口 | `GNSS_RX/matlab/scripts/run_capture_analysis.m` |
