@@ -1,201 +1,175 @@
 # GNSS_RX MATLAB 工作区
 
-这个目录提供 `GNSS_RX` 的 MATLAB 离线分析链，负责读取接收端导出的
-`.sc16 + .json` 采集文件，完成快速可视化、`PRN1` 详细捕获、多星对比和结果归档。
+本目录提供 GNSS_RX 的 MATLAB 离线分析链，读取接收端导出的 `.sc16 + .json` 采集文件，
+完成快速可视化、指定 PRN 捕获、多星对比和结果归档。
 
-## 功能介绍
+---
 
-当前 MATLAB 工作区包含以下能力：
+## 函数目录
 
-- 自动加载一组 `GNSS_RX` 采集文件：`.sc16 + .json`
-- 自动解析采集根目录，支持用户本地配置、环境变量和默认路径
-- 绘制基础图像：时域、频谱、IQ 散点
-- 运行带 Doppler 搜索的离线 `PRN1` 详细捕获
-- 运行 `PRN1~32` 多星对比搜索，快速确认是否真的抓到目标星
-- 将图片和摘要结果保存到采集日期目录下的 `analysis/<stem>/`
+| 文件 | 说明 |
+|------|------|
+| `scripts/run_capture_analysis.m` | **主入口**：加载→绘图→PRN捕获→多星扫描→归档 |
+| `functions/load_gnss_rx_capture.m` | 加载 `.sc16 + .json`，组装复数基带样本和元数据 |
+| `functions/gnss_rx_resolve_data_dir.m` | 统一解析采集数据根目录（优先级：本地配置 > 环境变量 > 默认路径） |
+| `functions/find_latest_capture.m` | 自动查找数据根目录下最新的完整采集文件对 |
+| `functions/plot_capture_overview.m` | 生成时域图、频谱图和 IQ 散点图 |
+| `functions/run_prn_acquisition.m` | **通用捕获入口**：从 `meta.prn_id` 读取目标 PRN（1~32），执行 Doppler×码相位二维搜索 |
+| `functions/run_prn1_acquisition.m` | 向后兼容封装：强制 PRN1，内部调用 `run_prn_acquisition` |
+| `functions/run_multi_prn_survey.m` | 对 PRN1~32 批量搜索，生成多星对比结果 |
+| `functions/plot_multi_prn_survey.m` | 绘制多星次峰比柱状图 |
+| `functions/save_analysis_artifacts.m` | 保存图片、`.json` 摘要和 `.mat` 结果 |
+| `gnss_rx_user_paths.m.example` | 用户本地路径配置模板 |
 
-## 目录结构
-
-- `scripts/run_capture_analysis.m`
-  MATLAB 入口脚本。运行时会自动把 `functions/` 加入路径。
-- `functions/load_gnss_rx_capture.m`
-  加载 `.sc16 + .json`，组装复数基带样本和元数据。
-- `functions/gnss_rx_resolve_data_dir.m`
-  统一解析采集数据根目录。
-- `functions/plot_capture_overview.m`
-  生成时域图、频谱图和 IQ 散点图。
-- `functions/run_prn1_acquisition.m`
-  对 PRN1 做 Doppler + code phase 搜索。
-  当前详细二维捕获图只覆盖 PRN1。
-- `functions/run_multi_prn_survey.m`
-  对 PRN1~32 做批量搜索，生成多星对比结果。
-- `functions/save_analysis_artifacts.m`
-  保存图片、`.json` 摘要和 `.mat` 结果。
-- `gnss_rx_user_paths.m.example`
-  用户本地路径配置模板，用于指定实际数据目录。
-
-## Ubuntu 同步到共享目录
-
-如果你在 Ubuntu 虚拟机里修改了 `GNSS_RX/matlab/` 下的代码，想同步到共享目录
-`/mnt/hgfs/GongXiangDocument/GNSS_RX_matlab/`，推荐使用 `rsync`。
-
-首次同步前，可先确保目标目录存在：
-
-```bash
-mkdir -p /mnt/hgfs/GongXiangDocument/GNSS_RX_matlab
-```
-
-同步新增和修改过的文件：
-
-```bash
-rsync -av /home/shen/projects/GNSS_RX/matlab/ /mnt/hgfs/GongXiangDocument/GNSS_RX_matlab/
-```
-
-如果希望把目标目录中已经删除的旧文件也一起清掉，使用镜像同步：
-
-```bash
-rsync -av --delete /home/shen/projects/GNSS_RX/matlab/ /mnt/hgfs/GongXiangDocument/GNSS_RX_matlab/
-```
-
-同步前如果只想查看差异，可以先运行：
-
-```bash
-diff -rq /home/shen/projects/GNSS_RX/matlab /mnt/hgfs/GongXiangDocument/GNSS_RX_matlab
-```
-
-同步完成后，Windows 宿主机就可以从共享目录直接打开最新版本的 MATLAB 脚本。
-
-## 数据目录配置
-
-`run_capture_analysis.m` 不再要求手工修改脚本里的路径，而是通过
-`gnss_rx_resolve_data_dir()` 按以下优先级解析：
-
-1. `matlab/gnss_rx_user_paths.m`
-2. 环境变量 `GNSS_RX_DATA_DIR`
-3. 平台默认路径
-
-推荐做法是复制模板文件并填写你本地实际的数据目录：
-
-```bash
-cp /home/shen/projects/GNSS_RX/matlab/gnss_rx_user_paths.m.example \
-  /home/shen/projects/GNSS_RX/matlab/gnss_rx_user_paths.m
-```
-
-然后在 `gnss_rx_user_paths.m` 中设置：
-
-```matlab
-GNSS_RX_DATA_DIR = 'C:\VMwareVirtualMachines\GongXiangDocument\GNSS_RX_Data';
-```
-
-Linux 下也可以写成：
-
-```matlab
-GNSS_RX_DATA_DIR = '/mnt/hgfs/GongXiangDocument/GNSS_RX_Data';
-```
+---
 
 ## 快速开始
 
-1. 确认 `GNSS_RX_Data` 目录中已经有接收端导出的 `.sc16 + .json` 文件对。
-2. 如有需要，先同步 `matlab/` 到共享目录。
-3. 配置 `gnss_rx_user_paths.m` 或设置 `GNSS_RX_DATA_DIR`。
-4. 在 MATLAB 中切换到本目录，运行主入口：
+### 1. 配置数据目录
+
+```bash
+# 复制模板
+cp /home/shen/projects/GNSS_RX/matlab/gnss_rx_user_paths.m.example \
+   /home/shen/projects/GNSS_RX/matlab/gnss_rx_user_paths.m
+```
+
+在 `gnss_rx_user_paths.m` 中填写实际数据目录：
+
+```matlab
+% Windows 宿主机（VMware 共享目录）
+GNSS_RX_DATA_DIR = 'C:\VMwareVirtualMachines\GongXiangDocument\GNSS_RX_Data';
+
+% 或 Linux 本机
+GNSS_RX_DATA_DIR = '/mnt/hgfs/GongXiangDocument/GNSS_RX_Data';
+```
+
+### 2. 同步 MATLAB 代码到宿主机（MATLAB 在 Windows 时）
+
+```bash
+# 同步（镜像模式，删除目标目录已不存在的旧文件）
+rsync -av --delete /home/shen/projects/GNSS_RX/matlab/ \
+    /mnt/hgfs/GongXiangDocument/GNSS_RX_matlab/
+
+# 仅同步新增和修改的文件（保留目标目录中的额外文件）
+rsync -av /home/shen/projects/GNSS_RX/matlab/ \
+    /mnt/hgfs/GongXiangDocument/GNSS_RX_matlab/
+
+# 查看差异（同步前可先预览）
+diff -rq /home/shen/projects/GNSS_RX/matlab \
+    /mnt/hgfs/GongXiangDocument/GNSS_RX_matlab
+```
+
+### 3. 在 MATLAB 中运行分析
+
+**Windows 宿主机 MATLAB：**
 
 ```matlab
 cd('C:\VMwareVirtualMachines\GongXiangDocument\GNSS_RX_matlab')
-run_capture_analysis
+result = run_capture_analysis();          % 自动分析最新文件
 ```
 
-不传参时，脚本会自动分析数据目录下最新的一组有效采集。
-
-如果你是在 Linux 本机 MATLAB 中运行，也可以直接进入仓库目录：
+**Linux 本机 MATLAB：**
 
 ```matlab
 cd('/home/shen/projects/GNSS_RX/matlab')
-run_capture_analysis
+result = run_capture_analysis();
 ```
 
-如果你想分析指定采集，也可以传入 stem 路径或 `.json` 路径。
-
-**路径结构说明**
-
-每次采集的文件存放在以 stem 命名的子目录里：
-
-```
-GNSS_RX_Data/2026/<YYYY_MM_DD>/<stem>/<stem>.sc16
-                                      <stem>.json
-```
-
-因此传入 stem 路径时，需要包含子目录名和文件名（**stem 出现两次**）：
-
-**Windows 宿主机 MATLAB（VMware 共享目录）：**
+**分析指定文件（stem 路径，stem 在路径中出现两次）：**
 
 ```matlab
-run_capture_analysis('C:\VMwareVirtualMachines\GongXiangDocument\GNSS_RX_Data\2026\2026_03_25\20260325_090729_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf150000000_dur2p0s\20260325_090729_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf150000000_dur2p0s')
+% Windows 宿主机
+result = run_capture_analysis( ...
+  'C:\VMwareVirtualMachines\GongXiangDocument\GNSS_RX_Data\2026\2026_03_26\<stem>\<stem>');
+
+% Linux VM
+result = run_capture_analysis( ...
+  '/mnt/hgfs/GongXiangDocument/GNSS_RX_Data/2026/2026_03_26/<stem>/<stem>');
 ```
 
-**Linux VM 中的 MATLAB（或本地 Linux）：**
+---
+
+## 分析流程说明
+
+`run_capture_analysis` 按以下步骤自动执行：
+
+1. **加载**：读取 `.sc16 + .json` 文件对
+2. **绘图**：时域、频谱、IQ 散点总览图（快速检查信号质量）
+3. **PRN 捕获**：对 `meta.prn_id` 指定的 PRN 执行 Doppler×码相位二维搜索
+4. **多星扫描**：对 PRN1~32 全部做批量搜索，确认信号来源
+5. **归档**：保存图片和摘要到 `analysis/<stem>/` 目录
+
+---
+
+## 捕获函数说明
+
+### `run_prn_acquisition`（通用，推荐）
+
+从 `meta.prn_id` 读取目标 PRN（1~32），无效时默认 PRN1：
 
 ```matlab
-run_capture_analysis('/mnt/hgfs/GongXiangDocument/GNSS_RX_Data/2026/2026_03_25/20260325_090729_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf150000000_dur2p0s/20260325_090729_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf150000000_dur2p0s')
+acq_result = run_prn_acquisition(samples, meta, cfg);
+% 返回 result.target_prn 字段标记实际搜索的 PRN
 ```
 
-也可以直接传入 `.json` 文件路径（效果相同）：
+### `run_prn1_acquisition`（向后兼容封装）
+
+强制目标 PRN=1，内部委托给 `run_prn_acquisition`：
 
 ```matlab
-run_capture_analysis('C:\...\20260325_090729_..._dur2p0s\20260325_090729_..._dur2p0s.json')
+acq_result = run_prn1_acquisition(samples, meta, cfg);
 ```
 
-> **注意**：传入路径时必须与 MATLAB 实际运行的操作系统路径格式匹配。
-> 在 Windows 宿主机 MATLAB 中使用 Linux 路径（`/mnt/hgfs/...`）会导致文件找不到的错误。
+> 新代码建议使用 `run_prn_acquisition`，通过 `meta.prn_id` 指定目标 PRN。
+
+---
 
 ## 输出结果
 
-默认情况下，分析产物会写入：
+分析产物写入：`<capture_date_dir>/analysis/<stem>/`
 
-`<capture_date_dir>/analysis/<stem>/`
+| 文件 | 说明 |
+|------|------|
+| `overview_time.png` | 时域波形图 |
+| `overview_spectrum.png` | 频谱图 |
+| `iq_scatter.png` | IQ 散点图 |
+| `prn<N>_acquisition.png` | 目标 PRN 的二维捕获搜索图 |
+| `multi_prn_survey.png` | PRN1~32 次峰比柱状图 |
+| `analysis_summary.json` | 分析摘要（JSON） |
+| `analysis_summary.mat` | 分析摘要（MAT） |
 
-当前版本会保存以下文件：
-
-- `overview_time.png`
-- `overview_spectrum.png`
-- `iq_scatter.png`
-- `prn1_acquisition.png`
-- `multi_prn_survey.png`
-- `analysis_summary.json`
-- `analysis_summary.mat`
-
-## 多星捕获对比图
-
-`multi_prn_survey.png` 是一张 PRN1~32 的次峰比柱状图：
+### 多星捕获对比图（multi_prn_survey.png）
 
 - X 轴：PRN 编号（1~32）
-- Y 轴：次峰比（peak / second_peak），超过红色阈值线表示捕获成功
-- 绿色柱：捕获成功
+- Y 轴：次峰比（peak / second_peak）
+- 绿色柱：捕获成功（次峰比 ≥ 2.5）
 - 蓝色柱：未捕获
-- 红色虚线：判决门限，默认 2.5
+- 红色虚线：判决门限（默认 2.5）
 
-当接收端真正收到目标 PRN 信号时，该 PRN 对应的柱子应明显高于阈值线，其余
-PRN 通常接近 1.0 附近的噪底水平。
+当接收端收到目标 PRN 信号时，对应柱子应明显高于阈值线；其余 PRN 通常接近 1.0 噪底。
 
-## 说明
+---
 
-- 默认采集根目录仍兼容 VMware 共享目录路径。
-- `find_latest_capture.m` 会自动跳过 `analysis/` 目录，只从原始采集目录中找最新文件。
-- 捕获搜索支持 PRN1~32；其中单 PRN 详细结果当前只对 `PRN1` 提供，其他 PRN 请以 `run_multi_prn_survey.m` 的结果为主。
+## 常用联调流程
 
-## 常见联调命令
-
-如果你想从头走完整条链路，推荐按这个顺序：
+从头走完整条链路（无硬件）：
 
 ```bash
+# Ubuntu 中生成合成数据并同步 MATLAB 代码
 cd /home/shen/projects/GNSS_RX
-PYTHONPATH=src python3 scripts/record_rx.py --dry-run
-PYTHONPATH=/home/shen/projects/gnss_tx/src:src python3 scripts/gen_synthetic_capture.py --snr-db 10 --duration 2
-./scripts/sync_matlab.sh /mnt/hgfs/GongXiangDocument/GNSS_RX_matlab
+PYTHONPATH=/home/shen/projects/gnss_tx/src:src \
+    python3 scripts/gen_synthetic_capture.py --snr-db 10 --duration 2
+rsync -av --delete matlab/ /mnt/hgfs/GongXiangDocument/GNSS_RX_matlab/
 ```
 
-然后在 MATLAB 中运行：
-
 ```matlab
+% MATLAB 中运行分析
 run_capture_analysis
+```
+
+从真实采集走完整链路：
+
+```bash
+PYTHONPATH=src python3 scripts/record_rx.py --config configs/rx_prn1_capture.yaml
+rsync -av --delete matlab/ /mnt/hgfs/GongXiangDocument/GNSS_RX_matlab/
 ```

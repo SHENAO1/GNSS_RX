@@ -6,13 +6,16 @@
 ## 模块结构
 
 - `gnss_rx/runtime.py`
-  配置加载、参数覆盖、输出路径解析、采集报告格式化
+  配置加载、参数覆盖、输出路径解析、采集报告格式化。
+  `RxRuntimeConfig` 支持 `all_prns: bool`（多星模式）和 `prn_id: int`（单星目标）。
 - `gnss_rx/flowgraph.py`
   GNU Radio + UHD 采集流图
 - `gnss_rx/writer.py`
   复数样本到 SC16 交织文件的写盘逻辑
 - `gnss_rx/metadata.py`
-  JSON sidecar 元数据生成
+  JSON sidecar 元数据生成。
+  `CaptureMetadata` 包含 `all_prns: bool` 和 `prn_ids: list | None` 字段，
+  多星模式时 `prn_ids = [1, 2, ..., 32]`。
 - `gnss_rx/utils/io.py`
   YAML 等基础 I/O 工具
 
