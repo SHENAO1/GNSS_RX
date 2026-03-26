@@ -18,6 +18,8 @@
 | ④    | `tx_b210_visible_spectrum.yaml --prn-ids 1,5,10,15 --amplitude 0.5 --tx-gain 30`（等 TX 启动后再采集） | 30 dB | 0.5 | 4 星叠加 | ~1.4（PRN1）/ ~1.35（PRN5,10）/ ~1.25（PRN15） | **部分可见，未过门限** |
 | ⑤    | 同④文件，MATLAB 积分时间改为 100ms（重新分析） | 30 dB | 0.5 | 4 星叠加 | ~2.25（PRN1）/ ~2.0（PRN5）/ **~2.4（PRN10）** / ~2.2（PRN15） | **峰值显著升高，差约 0.1~0.5 未过门限** |
 | ⑥    | `tx_b210_visible_spectrum.yaml --prn-ids 1,5,10,15 --amplitude 0.5 --tx-gain 35`，100ms 积分 | 35 dB | 0.5 | 4 星叠加 | **8.5（PRN1）/ 8.6（PRN5）/ 8.9（PRN10）/ 8.3（PRN15）** | **✅ 捕获成功（4/32）** |
+| ⑦    | 同⑥采集文件，MATLAB 积分时间改为 20ms（重新分析） | 35 dB | 0.5 | 4 星叠加 | **6.1（PRN1）/ 6.3（PRN5）/ 6.7（PRN10）/ 6.3（PRN15）** | **✅ 捕获成功，5× 提速** |
+| ⑧    | 同⑥采集文件，MATLAB 积分时间改为 10ms（重新分析） | 35 dB | 0.5 | 4 星叠加 | **5.1（PRN1）/ 5.6（PRN5）/ 5.6（PRN10）/ 4.6（PRN15）** | **✅ 捕获成功，10× 提速** |
 
 > 四次 RX 均使用 `--config configs/rx_all32prn.yaml`，采集时长 2 秒。
 
@@ -195,11 +197,27 @@ PYTHONPATH=src python3 scripts/record_rx.py --config configs/rx_all32prn.yaml
 | 积分时间 | 相对 100ms | 预期次峰比（估算） | 运行时间 |
 |---------|-----------|--------------|--------|
 | 100 ms | 基准 | 8.5 | 慢（已验证） |
-| **20 ms** | −7 dB | **~4** | **5× 快（当前默认）** |
-| 10 ms | −10 dB | ~2.7 | 10× 快 |
+| **20 ms** | −7 dB | **~6.4（实测）** | **5× 快（当前默认）** ✅ |
+| **10 ms** | −10 dB | **~5.2（实测）** | **10× 快** ✅ |
 
-- [ ] 用实验⑥采集文件重跑 `noncoherent_ms=20`，确认次峰比仍超过 2.5
-- [ ] 若通过，尝试 `noncoherent_ms=10`，确认是否仍可靠捕获
+- [x] 用实验⑥采集文件重跑 `noncoherent_ms=20`，次峰比 6.1 / 6.3 / 6.7 / 6.3，**全部通过**（5× 提速）
+- [x] 用实验⑥采集文件重跑 `noncoherent_ms=10`，次峰比 5.1 / 5.6 / 5.6 / 4.6，**全部通过**（10× 提速）
+
+#### MATLAB 分析命令（不修改代码，通过传参覆盖积分时间）
+
+```matlab
+% 指定积分时间的通用写法：构造 cfg 结构体，只需填要覆盖的字段，其余自动用默认值
+cfg = struct('noncoherent_ms', 10);   % 改为 20 或 100 即可切换
+
+% Windows 宿主机完整路径示例（根据实际文件路径修改）
+result = run_capture_analysis( ...
+    'C:\VMwareVirtualMachines\GongXiangDocument\GNSS_RX_Data\2026\2026_03_26\20260326_154940_rawiq_sc16_zeroif_prn_all32_spread_sr4092000_cf100000000_dur2p0s\20260326_154940_rawiq_sc16_zeroif_prn_all32_spread_sr4092000_cf100000000_dur2p0s.json', ...
+    cfg);
+```
+
+> **说明**：`run_capture_analysis` 第二个参数 `cfg` 中只需填想覆盖的字段，
+> 未填字段自动使用 `build_default_cfg` 的默认值（当前默认 `noncoherent_ms=20`）。
+> 不传第二个参数则完全使用默认配置。
 
 ---
 
