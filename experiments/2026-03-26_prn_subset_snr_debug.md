@@ -17,6 +17,7 @@
 | ③    | `tx_b210_visible_spectrum.yaml --prn-ids 1,5,10,15 --amplitude 0.5` | 10 dB | 0.5 | 4 星叠加 | 1.001 | 失败 |
 | ④    | `tx_b210_visible_spectrum.yaml --prn-ids 1,5,10,15 --amplitude 0.5 --tx-gain 30`（等 TX 启动后再采集） | 30 dB | 0.5 | 4 星叠加 | ~1.4（PRN1）/ ~1.35（PRN5,10）/ ~1.25（PRN15） | **部分可见，未过门限** |
 | ⑤    | 同④文件，MATLAB 积分时间改为 100ms（重新分析） | 30 dB | 0.5 | 4 星叠加 | ~2.25（PRN1）/ ~2.0（PRN5）/ **~2.4（PRN10）** / ~2.2（PRN15） | **峰值显著升高，差约 0.1~0.5 未过门限** |
+| ⑥    | `tx_b210_visible_spectrum.yaml --prn-ids 1,5,10,15 --amplitude 0.5 --tx-gain 35`，100ms 积分 | 35 dB | 0.5 | 4 星叠加 | **8.5（PRN1）/ 8.6（PRN5）/ 8.9（PRN10）/ 8.3（PRN15）** | **✅ 捕获成功（4/32）** |
 
 > 四次 RX 均使用 `--config configs/rx_all32prn.yaml`，采集时长 2 秒。
 
@@ -107,7 +108,7 @@ cd /home/shen/projects/GNSS_RX
 PYTHONPATH=src python3 scripts/record_rx.py --config configs/rx_all32prn.yaml
 ```
 
-- [ ] 下一步：重新采集（TX tx_gain=35，100ms 积分），预期 4 颗 PRN 全部过 2.5
+- [x] 实验⑥验证：tx_gain=35 + 100ms 积分，PRN 1/5/10/15 次峰比 8.3~8.9，**全部捕获成功**
 - [x] 步骤 4（100ms 积分）已验证有效：次峰比从 ~1.4 升至 ~2.0~2.4，差 0.1~0.5 即可过门限
 
 ---
@@ -161,6 +162,73 @@ PYTHONPATH=src python3 scripts/record_rx.py --config configs/rx_all32prn.yaml
 削波会破坏 C/A 码的自相关特性，使相关峰变宽消失，不可通过提升 amplitude 代替 tx_gain。
 
 - [x] 已修改 MATLAB 积分时间为 100 ms
+
+---
+
+---
+
+## 成功配置存档（实验⑥）
+
+| 参数 | 值 |
+|------|---|
+| TX 命令 | `run_tx.py --config tx_b210_visible_spectrum.yaml --prn-ids 1,5,10,15 --amplitude 0.5 --tx-gain 35` |
+| RX 命令 | `record_rx.py --config configs/rx_all32prn.yaml` |
+| MATLAB 积分时间 | 100 ms（`noncoherent_ms=100`） |
+| 捕获结果 | PRN 1/5/10/15 次峰比 8.3~8.9，其余 28 颗 ~1.0 |
+| 文件 stem | `20260326_154940_rawiq_sc16_zeroif_prn_all32_spread_sr4092000_cf100000000_dur2p0s` |
+
+**关键经验**：
+- tx_gain=35，amplitude=0.5（4 颗 PRN 安全上限）
+- MATLAB 积分时间 100ms（20ms 为速度/灵敏度折中，后续待验证）
+- TX 启动后须等到流图稳定（约 10~30 秒，出现 underflow 提示即可开始 RX 采集）
+
+---
+
+## 下一步计划
+
+### 阶段一：确定最小可用积分时间
+
+目标：找到能可靠捕获的最小 `noncoherent_ms`，减少 MATLAB 运行时间。
+
+实验⑥次峰比 8.5，门限 2.5，理论安全裕量约 10 dB，积分时间可大幅缩短：
+
+| 积分时间 | 相对 100ms | 预期次峰比（估算） | 运行时间 |
+|---------|-----------|--------------|--------|
+| 100 ms | 基准 | 8.5 | 慢（已验证） |
+| **20 ms** | −7 dB | **~4** | **5× 快（当前默认）** |
+| 10 ms | −10 dB | ~2.7 | 10× 快 |
+
+- [ ] 用实验⑥采集文件重跑 `noncoherent_ms=20`，确认次峰比仍超过 2.5
+- [ ] 若通过，尝试 `noncoherent_ms=10`，确认是否仍可靠捕获
+
+---
+
+### 阶段二：验证全 32 颗 PRN 叠加捕获
+
+目标：确认 32 星叠加时（每颗星 SNR 降低 √32 倍）是否还能可靠捕获。
+
+```bash
+# TX：发射全部 32 颗 PRN
+cd ~/projects/gnss_tx
+PYTHONPATH=src python3 scripts/run_tx.py \
+    --config configs/tx_b210_all32prn.yaml --tx-gain 35
+
+# RX（等 TX 启动稳定）
+cd /home/shen/projects/GNSS_RX
+PYTHONPATH=src python3 scripts/record_rx.py --config configs/rx_all32prn.yaml
+```
+
+- [ ] 预期 32/32 颗均出峰；若捕获率不足，提升 tx_gain 或积分时间
+
+---
+
+### 阶段三：SNR 边界测试（可选）
+
+目标：了解链路的 SNR 余量，确定 tx_gain 的最低可用值。
+
+- [ ] 固定 `noncoherent_ms=20`，逐步降低 `tx_gain`：35 → 30 → 25 → 20
+- [ ] 记录每个增益下次峰比，找到捕获失败的临界点
+- [ ] 绘制 tx_gain vs 次峰比 曲线
 
 ---
 

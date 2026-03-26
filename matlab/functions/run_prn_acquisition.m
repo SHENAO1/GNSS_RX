@@ -123,7 +123,7 @@ end
 
 function cfg = ensure_acq_defaults(cfg)
 if ~isfield(cfg, 'noncoherent_ms') || isempty(cfg.noncoherent_ms)
-    cfg.noncoherent_ms = 100;   % 非相干累加毫秒数（100 ms ≈ +10 dB vs 10 ms）
+    cfg.noncoherent_ms = 20;    % 非相干累加毫秒数（20 ms 为速度/灵敏度折中）
 end
 if ~isfield(cfg, 'doppler_min_hz') || isempty(cfg.doppler_min_hz)
     cfg.doppler_min_hz = -10000;
