@@ -10,6 +10,7 @@
 |------|---------|------|------|
 | [2026-03-26/tx_rx_improvement/2026-03-26_tx_rx_improvement_plan.md](2026-03-26/tx_rx_improvement/2026-03-26_tx_rx_improvement_plan.md) | 2026-03-26 | TX/RX 综合改进路线图（优先级分级，含短中长期任务） | 持续更新 |
 | [2026-03-27/ber_loopback_rx/2026-03-27_ber_loopback_rx_plan.md](2026-03-27/ber_loopback_rx/2026-03-27_ber_loopback_rx_plan.md) | 2026-03-27 | Milestone 1 射频线直连闭环 BER 验证（收端视角） | `[ ]` 待执行 |
+| [2026-03-27/ber_loopback_rx/2026-03-27_ber_loopback_impl_stages.md](2026-03-27/ber_loopback_rx/2026-03-27_ber_loopback_impl_stages.md) | 2026-03-27 | BER 闭环验证三阶段实施方案（合成数据 → 短时硬件 → 完整测量） | `[ ]` 阶段 0 待执行 |
 | [2026-03-27/freq_offset_acquisition_stability/2026-03-27_freq_offset_acquisition_stability.md](2026-03-27/freq_offset_acquisition_stability/2026-03-27_freq_offset_acquisition_stability.md) | 2026-03-27 | 人为频偏对 GPS L1 C/A 捕获稳定性的影响研究 | `[ ]` 待执行 |
 | [2026-03-27/lo_leakage_acquisition_study/2026-03-27_lo_leakage_acquisition_study.md](2026-03-27/lo_leakage_acquisition_study/2026-03-27_lo_leakage_acquisition_study.md) | 2026-03-27 | 本振泄露对单星捕获影响的研究 | `[ ]` 待执行 |
 | [2026-03-27/correlation_length_accumulation_study/2026-03-27_correlation_length_accumulation_study.md](2026-03-27/correlation_length_accumulation_study/2026-03-27_correlation_length_accumulation_study.md) | 2026-03-27 | 相关长度与积累策略对采集性能的影响研究 | `[ ]` 待执行 |
