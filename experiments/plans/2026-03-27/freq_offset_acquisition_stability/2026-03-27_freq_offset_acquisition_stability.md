@@ -166,7 +166,7 @@ PYTHONPATH=/home/shen/projects/gnss_tx/src:src \
 
 **选项 B — 真实采集数据（近场环回）**
 
-复用 `2026-03-26_prn_subset_snr_debug.md` 中实验①的采集文件（PRN1，tx_gain=20dB，次峰比 3.2）。
+复用 `../../../records/2026-03-26/prn_subset_snr_debug/2026-03-26_prn_subset_snr_debug.md` 中实验①的采集文件（PRN1，tx_gain=20dB，次峰比 3.2）。
 
 建议同时用 A 和 B，对比合成数据（纯理论）与真实 RF 数据（含 LO 泄露）的结果差异。
 
@@ -279,7 +279,7 @@ legend show; grid on;
 
 ### 步骤 5：合成数据 vs 真实 RF 数据对比
 
-重复步骤 2~3，将 `samples` 替换为真实 RF 采集数据（`2026-03-26_prn_subset_snr_debug.md` 实验①），在同一张图上叠加绘制，观察 LO 泄露是否改变频偏容限。
+重复步骤 2~3，将 `samples` 替换为真实 RF 采集数据（`../../../records/2026-03-26/prn_subset_snr_debug/2026-03-26_prn_subset_snr_debug.md` 实验①），在同一张图上叠加绘制，观察 LO 泄露是否改变频偏容限。
 
 ### 步骤 6：去 DC 与频偏的交叉验证
 
@@ -349,7 +349,7 @@ end
 
 ## 六、与 LO 泄露研究的关联
 
-本实验与同日 [`2026-03-27_lo_leakage_acquisition_study.md`](./2026-03-27_lo_leakage_acquisition_study.md) 互为补充：
+本实验与同日 [`2026-03-27_lo_leakage_acquisition_study.md`](../lo_leakage_acquisition_study/2026-03-27_lo_leakage_acquisition_study.md) 互为补充：
 
 | 研究维度 | LO 泄露研究 | 频偏稳定性研究 |
 |---------|-------------|---------------|

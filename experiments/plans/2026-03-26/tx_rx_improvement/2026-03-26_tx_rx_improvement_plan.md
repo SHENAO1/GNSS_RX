@@ -2,7 +2,7 @@
 
 > 创建时间：2026-03-26 （初始化）
 > 维护规则：每天实验结束后更新"进行中"和"已完成"状态，新计划条目追加到对应优先级分区
-> 配套文档：[gnss_tx/experiments/2026-03-26_tx_rx_improvement_plan.md](/home/shen/projects/gnss_tx/experiments/2026-03-26_tx_rx_improvement_plan.md)
+> 配套文档：[gnss_tx 版本](/home/shen/projects/gnss_tx/experiments/plans/2026-03-26/tx_rx_improvement/2026-03-26_tx_rx_improvement_plan.md)
 
 ---
 

@@ -2,7 +2,7 @@
 
 > 创建时间：2026-03-26
 > 状态：`[ ]` 待执行
-> 前置条件：单星 PRN1 基线捕获已验证（次峰比 3.2，见 `2026-03-26_prn_subset_snr_debug.md`）
+> 前置条件：单星 PRN1 基线捕获已验证（次峰比 3.2，见 `../../../records/2026-03-26/prn_subset_snr_debug/2026-03-26_prn_subset_snr_debug.md`）
 
 ---
 

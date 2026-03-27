@@ -123,7 +123,7 @@ accumulated_power = accumulated_power + abs(coherent_corr).^2;  % 最后取模�
 ```
 experiments/
   plans/2026-03-27/
-    2026-03-27_correlation_length_accumulation_study.md   ← 本文件
+    correlation_length_accumulation_study/2026-03-27_correlation_length_accumulation_study.md   ← 本文件
   results/2026-03-27/
     noncoherent_length_sweep/     ← 阶段一输出
     coherent_20ms/                ← 阶段二输出

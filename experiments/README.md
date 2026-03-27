@@ -1,54 +1,37 @@
 # experiments 目录说明
 
-本目录用于记录 `GPS L1 C/A` 接收端采集与分析实验，不作为临时文档堆放区。
+本目录用于记录 `GPS L1 C/A` 接收端采集与分析实验，并统一按“类别 / 日期 / 主题”归档。
 
-## 文件类型说明
+## 目录结构
 
-- `YYYY-MM-DD_*checkpoint*.md`
-  - 阶段性实验检查点，记录"某个配置或能力已被验证通过"的事实。
-- `YYYY-MM-DD_*draft*.md`
-  - 当天实验草稿，记录计划、待测组合和待回填字段。
-- `YYYY-MM-DD_*archive*.md`
-  - 当天任务归档，记录做了什么、结论是什么、后续待办是什么。
-- `*_checklist.md`
-  - 现场执行清单，避免漏步骤和漏记录。
-- `plans/INDEX.md`
-  - 本目录所有计划文件的汇总索引（开发日志式，含状态和跨项目引用）。
-- `plans/YYYY-MM-DD/`
-  - 按日期分组的详细实验计划文档。
+- `records/YYYY-MM-DD/<topic>/`
+  - 已验证事实、问题定位记录、阶段性归档。
+- `plans/YYYY-MM-DD/<topic>/`
+  - 研究计划、里程碑计划、跨项目协作路线图。
+
+## 当前目录索引
+
+| 路径 | 类型 | 描述 |
+|------|------|------|
+| `records/2026-03-25/portability_refactor/2026-03-25_portability_refactor.md` | archive | 路径可移植性改造记录 |
+| `records/2026-03-26/prn_subset_snr_debug/2026-03-26_prn_subset_snr_debug.md` | archive | 多星子集捕获失败分析与成功配置存档 |
+| `plans/2026-03-26/tx_rx_improvement/2026-03-26_tx_rx_improvement_plan.md` | plan | TX/RX 综合改进路线图 |
+| `plans/2026-03-27/ber_loopback_rx/2026-03-27_ber_loopback_rx_plan.md` | plan | 接收端闭环 BER 验证计划 |
+| `plans/2026-03-27/freq_offset_acquisition_stability/2026-03-27_freq_offset_acquisition_stability.md` | plan | 人为频偏对捕获稳定性的影响研究 |
+| `plans/2026-03-27/lo_leakage_acquisition_study/2026-03-27_lo_leakage_acquisition_study.md` | plan | 本振泄露对单星捕获影响研究 |
+| `plans/2026-03-27/correlation_length_accumulation_study/2026-03-27_correlation_length_accumulation_study.md` | plan | 相关长度与积累策略研究 |
+| `plans/INDEX.md` | index | 所有计划文件的汇总索引与跨项目入口 |
 
 ## 推荐实验流程
 
-1. 先运行接收端 dry-run，确认配置和设备发现输出是否合理
-2. 发射端确认信号后，执行真实采集或生成合成数据
-3. MATLAB 离线捕获与分析
-4. 实验结束后回填记录：
-   - 把已验证能力写入 checkpoint
-   - 把当天过程和结论写入 archive
-
-## 命名约定
-
-- 日期前缀文件表示阶段性实验记录，例如 `2026-03-26_*`。
-- `checkpoint` 表示"已经确认的事实"。
-- `draft` 表示"正在执行或待回填的实验草稿"。
-- `archive` 表示"当天工作的归档总结"。
-
-## 当前文件列表
-
-| 文件 | 类型 | 描述 |
-|------|------|------|
-| `2026-03-25_portability_refactor.md` | archive | 路径可移植性改造记录（5 处硬编码路径修复，11 个测试通过） |
-| `2026-03-26_prn_subset_snr_debug.md` | archive | 多星子集（PRN1,5,10,15）捕获失败分析，成功配置存档（tx_gain=35） |
-| `plans/INDEX.md` | index | 所有计划文件的汇总索引与开发日志 |
-| `plans/2026-03-26_tx_rx_improvement_plan.md` | plan | TX/RX 综合改进计划，含优先级分级路线图 |
-| `plans/2026-03-27/2026-03-27_ber_loopback_rx_plan.md` | plan | 接收端闭环 BER 验证计划（对应发端计划见 gnss_tx） |
-| `plans/2026-03-27/2026-03-27_freq_offset_acquisition_stability.md` | plan | 人为频偏对捕获稳定性的影响研究计划 |
-| `plans/2026-03-27/2026-03-27_lo_leakage_acquisition_study.md` | plan | 本振泄露对单星捕获影响的研究计划 |
-| `plans/2026-03-27/2026-03-27_correlation_length_accumulation_study.md` | plan | 相关长度与积累策略对采集性能的影响研究计划 |
+1. 先运行接收端 dry-run，确认配置和设备发现输出合理。
+2. 发射端确认信号后，执行真实采集或生成合成数据。
+3. MATLAB 离线捕获与分析。
+4. 实验结束后回填：
+   - 已验证事实写入 `records/`
+   - 待执行与路线图写入 `plans/`
 
 ## Ubuntu 命令行快速入口
-
-以下命令可直接在 Ubuntu 终端执行，建议都在项目根目录下运行：
 
 ```bash
 cd ~/projects/GNSS_RX

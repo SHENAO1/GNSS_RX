@@ -1,7 +1,7 @@
 # 接收端实验计划：闭环 BER 验证（收端视角）
 
 > 创建时间：2026-03-27
-> 对应发射端计划：`/home/shen/projects/gnss_tx/experiments/plans/2026-03-27/2026-03-27_ber_loopback_tx_plan.md`
+> 对应发射端计划：`/home/shen/projects/gnss_tx/experiments/plans/2026-03-27/ber_loopback_tx/2026-03-27_ber_loopback_tx_plan.md`
 > 状态：`[ ]` 待执行
 > 里程碑目标：Milestone 1 — 射频线直连闭环 BER 验证
 
