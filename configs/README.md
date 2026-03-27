@@ -12,6 +12,7 @@
 | `rx_prn1_capture.yaml` | 单星 PRN1 | 默认基线配置，标准单星零中频采集 |
 | `rx_prn1_sn193982.yaml` | 单星 PRN1 | 固定设备 serial=193982，双 USRP 环境避免选错设备 |
 | `rx_all32prn.yaml` | 32星叠加 | 对应 TX 端 `tx_b210_all32prn.yaml` 或 `tx_b210_prn_subset.yaml`，采集多星叠加信号供 MATLAB 多星扫描 |
+| `rx_cable_loopback.yaml` | 单星 PRN1 | **射频线直连高功率**配置，`duration_s=300`（≈15,000 bit），配合 TX `tx_b210_cable_loopback.yaml` 和 30 dB 衰减器进行 BER 回环测试 |
 
 ---
 

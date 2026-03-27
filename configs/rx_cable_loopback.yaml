@@ -1,0 +1,29 @@
+# 射频线直连回环测试 RX 配置（高功率版）
+#
+# 使用前提：
+#   - 对应 TX 配置：gnss_tx/configs/tx_b210_cable_loopback.yaml
+#   - 线路中必须串接固定衰减器（推荐 30 dB，最低 20 dB）
+#   - 接线顺序：B210_TX(TX/RX) → [衰减器] → [同轴线缆] → B210_RX(RX2)
+#
+# 功率说明：
+#   TX tx_gain=89 dB + 30 dB 衰减器 → RX 输入约 −21 dBm
+#   rx_gain_db=20 dB → ADC 输入约 −1 dBm（满量程以下，无削波）
+#   如果出现 IQ 削波（幅值 ≥ 1.0），将 rx_gain_db 降至 10 dB
+#
+# BER 采集时长说明：
+#   导航 bit 速率 50 bps → 300 秒 ≈ 15,000 bit（超过 10^4 门限，留足裕量）
+usrp_addr: "type=b200"             # 如需指定设备：serial=<RX_SERIAL>
+center_freq_hz: 100000000.0        # 与 TX 一致（100 MHz）
+# center_freq_hz: 1575420000.0     # GPS L1（与 TX 同步修改）
+sample_rate_hz: 4092000.0
+rx_gain_db: 20.0                   # 高功率直连时使用较低增益；OTA 测试时可提高至 35 dB
+bandwidth_hz: 4092000.0
+antenna: "RX2"
+duration_s: 300.0                  # 300 秒 ≈ 15,000 bit，BER 统计达到 10^4 门限
+output_base_dir: "/mnt/hgfs/GongXiangDocument/GNSS_RX_Data"
+use_timestamped_stem: true
+clock_source: "internal"
+time_source: "internal"
+signal_mode: "spread"
+prn_id: 1
+tx_profile_reference: "../gnss_tx/configs/tx_b210_cable_loopback.yaml"
