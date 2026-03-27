@@ -9,6 +9,8 @@
   接收机实现说明，适合先理解 Python 包、流图和 MATLAB 分析链的关系。
 - `experiment_workflow.md`
   实验操作顺序，适合真正开始跑一遍采集和分析时作为清单使用。
+- `system_architecture.drawio`
+  系统架构图（DrawIO 格式），可视化接收机整体模块关系。
 
 ## 按文档复现的入口命令
 
