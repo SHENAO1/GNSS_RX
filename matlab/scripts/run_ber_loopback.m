@@ -2,6 +2,11 @@
 % BER 闭环验证主脚本：
 %   - open_loop_truth：现有 truth 驱动开环诊断基线
 %   - tracked_truth：新的 tracking BER 主链（默认）
+% 执行入口的 4 个关键量：
+%   - CAPTURE_PATH：待分析的采集输入，可为 stem / .json / .sc16 路径
+%   - latest_capture：当 CAPTURE_PATH 未显式给出时，自动选出的最新一组采集 stem
+%   - TX_TRUTH_PATH：TX 导出的 truth JSON，用作参考真值，不是 IQ 采集输入
+%   - BER_MODE：结果判决模式；默认 tracked_truth，但脚本仍会同时计算 open-loop 基线
 
 clearvars -except CAPTURE_PATH TX_TRUTH_PATH BER_MODE TRACKING_OPTIONS;
 close all;
@@ -17,6 +22,10 @@ end
 %% ---- 用户配置区 -------------------------------------------------------
 if ~exist('CAPTURE_PATH', 'var') || isempty(CAPTURE_PATH)
     try
+        % 这里只是在“自动帮用户选输入采集文件”，和 tracked_truth 模式本身无关。
+        % find_latest_capture() 返回的是一组原始采集的 stem 路径：
+        %   <capture_dir>/<capture_name>
+        % 后续 load_gnss_rx_capture() 会据此补出同名 .json 与 .sc16。
         latest_capture = find_latest_capture();
         fprintf('检测到最新采集文件：\n  %s\n', latest_capture);
         user_choice = input( ...
@@ -25,6 +34,7 @@ if ~exist('CAPTURE_PATH', 'var') || isempty(CAPTURE_PATH)
         if isempty(user_choice)
             CAPTURE_PATH = latest_capture;
         else
+            % 手动选择时可以直接选 .json 或 .sc16；loader 会自动推导配对文件。
             [fn, fp] = uigetfile({'*.json;*.sc16', 'Capture files (*.json, *.sc16)'}, ...
                                   '选择采集文件');
             if isequal(fn, 0)
@@ -89,6 +99,7 @@ fprintf('捕获成功！Doppler = %.1f Hz，码相位 = %d samples，次峰比 =
 %% Step 2.5：加载 TX truth 契约
 truth_path = '';
 if ~exist('TX_TRUTH_PATH', 'var') || isempty(TX_TRUTH_PATH)
+    % 若未显式指定 TX_TRUTH_PATH，就尝试在采集目录旁边寻找 truth JSON。
     truth_path = discover_tx_truth_json(CAPTURE_PATH);
 else
     truth_path = char(string(TX_TRUTH_PATH));
@@ -118,6 +129,7 @@ fprintf('tracked BER：%.2e，匹配率：%.1f%%，bit 偏移：%d ms，pattern 
     tracked_result.ber, tracked_result.match_rate * 100, ...
     tracked_result.bit_offset_ms, tracked_result.pattern_offset);
 
+% 默认使用 tracked_truth 作为最终判决结果，但仍保留 open-loop_truth 作为诊断基线。
 selected_result = tracked_result;
 if strcmpi(BER_MODE, 'open_loop_truth')
     selected_result = open_loop_result;

@@ -65,6 +65,7 @@
 | 中心频率 | `100 MHz` |
 | 采样率 | `4.092 Msps` |
 | 接线 | `B210 TX(TX/RX) -> 同轴线 -> B210 RX(RX2)` |
+| RX 设备 serial | `8003272`（两台设备直连时必须在 `usrp_addr` 中指定，避免与 TX 冲突） |
 | truth | `tx_truth.json` |
 | 回归采集文件 | `20260328_142122...dur30p0s` |
 
@@ -149,6 +150,16 @@ env PYTHONPATH=src python3 scripts/record_rx.py \
     --duration 30 \
     --capture-mode single
 ```
+
+> **两台设备直连时**：加 `--usrp-addr "serial=8003272"` 指定 RX 设备，避免与 TX（serial=193982）冲突：
+> ```bash
+> env PYTHONPATH=src python3 scripts/record_rx.py \
+>     --config configs/rx_cable_loopback.yaml \
+>     --usrp-addr "serial=8003272" \
+>     --duration 30 \
+>     --capture-mode single
+> ```
+> 注意：两台独立 B210 各有自己的时钟，存在频率偏移属正常现象，FLL 会自动补偿。若 BER 偏高，优先检查 tracking 图中 FLL 是否收敛。
 
 目标：
 

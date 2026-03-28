@@ -62,9 +62,25 @@ function plot_ber_loopback(analysis_result)
         plot(ax3, open_loop_window.time_s, open_loop_window.ber * 100, ...
             'Color', [0.85 0.33 0.10], 'LineWidth', 1.1, 'DisplayName', 'open-loop');
     end
-    plot(ax3, tracked_window.time_s, tracked_window.ber * 100, ...
+    % 有效窗口（锁定质量正常）
+    if isfield(tracked_window, 'valid')
+        valid_mask = logical(tracked_window.valid);
+    else
+        valid_mask = true(size(tracked_window.time_s));
+    end
+    plot(ax3, tracked_window.time_s(valid_mask), tracked_window.ber(valid_mask) * 100, ...
         'Color', [0.00 0.45 0.74], 'LineWidth', 1.3, 'DisplayName', 'tracked');
-    yline(ax3, ber * 100, 'k--', sprintf('当前 BER=%.2f%%', ber * 100), 'LineWidth', 1.1);
+    % 无效窗口（受 overflow/失锁污染）用红色标注
+    if any(~valid_mask)
+        plot(ax3, tracked_window.time_s(~valid_mask), tracked_window.ber(~valid_mask) * 100, ...
+            'r.', 'MarkerSize', 8, 'DisplayName', '失锁污染');
+    end
+    % 仅用有效窗口计算有效 BER
+    if any(valid_mask)
+        valid_ber = mean(tracked_window.ber(valid_mask));
+        yline(ax3, valid_ber * 100, 'b--', sprintf('有效段 BER=%.2f%%', valid_ber * 100), 'LineWidth', 1.0);
+    end
+    yline(ax3, ber * 100, 'k--', sprintf('全段 BER=%.2f%%', ber * 100), 'LineWidth', 1.1);
     hold(ax3, 'off');
     xlabel(ax3, '时间 (s)');
     ylabel(ax3, '局部 BER (%)');

@@ -12,7 +12,7 @@
 #
 # BER 采集时长说明：
 #   导航 bit 速率 50 bps → 300 秒 ≈ 15,000 bit（超过 10^4 门限，留足裕量）
-usrp_addr: "type=b200"             # 如需指定设备：serial=<RX_SERIAL>
+usrp_addr: "serial=8003272"        # 固定 RX 设备，避免与 TX（serial=193982）冲突
 center_freq_hz: 100000000.0        # 与 TX 一致（100 MHz）
 # center_freq_hz: 1575420000.0     # GPS L1（与 TX 同步修改）
 sample_rate_hz: 4092000.0

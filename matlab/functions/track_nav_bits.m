@@ -37,7 +37,7 @@ function tracked_result = track_nav_bits(samples, meta, acq_result, truth, optio
             '可用于 tracking 的 1 ms 块数不足，至少需要 %d ms。', options.min_required_ms);
     end
 
-    [prompt_ms, early_ms, late_ms, code_phase_samples, code_track_events] = track_code_phase_ms( ...
+    [prompt_ms, early_ms, late_ms, code_phase_samples, code_track_events, lock_metric_ms] = track_code_phase_ms( ...
         samples_comp, prn_one_ms, acq_result.best_code_phase_samples + 1, samples_per_ms, options);
 
     [prompt_fll, prompt_pll, carrier_history] = track_carrier_from_prompt(prompt_ms, options);
@@ -61,13 +61,21 @@ function tracked_result = track_nav_bits(samples, meta, acq_result, truth, optio
         initial_alignment.pattern_offset, initial_alignment.polarity);
 
     ber = mean(sign(rx_bits) ~= sign(ref_bits));
-    window_ber = compute_window_ber(rx_bits, ref_bits, bit_times_s, options.window_ber_bits);
+    % 构建比特级锁定质量掩码，综合两类信号：
+    %   1. window_match_rate：比特边界能量比（直接反映比特时序是否正确）
+    %   2. FLL 频率突变：overflow 触发点检测（用于快速感知失锁起始）
+    lock_quality_per_bit = build_bit_lock_quality( ...
+        lock_metric_ms, carrier_history.fll_freq_hz, ...
+        window_metrics, initial_alignment.bit_offset_ms, ...
+        length(rx_bits), options);
+    window_ber = compute_window_ber(rx_bits, ref_bits, bit_times_s, options.window_ber_bits, lock_quality_per_bit);
 
     lock_metrics = struct();
     lock_metrics.prompt_mag = abs(prompt_ms);
     lock_metrics.prompt_mag_pll = abs(prompt_pll);
     lock_metrics.early_mag = abs(early_ms);
     lock_metrics.late_mag = abs(late_ms);
+    lock_metrics.code_lock_metric = lock_metric_ms;
     lock_metrics.code_phase_samples = code_phase_samples;
     lock_metrics.code_error = carrier_history.code_error_proxy;
     lock_metrics.fll_freq_hz = carrier_history.fll_freq_hz;
@@ -76,6 +84,7 @@ function tracked_result = track_nav_bits(samples, meta, acq_result, truth, optio
     lock_metrics.window_match_rate = window_metrics.window_match_rate;
     lock_metrics.window_bit_energy = window_metrics.window_bit_energy;
     lock_metrics.bit_offset_energy = bit_offset_metrics.offset_energy;
+    lock_metrics.bit_lock_quality = lock_quality_per_bit;
 
     tracked_result = struct();
     tracked_result.mode = 'tracked_truth';
@@ -136,7 +145,9 @@ function options = ensure_track_defaults(options)
         'bit_timing_check_interval_ms', 1000, ...
         'bit_timing_check_span_ms', 2000, ...
         'bit_timing_realign_margin', 1.05, ...
-        'window_ber_bits', 100);
+        'window_ber_bits', 100, ...
+        'fll_jump_threshold_hz', 10.0, ...
+        'bit_match_rate_threshold', 0.9);
 
     option_names = fieldnames(defaults);
     for k = 1:numel(option_names)
@@ -147,7 +158,7 @@ function options = ensure_track_defaults(options)
     end
 end
 
-function [prompt_ms, early_ms, late_ms, code_phase_samples, events] = track_code_phase_ms( ...
+function [prompt_ms, early_ms, late_ms, code_phase_samples, events, lock_metric_ms] = track_code_phase_ms( ...
     samples_comp, prn_one_ms, start_sample, samples_per_ms, options)
 
     num_ms = floor((length(samples_comp) - start_sample + 1) / samples_per_ms);
@@ -155,6 +166,7 @@ function [prompt_ms, early_ms, late_ms, code_phase_samples, events] = track_code
     early_ms = complex(zeros(num_ms, 1));
     late_ms = complex(zeros(num_ms, 1));
     code_phase_samples = zeros(num_ms, 1);
+    lock_metric_ms = zeros(num_ms, 1);
     events = struct('ms_index', {}, 'type', {}, 'detail', {}, 'old_value', {}, 'new_value', {});
 
     spacing = options.early_late_spacing_samples;
@@ -184,6 +196,7 @@ function [prompt_ms, early_ms, late_ms, code_phase_samples, events] = track_code
         cursor = cursor + step + next_adjust;
 
         lock_metric = abs(prompt_ms(ms_idx)) / max(abs(early_ms(ms_idx)) + abs(late_ms(ms_idx)), eps);
+        lock_metric_ms(ms_idx) = lock_metric;
         should_search = mod(ms_idx, options.code_search_interval_ms) == 0 || lock_metric < options.code_lock_threshold;
         if should_search
             search_offsets = -options.code_search_half_span_samples : options.code_search_half_span_samples;
@@ -420,20 +433,85 @@ function ref_bits = build_reference_bits_local(pattern, num_bits, pattern_offset
     ref_bits = polarity * pattern_cyc(pattern_offset + 1 : pattern_offset + num_bits);
 end
 
-function window_ber = compute_window_ber(rx_bits, ref_bits, bit_times_s, window_bits)
+function window_ber = compute_window_ber(rx_bits, ref_bits, bit_times_s, window_bits, lock_quality)
     if nargin < 4 || isempty(window_bits)
         window_bits = 100;
     end
+    has_quality = nargin >= 5 && ~isempty(lock_quality) && length(lock_quality) == length(rx_bits);
     n_bits = length(rx_bits);
     step = max(1, floor(window_bits / 4));
     centers = [];
     ber_values = [];
+    valid_flags = [];
     for idx = 1:step:(n_bits - window_bits + 1)
         idx_end = idx + window_bits - 1;
         centers(end+1, 1) = bit_times_s(round((idx + idx_end) / 2)); %#ok<AGROW>
         ber_values(end+1, 1) = mean(sign(rx_bits(idx:idx_end)) ~= sign(ref_bits(idx:idx_end))); %#ok<AGROW>
+        if has_quality
+            % 若本窗口内有任何比特的锁定质量低于阈值，标记为无效（不计入总 BER）
+            valid_flags(end+1, 1) = all(lock_quality(idx:idx_end) >= 0.5); %#ok<AGROW>
+        else
+            valid_flags(end+1, 1) = true; %#ok<AGROW>
+        end
     end
-    window_ber = struct('time_s', centers, 'ber', ber_values);
+    window_ber = struct('time_s', centers, 'ber', ber_values, 'valid', logical(valid_flags));
+end
+
+function lock_quality = build_bit_lock_quality(lock_metric_ms, fll_freq_hz, window_metrics, bit_offset_ms, num_bits, options)
+% 为每个比特计算锁定质量分数（0=无效，1=有效），用于在 BER 统计中屏蔽失锁窗口。
+%
+% 检测逻辑（两级）：
+%   级别 1 — 触发：FLL 频率平滑值的帧间差分超过阈值，标记 overflow 起始点
+%   级别 2 — 持续：window_match_rate < 阈值，比特边界能量已漂移（比特时序错误）
+%
+% 状态机：FLL 触发 → 进入失效；bit_match_rate 恢复 → 退出失效
+% 正确处理"DLL/FLL 重锁但比特边界永久漂移"的 overflow 典型场景。
+    n_ms = length(lock_metric_ms);
+
+    % ── 级别 1：FLL 突变检测（overflow 触发点）────────────────────────
+    fll_jump = abs(diff([fll_freq_hz(1); fll_freq_hz]));
+    fll_trigger_ms = fll_jump > options.fll_jump_threshold_hz;
+
+    % ── 级别 2：比特边界能量比（直接反映比特时序是否正确）──────────────
+    % window_match_rate = base_energy / best_energy：
+    %   - 比特时序正确时 ≈ 1.0
+    %   - 比特时序错误时 << 1.0（当前 bit_offset 能量 < 最优偏移能量）
+    bit_match_ok = true(num_bits, 1);
+    if isfield(window_metrics, 'window_match_rate') && ~isempty(window_metrics.window_match_rate)
+        check_interval_ms = options.bit_timing_check_interval_ms;
+        for win_idx = 1:length(window_metrics.window_match_rate)
+            mr = window_metrics.window_match_rate(win_idx);
+            if isnan(mr) || mr < options.bit_match_rate_threshold
+                ms_s = 1 + (win_idx - 1) * check_interval_ms;
+                ms_e = min(n_ms, ms_s + check_interval_ms - 1);
+                b_s = max(1, ceil((ms_s - bit_offset_ms) / 20));
+                b_e = min(num_bits, floor((ms_e - bit_offset_ms) / 20));
+                if b_e >= b_s
+                    bit_match_ok(b_s:b_e) = false;
+                end
+            end
+        end
+    end
+
+    % ── 状态机：进入失效 → 等待 match_rate 恢复才退出 ─────────────────
+    lock_quality = ones(num_bits, 1);
+    in_bad_state = false;
+    for k = 1:num_bits
+        ms_s = bit_offset_ms + 1 + (k-1) * 20;
+        ms_e = min(n_ms, ms_s + 19);
+        triggered = any(fll_trigger_ms(ms_s:ms_e)) || ...
+                    min(lock_metric_ms(ms_s:ms_e)) < options.code_lock_threshold;
+        if triggered
+            in_bad_state = true;
+        end
+        % match_rate 恢复才允许退出失效状态
+        if in_bad_state && bit_match_ok(k)
+            in_bad_state = false;
+        end
+        if in_bad_state || ~bit_match_ok(k)
+            lock_quality(k) = 0;
+        end
+    end
 end
 
 function top_scores = update_top_scores(top_scores, candidate)

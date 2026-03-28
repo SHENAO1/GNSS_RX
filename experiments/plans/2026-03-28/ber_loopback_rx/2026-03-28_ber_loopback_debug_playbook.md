@@ -60,6 +60,65 @@ run('scripts/run_ber_loopback.m')
 
 本手册后续旧小节仍保留，主要用于回看早期排障思路；当前执行时，以本节流程为准。
 
+## 2026-03-28 新增异常：RX overflow 后 BER 后段突然升高
+
+若联机 `30 s` 复验时，RX 终端出现：
+
+```text
+usrp_source :error: In the last XXXXX ms, N overflows occurred.
+```
+
+同时 MATLAB 图中出现以下组合特征：
+
+- 前半段 BER 正常、后半段从某一时刻开始明显抬升
+- `Tracking 状态：码相位漂移 + 频率估计` 在对应时刻出现频率尖峰
+- `载波相位与重同步事件` 中重同步事件明显增多
+- `Tracked 误码位置` 主要集中在后半段
+
+则当前优先判断应是：
+
+1. **RX 采集链路出现 host-side overflow / 丢样**
+2. **tracking 在丢样点之后被迫继续工作，导致后半段判决失稳**
+3. **这类问题优先归因于采集连续性破坏，而不是 TX pattern 改错**
+
+处理原则：
+
+- 这份采集默认不要作为 BER 验收样本。
+- 优先重采，再看问题是否复现。
+- 若连续多次只在写共享目录时发生，优先怀疑 `/mnt/hgfs/...` 写盘抖动，而不是 RF 链路本身。
+
+为什么 summary 里可能仍看到较高的 `tracked_match`：
+
+- 当前 `track_nav_bits.m` 里的 `tracked_result.match_rate` 来自初始对齐阶段的 `initial_alignment.match_rate`。
+- 该初始对齐仅使用前 `alignment_training_ms = 2000` ms 的训练窗口。
+- 因此，哪怕 18 s 之后发生 overflow 并导致后半段 BER 崩掉，summary 中的 `tracked_match` 仍可能看起来很好。
+
+因此在 overflow 场景下，优先看：
+
+- `selected_ber`
+- `Tracked 误码位置`
+- `局部 BER`
+- `Tracking 状态`
+- `tracked reacq_events`
+
+不要只看 `tracked_match` 一项。
+
+工程侧优先缓解：
+
+- 正式 BER 复验优先写 VM 本地磁盘，再事后同步到共享目录
+- 采集期间减少宿主机共享目录负载
+- 若问题频繁复现，可先降低采样率做 A/B 验证，判断是否吞吐瓶颈
+
+算法侧可增强但不能“补回丢样”：
+
+- 增加 overflow / lock-loss 检测后对坏窗口做屏蔽
+- 在频率尖峰或 prompt 能量崩塌后触发局部重同步
+- 将 BER 统计从“整段硬判决”改为“只统计高置信窗口”
+
+但需要明确：
+
+- 若原始 IQ 样本已经因为 overflow 丢失，算法无法真正恢复丢掉的数据，只能减少次生污染。
+
 ### 宿主机同步清单
 
 每次 MATLAB 逻辑有更新时，至少同步以下文件到 `GNSS_RX_matlab/`：

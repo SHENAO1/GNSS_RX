@@ -127,13 +127,16 @@ def create_usrp_source(config: RxRuntimeConfig):
 
     # 创建 USRP Source 并指定设备地址及数据流参数
     # 增大 USB 接收缓冲区以减少 overflow：
-    #   recv_frame_size=4096  — 每帧样本数（默认 ~1024）
+    #   recv_frame_size=4104  — 每帧样本数（默认 ~1024）
     #   num_recv_frames=512   — 缓冲帧数（默认 ~32）
+    #   recv_buff_size=33554432 — OS 级 socket 接收缓冲区 32 MB（默认 ~4 MB）
+    #     作用：CPU 调度抖动期间（≤数十 ms）能暂存更多数据，减少 overflow 概率
     device_addr = ",".join(
         part for part in [
             config.usrp_addr,
             "recv_frame_size=4104",
             "num_recv_frames=512",
+            "recv_buff_size=33554432",
         ] if part
     )
     source = uhd.usrp_source(
