@@ -26,6 +26,7 @@ from gnss_rx.runtime import (
     format_capture_report,
     format_matlab_handoff,
     load_rx_runtime_config,
+    resolve_chunk_capture_paths,
     resolve_capture_paths,
 )
 
@@ -53,6 +54,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--bandwidth", type=float, dest="bandwidth_hz")
     # --duration：录制时长，单位秒
     parser.add_argument("--duration", type=float, dest="duration_s")
+    parser.add_argument("--capture-mode", choices=["single", "chunked"], dest="capture_mode")
+    parser.add_argument("--chunk-duration", type=float, dest="chunk_duration_s")
     # --output-base-dir / --output-stem：自定义输出文件夹和文件名前缀
     parser.add_argument("--output-base-dir")
     parser.add_argument("--output-stem")
@@ -87,14 +90,15 @@ def main(argv: list[str] | None = None) -> int:
         rx_gain_db=args.rx_gain_db,
         bandwidth_hz=args.bandwidth_hz,
         duration_s=args.duration_s,
+        capture_mode=args.capture_mode,
+        chunk_duration_s=args.chunk_duration_s,
         output_base_dir=args.output_base_dir,
         output_stem=args.output_stem,
     )
 
     # ── 第三步：确定输出文件路径，并打印采集计划 ────────────────────────────────
-    # data_path：IQ 二进制文件（.bin / .cf32），MATLAB 直接读这个
-    # metadata_path：对应的 JSON 元数据文件
-    data_path, metadata_path = resolve_capture_paths(PROJECT_ROOT, config)
+    chunk_specs = resolve_chunk_capture_paths(PROJECT_ROOT, config)
+    data_path, metadata_path, first_chunk_duration_s, _, _, group_id = chunk_specs[0]
     print(format_capture_report(config, data_path=data_path, metadata_path=metadata_path))
     print("")
 
@@ -106,6 +110,9 @@ def main(argv: list[str] | None = None) -> int:
 
     # 打印 MATLAB 可直接复制粘贴的参数交接信息
     print(format_matlab_handoff(config, data_path=data_path, metadata_path=metadata_path))
+    if config.capture_mode == "chunked":
+        print("")
+        print(f"chunked 模式：共 {len(chunk_specs)} 段，首段时长 {first_chunk_duration_s:.1f} s，capture_group_id={group_id}")
 
     # ── 第四步：dry-run 检查 ──────────────────────────────────────────────────
     # 如果用户只想预览采集计划，到这里就可以退出了
@@ -124,30 +131,67 @@ def main(argv: list[str] | None = None) -> int:
 
     # ── 第六步：创建输出目录，启动采集 ───────────────────────────────────────
     # parents=True：自动创建多级目录；exist_ok=True：目录已存在也不报错
-    data_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # build_capture_top_block 构建 GNU Radio 的"顶层流图"（Top Block）：
-    #   USRP 硬件 → 零中频下变频 → 文件写入 sink
-    # 保持 v1 录制路径尽可能原始，这样 MATLAB 看到的就是硬件直接输出的
-    # 零中频观测。后续若需要预览或 DSP 分支，应从同一信源旁路分出，
-    # 而不是修改首版录制路径。
-    tb, sink = build_capture_top_block(config=config, output_path=data_path)
     print("")
     print("[信息] 开始零中频采集。请在整个录制窗口内保持接收机设置不变。")
 
-    # tb.run() 会阻塞，直到录制时长结束才返回
+    if config.capture_mode == "single":
+        run_single_capture(config, data_path, metadata_path)
+        print(f"[成功] 采集已正常结束：{data_path}")
+        print(f"[成功] 元数据已写入：{metadata_path}")
+    else:
+        total_samples_written = 0
+        for chunk_data_path, chunk_metadata_path, chunk_duration_s, chunk_index, chunk_count, capture_group_id in chunk_specs:
+            print(f"[信息] chunk {chunk_index}/{chunk_count}：duration={chunk_duration_s:.1f}s")
+            chunk_config = apply_overrides(
+                config,
+                duration_s=chunk_duration_s,
+                output_stem=str(chunk_data_path.with_suffix("")),
+            )
+            chunk_samples_written = run_single_capture(
+                chunk_config,
+                chunk_data_path,
+                chunk_metadata_path,
+                capture_mode="chunked",
+                chunk_index=chunk_index,
+                chunk_count=chunk_count,
+                chunk_duration_s=chunk_duration_s,
+                capture_group_id=capture_group_id,
+            )
+            total_samples_written += chunk_samples_written
+
+        print(f"[成功] chunked 采集已正常结束：共 {len(chunk_specs)} 段，累计样本数 {total_samples_written}")
+    return 0
+
+
+def run_single_capture(
+    config,
+    data_path,
+    metadata_path,
+    *,
+    capture_mode: str | None = None,
+    chunk_index: int | None = None,
+    chunk_count: int | None = None,
+    chunk_duration_s: float | None = None,
+    capture_group_id: str | None = None,
+) -> int:
+    data_path.parent.mkdir(parents=True, exist_ok=True)
+
+    tb, sink = build_capture_top_block(config=config, output_path=data_path)
     tb.run()
-    # 关闭文件 sink，确保所有缓冲区都刷入磁盘
     sink.close()
 
-    # ── 第七步：写入元数据 JSON ───────────────────────────────────────────────
-    # 把采集参数和实际写入的采样点数保存为 JSON，供 MATLAB 读取
-    metadata = build_capture_metadata(config=config, samples_captured=sink.samples_written, data_path=data_path)
+    metadata = build_capture_metadata(
+        config=config,
+        samples_captured=sink.samples_written,
+        data_path=data_path,
+        capture_mode=capture_mode,
+        chunk_index=chunk_index,
+        chunk_count=chunk_count,
+        chunk_duration_s=chunk_duration_s,
+        capture_group_id=capture_group_id,
+    )
     write_metadata_json(metadata_path, metadata)
-
-    print(f"[成功] 采集已正常结束：{data_path}")
-    print(f"[成功] 元数据已写入：{metadata_path}")
-    return 0
+    return sink.samples_written
 
 
 if __name__ == "__main__":

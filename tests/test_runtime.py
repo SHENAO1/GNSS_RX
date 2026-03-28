@@ -19,6 +19,7 @@ from gnss_rx.runtime import (
     apply_overrides,                  # 用新参数覆盖配置的函数
     build_timestamped_capture_stem,   # 生成带时间戳的文件名前缀
     load_rx_runtime_config,           # 从 YAML 文件加载配置
+    resolve_chunk_capture_paths,
     resolve_capture_paths,            # 根据配置解析输出文件的完整路径
 )
 
@@ -196,6 +197,25 @@ class TestRxRuntimeConfig(unittest.TestCase):
         """
         config = RxRuntimeConfig(bandwidth_hz=4.092e6)
         self.assertFalse(config.all_prns)
+
+    def test_chunked_mode_reports_chunk_count_and_paths(self) -> None:
+        config = RxRuntimeConfig(
+            bandwidth_hz=4.092e6,
+            duration_s=95.0,
+            capture_mode="chunked",
+            chunk_duration_s=30.0,
+        )
+        chunk_specs = resolve_chunk_capture_paths(
+            Path("/project"),
+            config,
+            when=datetime(2026, 3, 23, 19, 5, 30),
+        )
+
+        self.assertEqual(config.chunk_count, 4)
+        self.assertEqual(len(chunk_specs), 4)
+        self.assertEqual(chunk_specs[0][2], 30.0)
+        self.assertEqual(chunk_specs[-1][2], 5.0)
+        self.assertTrue(str(chunk_specs[0][0]).endswith("_chunk0001of0004.sc16"))
 
 
 if __name__ == "__main__":

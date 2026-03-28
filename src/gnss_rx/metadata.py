@@ -83,12 +83,29 @@ class CaptureMetadata:
     # 多星场景下记录实际叠加的 PRN 编号列表；单星场景下为 None。
     prn_ids: list | None
 
+    # ── 长时采集模式描述 ─────────────────────────────────────────
+    capture_mode: str
+    chunk_index: int | None
+    chunk_count: int | None
+    chunk_duration_s: float | None
+    capture_group_id: str | None
+
     # ── 来源追溯 ───────────────────────────────────────────────
     tx_profile_reference: str  # TX 端配置文件路径（相对路径），方便事后对照
     data_file: str             # 对应的 .sc16 文件名（仅 basename）
 
 
-def build_capture_metadata(config: RxRuntimeConfig, *, samples_captured: int, data_path: Path) -> CaptureMetadata:
+def build_capture_metadata(
+    config: RxRuntimeConfig,
+    *,
+    samples_captured: int,
+    data_path: Path,
+    capture_mode: str | None = None,
+    chunk_index: int | None = None,
+    chunk_count: int | None = None,
+    chunk_duration_s: float | None = None,
+    capture_group_id: str | None = None,
+) -> CaptureMetadata:
     """根据运行时配置和实际采集结果，构造 CaptureMetadata 实例。
 
     这个函数是 CaptureMetadata 的"工厂方法"，集中处理
@@ -130,6 +147,12 @@ def build_capture_metadata(config: RxRuntimeConfig, *, samples_captured: int, da
 
         # all_prns=True 时生成 [1..32] 列表，否则为 None
         prn_ids=list(range(1, 33)) if config.all_prns else None,
+
+        capture_mode=capture_mode if capture_mode is not None else config.capture_mode,
+        chunk_index=chunk_index,
+        chunk_count=chunk_count,
+        chunk_duration_s=chunk_duration_s,
+        capture_group_id=capture_group_id,
 
         # 来源追溯
         tx_profile_reference=config.tx_profile_reference,

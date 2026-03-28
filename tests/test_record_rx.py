@@ -49,11 +49,15 @@ class TestRecordRxScript(unittest.TestCase):
         )
         fixed_metadata_path = fixed_data_path.with_suffix(".json")  # 同名但扩展名改为 .json
 
+        chunk_specs = [
+            (fixed_data_path, fixed_metadata_path, 2.0, 1, 1, "group"),
+        ]
+
         with (
             # 模拟 UHD 设备扫描，返回假设备序列号
             mock.patch.object(record_rx, "uhd_find_devices_output", return_value="serial: RX123"),
             # 模拟路径解析，返回固定路径对
-            mock.patch.object(record_rx, "resolve_capture_paths", return_value=(fixed_data_path, fixed_metadata_path)),
+            mock.patch.object(record_rx, "resolve_chunk_capture_paths", return_value=chunk_specs),
         ):
             buffer = io.StringIO()              # 创建内存缓冲区
             with redirect_stdout(buffer):       # 将 print 输出重定向到缓冲区
@@ -93,9 +97,13 @@ class TestRecordRxScript(unittest.TestCase):
         )
         fixed_metadata_path = fixed_data_path.with_suffix(".json")
 
+        chunk_specs = [
+            (fixed_data_path, fixed_metadata_path, 2.0, 1, 1, "group"),
+        ]
+
         with (
             mock.patch.object(record_rx, "uhd_find_devices_output", return_value="serial: RX123"),
-            mock.patch.object(record_rx, "resolve_capture_paths", return_value=(fixed_data_path, fixed_metadata_path)),
+            mock.patch.object(record_rx, "resolve_chunk_capture_paths", return_value=chunk_specs),
         ):
             buffer = io.StringIO()
             with redirect_stdout(buffer):
@@ -107,6 +115,43 @@ class TestRecordRxScript(unittest.TestCase):
         self.assertIn("prn_id=7", output)
         # 验证元数据部分也显示正确的预期 PRN
         self.assertIn("expected_prn=7", output)
+
+    def test_dry_run_reports_chunked_capture_summary(self) -> None:
+        argv = [
+            "--config",
+            "configs/rx_prn1_capture.yaml",
+            "--capture-mode",
+            "chunked",
+            "--chunk-duration",
+            "30",
+            "--duration",
+            "95",
+            "--dry-run",
+        ]
+
+        fixed_data_path = Path(
+            "/mnt/hgfs/GongXiangDocument/GNSS_RX_Data/2026/2026-03-23/"
+            "20260323_190530_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur95p0s/"
+            "20260323_190530_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur95p0s_chunk0001of0004.sc16"
+        )
+        fixed_metadata_path = fixed_data_path.with_suffix(".json")
+        chunk_specs = [
+            (fixed_data_path, fixed_metadata_path, 30.0, 1, 4, "group"),
+        ]
+
+        with (
+            mock.patch.object(record_rx, "uhd_find_devices_output", return_value="serial: RX123"),
+            mock.patch.object(record_rx, "resolve_chunk_capture_paths", return_value=chunk_specs),
+        ):
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                exit_code = record_rx.main(argv)
+
+        output = buffer.getvalue()
+        self.assertEqual(exit_code, 0)
+        self.assertIn("capture_mode=chunked", output)
+        self.assertIn("chunk_duration_s=30.0", output)
+        self.assertIn("chunked 模式：共 1 段", output)
 
 
 if __name__ == "__main__":

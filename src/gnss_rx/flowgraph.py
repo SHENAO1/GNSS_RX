@@ -126,8 +126,18 @@ def create_usrp_source(config: RxRuntimeConfig):
         raise RuntimeError("当前 Python 环境中没有可用的 GNU Radio UHD 绑定。")
 
     # 创建 USRP Source 并指定设备地址及数据流参数
+    # 增大 USB 接收缓冲区以减少 overflow：
+    #   recv_frame_size=4096  — 每帧样本数（默认 ~1024）
+    #   num_recv_frames=512   — 缓冲帧数（默认 ~32）
+    device_addr = ",".join(
+        part for part in [
+            config.usrp_addr,
+            "recv_frame_size=4104",
+            "num_recv_frames=512",
+        ] if part
+    )
     source = uhd.usrp_source(
-        ",".join(part for part in [config.usrp_addr] if part),  # 地址字符串
+        device_addr,
         uhd.stream_args(
             cpu_format="fc32",   # 主机侧（Python/NumPy）使用 float complex32
             otw_format="sc16",   # 硬件→主机 USB 传输使用 SC16（节省带宽）

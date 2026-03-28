@@ -1,37 +1,50 @@
 %% run_ber_loopback.m
-% Milestone 1 BER 闭环验证主脚本
-%
-% 用法：
-%   1. 修改下方 CAPTURE_PATH 为实际采集文件路径（stem 路径或 .json 路径）
-%   2. 在 MATLAB 中运行：run matlab/scripts/run_ber_loopback.m
-%
-% 也可从命令行直接覆盖 CAPTURE_PATH：
-%   CAPTURE_PATH = 'results/captures/xxx'; run_ber_loopback
-%
-% 输出：
-%   - 控制台打印 BER 统计结果
-%   - 结果保存至 results/ber_loopback_YYYYMMDD_HHMMSS.mat
+% BER 闭环验证主脚本：
+%   - open_loop_truth：现有 truth 驱动开环诊断基线
+%   - tracked_truth：新的 tracking BER 主链（默认）
 
-clear; close all;
+clearvars -except CAPTURE_PATH TX_TRUTH_PATH BER_MODE TRACKING_OPTIONS;
+close all;
 addpath(fullfile(fileparts(mfilename('fullpath')), '..', 'functions'));
 
-%% ---- 用户配置区 -------------------------------------------------------
-% 指定采集文件 stem（不带扩展名）或 .json 路径
-% 若未提前赋值则弹出文件选择对话框
-if ~exist('CAPTURE_PATH', 'var') || isempty(CAPTURE_PATH)
-    [fn, fp] = uigetfile({'*.json;*.sc16', 'Capture files (*.json, *.sc16)'}, ...
-                          '选择采集文件');
-    if isequal(fn, 0)
-        error('未选择采集文件，脚本终止。');
-    end
-    CAPTURE_PATH = fullfile(fp, fn);
+if ~exist('BER_MODE', 'var') || isempty(BER_MODE)
+    BER_MODE = 'tracked_truth';
+end
+if ~exist('TRACKING_OPTIONS', 'var') || isempty(TRACKING_OPTIONS)
+    TRACKING_OPTIONS = struct();
 end
 
-% TX 端已知导航比特模式（+/-1 表示，与 DEFAULT_NAV_PATTERN 一致）
-% 对应 "1 0 1 1 0 0 1 0"
-TX_PATTERN = [+1, -1, +1, +1, -1, -1, +1, -1];
+%% ---- 用户配置区 -------------------------------------------------------
+if ~exist('CAPTURE_PATH', 'var') || isempty(CAPTURE_PATH)
+    try
+        latest_capture = find_latest_capture();
+        fprintf('检测到最新采集文件：\n  %s\n', latest_capture);
+        user_choice = input( ...
+            '直接分析最新文件请按回车；如需手动选择文件请输入任意字符后回车：', ...
+            's');
+        if isempty(user_choice)
+            CAPTURE_PATH = latest_capture;
+        else
+            [fn, fp] = uigetfile({'*.json;*.sc16', 'Capture files (*.json, *.sc16)'}, ...
+                                  '选择采集文件');
+            if isequal(fn, 0)
+                error('未选择采集文件，脚本终止。');
+            end
+            CAPTURE_PATH = fullfile(fp, fn);
+        end
+    catch ME
+        warning('自动查找最新采集文件失败：%s\n将改为手动选择文件。', ME.message);
+        [fn, fp] = uigetfile({'*.json;*.sc16', 'Capture files (*.json, *.sc16)'}, ...
+                              '选择采集文件');
+        if isequal(fn, 0)
+            error('未选择采集文件，脚本终止。');
+        end
+        CAPTURE_PATH = fullfile(fp, fn);
+    end
+end
+fprintf('本次分析文件：%s\n', char(string(CAPTURE_PATH)));
 
-% 捕获所用前缀时长（秒），用于 run_prn_acquisition；取 100 ms 足够
+DEFAULT_TX_PATTERN = [+1, -1, +1, +1, -1, -1, +1, -1];
 ACQ_DURATION_S = 0.1;
 %% -----------------------------------------------------------------------
 
@@ -41,78 +54,167 @@ fprintf('=== Step 1: 加载采集数据 ===\n');
 total_s = length(samples) / meta.sample_rate_hz;
 fprintf('采集时长：%.1f 秒，样本数：%d\n', total_s, length(samples));
 
-%% Step 2：GPS L1 C/A 捕获（取前 ACQ_DURATION_S 秒）
+%% Step 2：GPS L1 C/A 捕获
 fprintf('=== Step 2: GPS L1 C/A 捕获 ===\n');
-acq_len     = round(ACQ_DURATION_S * meta.sample_rate_hz);
+acq_len = round(ACQ_DURATION_S * meta.sample_rate_hz);
 acq_samples = samples(1:min(acq_len, length(samples)));
-acq_result  = run_prn_acquisition(acq_samples, meta, struct());
+acq_result = run_prn_acquisition(acq_samples, meta, struct());
 
-if ~acq_result.acquired
+if isfield(acq_result, 'detected')
+    acq_detected = logical(acq_result.detected);
+elseif isfield(acq_result, 'acquired')
+    acq_detected = logical(acq_result.acquired);
+else
+    error('GNSS_RX:MissingAcqDetectedField', ...
+        '捕获结果中既没有 detected 也没有 acquired 字段，无法判断捕获是否成功。');
+end
+
+if isfield(acq_result, 'second_peak_ratio')
+    acq_peak_ratio = acq_result.second_peak_ratio;
+elseif isfield(acq_result, 'secondary_peak_ratio')
+    acq_peak_ratio = acq_result.secondary_peak_ratio;
+else
+    error('GNSS_RX:MissingAcqPeakRatioField', ...
+        '捕获结果中既没有 second_peak_ratio 也没有 secondary_peak_ratio 字段。');
+end
+
+if ~acq_detected
     error('捕获失败！次峰比 = %.2f（阈值 2.5）。请检查信号链路或调整增益。', ...
-          acq_result.secondary_peak_ratio);
+          acq_peak_ratio);
 end
 fprintf('捕获成功！Doppler = %.1f Hz，码相位 = %d samples，次峰比 = %.2f\n', ...
         acq_result.best_doppler_hz, acq_result.best_code_phase_samples, ...
-        acq_result.secondary_peak_ratio);
+        acq_peak_ratio);
 
-%% Step 3：开环比特恢复
-fprintf('=== Step 3: 开环比特恢复 ===\n');
-[rx_bits, bit_times] = recover_nav_bits(samples, meta, acq_result);
-fprintf('恢复比特数：%d\n', length(rx_bits));
-
-if length(rx_bits) < 1000
-    warning('恢复比特数不足 1000，请检查捕获结果或增大采集时长。');
+%% Step 2.5：加载 TX truth 契约
+truth_path = '';
+if ~exist('TX_TRUTH_PATH', 'var') || isempty(TX_TRUTH_PATH)
+    truth_path = discover_tx_truth_json(CAPTURE_PATH);
+else
+    truth_path = char(string(TX_TRUTH_PATH));
 end
 
-%% Step 4：比特序列对齐（循环相位搜索）
-fprintf('=== Step 4: 比特序列对齐 ===\n');
-pattern_len = length(TX_PATTERN);
-pattern_cyc = repmat(TX_PATTERN(:), ceil(length(rx_bits) / pattern_len) + 1, 1);
-
-best_offset = 0;
-best_match  = 0;
-for offset = 0:pattern_len - 1
-    ref        = pattern_cyc(offset + 1 : offset + length(rx_bits));
-    match_rate = mean(sign(rx_bits) == sign(ref));
-    if match_rate > best_match
-        best_match  = match_rate;
-        best_offset = offset;
-    end
-end
-fprintf('最佳对齐偏移：%d bit（匹配率 %.1f%%）\n', best_offset, best_match * 100);
-
-if best_match < 0.5
-    warning('最高匹配率 %.1f%% < 50%%，序列可能反相，尝试取反...', best_match * 100);
-    rx_bits    = -rx_bits;
-    best_match = 1 - best_match;
-    fprintf('取反后匹配率：%.1f%%\n', best_match * 100);
+if ~isempty(truth_path) && isfile(truth_path)
+    truth = load_tx_truth_json(truth_path);
+    fprintf('TX truth：JSON 模式，来源 = %s\n', truth.source_path);
+else
+    truth = build_fallback_tx_truth(DEFAULT_TX_PATTERN, meta, acq_result);
+    warning(['未提供 TX truth JSON；当前将回退到脚本内默认 pattern。', ...
+             ' 该模式仅用于兼容旧流程，建议优先使用 gnss_tx 导出的 truth JSON。']);
+    fprintf('TX truth：fallback 模式（使用默认参考 pattern）\n');
 end
 
-%% Step 5：BER 统计
-fprintf('=== Step 5: BER 统计 ===\n');
-ref_bits   = pattern_cyc(best_offset + 1 : best_offset + length(rx_bits));
-errors     = sum(sign(rx_bits) ~= sign(ref_bits));
-total_bits = length(rx_bits);
-ber        = errors / total_bits;
+%% Step 3：open-loop truth 基线
+fprintf('=== Step 3: open-loop truth 基线 ===\n');
+[~, ~, open_loop_result] = recover_nav_bits(samples, meta, acq_result, truth);
+fprintf('open-loop 匹配率：%.1f%%，bit 偏移：%d ms，pattern 偏移：%d bit\n', ...
+    open_loop_result.match_rate * 100, ...
+    open_loop_result.bit_offset_ms, open_loop_result.pattern_offset);
+
+%% Step 4：tracked BER 主链
+fprintf('=== Step 4: tracked BER 主链 ===\n');
+tracked_result = track_nav_bits(samples, meta, acq_result, truth, TRACKING_OPTIONS);
+fprintf('tracked BER：%.2e，匹配率：%.1f%%，bit 偏移：%d ms，pattern 偏移：%d bit\n', ...
+    tracked_result.ber, tracked_result.match_rate * 100, ...
+    tracked_result.bit_offset_ms, tracked_result.pattern_offset);
+
+selected_result = tracked_result;
+if strcmpi(BER_MODE, 'open_loop_truth')
+    selected_result = open_loop_result;
+elseif ~strcmpi(BER_MODE, 'tracked_truth')
+    warning('未知 BER_MODE=%s，将回退到 tracked_truth。', BER_MODE);
+end
+
+%% Step 5：truth 一致性判决
+fprintf('=== Step 5: truth 一致性判决 ===\n');
+fprintf('分析模式：%s\n', BER_MODE);
+fprintf('最佳 bit 偏移：%d ms\n', selected_result.bit_offset_ms);
+fprintf('最佳 pattern 偏移：%d bit\n', selected_result.pattern_offset);
+fprintf('最佳极性：%+d\n', selected_result.polarity);
+fprintf('truth 匹配率：%.1f%%\n', selected_result.match_rate * 100);
+
+if selected_result.ambiguity_flag
+    warning('最优候选与次优候选接近，当前结果存在 timing/truth ambiguity。');
+end
+if selected_result.match_rate < 0.55
+    warning('最佳 truth 匹配率仅 %.1f%%，当前更像 truth mismatch 或 bit timing 歧义，而非稳定解调。', ...
+        selected_result.match_rate * 100);
+end
+
+%% Step 6：BER 统计
+fprintf('=== Step 6: BER 统计 ===\n');
+errors = sum(sign(selected_result.rx_bits) ~= sign(selected_result.ref_bits));
+total_bits = length(selected_result.rx_bits);
+ber = errors / total_bits;
 
 fprintf('\n========================================\n');
 fprintf('  BER 统计结果\n');
 fprintf('========================================\n');
-fprintf('  总发送比特数：%d\n',  total_bits);
-fprintf('  误码个数：    %d\n',  errors);
+fprintf('  模式：        %s\n', BER_MODE);
+fprintf('  truth 模式：  %s\n', truth.truth_mode);
+fprintf('  总发送比特数：%d\n', total_bits);
+fprintf('  误码个数：    %d\n', errors);
 fprintf('  BER：         %.2e\n', ber);
-fprintf('  对齐相位偏移：%d bit\n', best_offset);
+fprintf('  bit 偏移：    %d ms\n', selected_result.bit_offset_ms);
+fprintf('  pattern 偏移：%d bit\n', selected_result.pattern_offset);
+fprintf('  极性：        %+d\n', selected_result.polarity);
+fprintf('  truth 匹配率：%.1f%%\n', selected_result.match_rate * 100);
 fprintf('  捕获 Doppler：%.1f Hz\n', acq_result.best_doppler_hz);
-fprintf('  次峰比：      %.2f\n',  acq_result.secondary_peak_ratio);
+fprintf('  次峰比：      %.2f\n', acq_peak_ratio);
 fprintf('========================================\n');
 
-%% Step 6：保存结果
-results_dir = fullfile(fileparts(mfilename('fullpath')), '..', 'results');
-if ~exist(results_dir, 'dir')
-    mkdir(results_dir);
+%% Step 7：可视化
+analysis_result = struct();
+analysis_result.ber_mode = BER_MODE;
+analysis_result.truth = truth;
+analysis_result.acq_result = acq_result;
+analysis_result.acq_peak_ratio = acq_peak_ratio;
+analysis_result.open_loop_result = open_loop_result;
+analysis_result.tracked_result = tracked_result;
+analysis_result.selected_result = selected_result;
+analysis_result.errors = errors;
+analysis_result.total_bits = total_bits;
+analysis_result.ber = ber;
+plot_ber_loopback(analysis_result);
+
+%% Step 8：保存结果
+save_choice = input('\n是否保存结果到 .mat 文件？[y/N]：', 's');
+if strcmpi(strtrim(save_choice), 'y')
+    results_dir = fullfile(fileparts(mfilename('fullpath')), '..', 'results');
+    if ~exist(results_dir, 'dir')
+        mkdir(results_dir);
+    end
+    result_path = fullfile(results_dir, ...
+        sprintf('ber_loopback_%s.mat', datestr(now, 'yyyymmdd_HHMMSS')));
+    save(result_path, 'truth', 'meta', 'acq_result', 'acq_peak_ratio', ...
+         'open_loop_result', 'tracked_result', 'selected_result', ...
+         'analysis_result', 'errors', 'total_bits', 'ber', 'BER_MODE');
+    fprintf('结果已保存至：%s\n', result_path);
+else
+    fprintf('已跳过保存。\n');
 end
-result_path = fullfile(results_dir, ...
-    sprintf('ber_loopback_%s.mat', datestr(now, 'yyyymmdd_HHMMSS')));
-save(result_path, 'rx_bits', 'ref_bits', 'errors', 'total_bits', 'ber', ...
-     'acq_result', 'meta', 'best_offset');
-fprintf('结果已保存至：%s\n', result_path);
+
+function truth_path = discover_tx_truth_json(capture_path)
+    truth_path = '';
+    capture_str = char(string(capture_path));
+    capture_dir = fileparts(capture_str);
+    [~, capture_name, ext] = fileparts(capture_str);
+    if strcmpi(ext, '.json') || strcmpi(ext, '.sc16')
+        capture_stem = capture_name;
+    else
+        capture_stem = capture_name;
+    end
+
+    candidates = {
+        fullfile(capture_dir, 'tx_truth.json'), ...
+        fullfile(capture_dir, 'ber_truth.json'), ...
+        fullfile(capture_dir, [capture_stem, '_tx_truth.json']), ...
+        fullfile(capture_dir, [capture_stem, '.truth.json'])};
+
+    for k = 1:numel(candidates)
+        if isfile(candidates{k})
+            truth_path = candidates{k};
+            return;
+        end
+    end
+end

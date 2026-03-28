@@ -22,6 +22,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 from dataclasses import asdict, dataclass, replace  # dataclass：自动生成 __init__/__repr__；replace：产生修改后的副本
+import math
 from pathlib import Path
 from typing import Any
 
@@ -95,6 +96,8 @@ class RxRuntimeConfig:
     bandwidth_hz: float | None = None
     antenna: str = "RX2"
     duration_s: float = 2.0
+    capture_mode: str = "single"
+    chunk_duration_s: float = 30.0
     output_base_dir: str = DEFAULT_OUTPUT_BASE_DIR
     use_timestamped_stem: bool = True
     output_stem: str | None = None
@@ -125,6 +128,10 @@ class RxRuntimeConfig:
             raise ValueError("sample_rate_hz 必须大于 0。")
         if self.duration_s <= 0:
             raise ValueError("duration_s 必须大于 0。")
+        if self.capture_mode not in {"single", "chunked"}:
+            raise ValueError("capture_mode 必须是以下之一：single、chunked。")
+        if self.chunk_duration_s <= 0:
+            raise ValueError("chunk_duration_s 必须大于 0。")
         if self.rx_gain_db < 0:
             raise ValueError("rx_gain_db 必须大于等于 0。")
         if self.bandwidth_hz is not None and self.bandwidth_hz <= 0:
@@ -157,6 +164,17 @@ class RxRuntimeConfig:
         这个值就是用来设置该模块的上限的。
         """
         return int(round(self.sample_rate_hz * self.duration_s))
+
+    @property
+    def chunk_count(self) -> int:
+        if self.capture_mode != "chunked":
+            return 1
+        return int(math.ceil(self.duration_s / self.chunk_duration_s))
+
+    @property
+    def chunk_samples(self) -> int:
+        effective_chunk_s = min(self.duration_s, self.chunk_duration_s) if self.capture_mode == "chunked" else self.duration_s
+        return int(round(self.sample_rate_hz * effective_chunk_s))
 
 
 # ──────────────────────────────────────────────────────────────
@@ -377,6 +395,39 @@ def resolve_capture_paths(project_root: Path, config: RxRuntimeConfig, when: dat
     return stem_path.with_suffix(".sc16"), stem_path.with_suffix(".json")
 
 
+def resolve_chunk_capture_paths(
+    project_root: Path,
+    config: RxRuntimeConfig,
+    when: datetime | None = None,
+) -> list[tuple[Path, Path, float, int, int, str]]:
+    """解析 chunked 采集模式下每个 chunk 的输出路径和时长。"""
+    if config.capture_mode != "chunked":
+        data_path, metadata_path = resolve_capture_paths(project_root, config, when=when)
+        group_id = data_path.stem
+        return [(data_path, metadata_path, config.duration_s, 1, 1, group_id)]
+
+    base_stem = resolve_output_stem_path(project_root, config, when=when)
+    group_id = base_stem.name
+    chunk_specs: list[tuple[Path, Path, float, int, int, str]] = []
+    total_chunks = config.chunk_count
+    remaining_s = config.duration_s
+
+    for chunk_index in range(1, total_chunks + 1):
+        chunk_duration_s = min(config.chunk_duration_s, remaining_s)
+        chunk_stem = base_stem.parent / f"{base_stem.name}_chunk{chunk_index:04d}of{total_chunks:04d}"
+        chunk_specs.append((
+            chunk_stem.with_suffix(".sc16"),
+            chunk_stem.with_suffix(".json"),
+            chunk_duration_s,
+            chunk_index,
+            total_chunks,
+            group_id,
+        ))
+        remaining_s -= chunk_duration_s
+
+    return chunk_specs
+
+
 # ──────────────────────────────────────────────────────────────
 # 终端报告格式化函数
 # ──────────────────────────────────────────────────────────────
@@ -405,6 +456,8 @@ def format_capture_report(config: RxRuntimeConfig, *, data_path: Path, metadata_
     lines.extend(
         [
             f"capture_samples={config.capture_samples}",   # 派生属性，额外打印
+            f"chunk_samples={config.chunk_samples}",
+            f"chunk_count={config.chunk_count}",
             f"data_path={data_path}",
             f"metadata_path={metadata_path}",
             "",
@@ -441,6 +494,8 @@ def format_matlab_handoff(config: RxRuntimeConfig, *, data_path: Path, metadata_
             f"sample_rate_hz={config.sample_rate_hz}",
             f"center_freq_hz={config.center_freq_hz}",
             f"duration_s={config.duration_s}",
+            f"capture_mode={config.capture_mode}",
+            f"chunk_duration_s={config.chunk_duration_s}",
             f"expected_prn={config.prn_id}",                   # MATLAB 捕获时要搜索的 PRN
             f"data_file={data_path}",
             f"metadata_file={metadata_path}",
@@ -459,6 +514,7 @@ __all__ = [
     "format_capture_report",
     "format_matlab_handoff",
     "load_rx_runtime_config",
+    "resolve_chunk_capture_paths",
     "resolve_capture_paths",
     "resolve_output_stem_path",
 ]
