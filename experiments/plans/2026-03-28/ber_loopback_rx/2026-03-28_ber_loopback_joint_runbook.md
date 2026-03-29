@@ -115,6 +115,34 @@ env PYTHONPATH=src python3 scripts/run_tx.py \
 - [ ] `tx_truth.json` 已导出到共享目录
 - [ ] dry-run 输出中的 `nav_pattern`、`initial_nav_bit_index`、`initial_nav_epoch` 正确
 
+### Step 1.5：TX truth JSON 是什么（代码口径）
+
+`tx_truth.json` 不是采集文件，也不是 BER 结果文件。它是 TX 在发射前导出的“比特真值契约”，用于告诉 RX：
+
+- TX 实际使用了哪组导航比特 pattern
+- 发射起点对应的 `initial_code_phase` / `initial_nav_epoch` / `initial_nav_bit_index`
+- 当前采样参数（`sample_rate`、`samples_per_chip`、`epochs_per_bit`）
+- 当前 PRN（`prn_id`）
+
+按当前代码，TX 导出的核心字段为：
+
+- `nav_bits_pattern_pm1`：导航比特真值（+1/-1 表示），供相关器/判决直接使用。
+- `nav_bits_pattern_01`：与上面等价的 0/1 版本，便于 BER 统计与可视化。
+- `initial_code_phase`：发射起点的 C/A 码相位（单位：chip）。
+- `initial_nav_epoch`：发射起点对应的导航 epoch（20 个 C/A epoch = 1 bit）。
+- `initial_nav_bit_index`：发射起点在 nav pattern 中落到的比特索引。
+- `samples_per_chip`：码片过采样倍数（每个 chip 的采样点数）。
+- `sample_rate`：实际发射采样率（Hz）。
+- `epochs_per_bit`：每个导航比特包含多少个 C/A epoch（GPS L1 C/A 固定为 20）。
+- `prn_id`：当前 truth 对应的 PRN 编号。
+
+RX 侧 MATLAB 会优先加载该 JSON，并在日志打印 `TX truth：JSON 模式`。若找不到或字段不完整，会回退到脚本内默认 pattern（fallback 模式）。
+
+实践建议：
+
+- 只要准备做正式 BER 复验，就先重新执行一次 Step 1，确保 JSON 与本轮 TX 参数一致。
+- 若日志出现 fallback 模式，默认不能作为“正式收敛结论”，应先修复 truth 来源再评估 BER。
+
 ### Step 2：同步 MATLAB 脚本到宿主机共享目录
 
 ```bash
@@ -303,6 +331,99 @@ usrp_source :error: In the last 19249 ms, 1 overflows occurred.
 
 ### Step 5：扩展到 250 s
 
+`250 s` 已经进入正式 BER 验收区间，当前默认**不要长期直接写 `/mnt/hgfs/...`**。推荐流程改为：
+
+1. RX 先写 VM 本地磁盘，降低共享目录写盘抖动导致的 overflow 风险。
+2. 采集结束后，再把整份采集目录复制到共享目录。
+3. 宿主机 MATLAB 分析共享目录中的副本，而不是直接读取 VM 本地路径。
+
+建议先准备一个固定的本地采集 stem，避免 `dry-run`、正式采集和采后复制各自生成不同文件名。
+
+先在 RX 端准备本地目录变量：
+
+```bash
+CAPTURE_NAME=20260328_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur250p0s
+LOCAL_STEM=/home/shen/GNSS_RX_Data_local/2026/2026_03_28/$CAPTURE_NAME/$CAPTURE_NAME
+SHARE_DIR=/mnt/hgfs/GongXiangDocument/GNSS_RX_Data/2026/2026_03_28/$CAPTURE_NAME
+
+mkdir -p "$(dirname "$LOCAL_STEM")"
+```
+
+注意：
+
+- 以上 `CAPTURE_NAME` / `LOCAL_STEM` / `SHARE_DIR` 必须在**同一个 shell 会话**里定义后再执行后续采集命令。
+- 如果你新开了一个终端 tab，或者只复制了 `record_rx.py` 那段命令而没有先执行变量定义块，`"$LOCAL_STEM"` 会展开为空字符串。
+- 同理，如果只重新定义了 `LOCAL_STEM` 但没有同时定义 `SHARE_DIR`，采后复制阶段的目标目录也会变成空字符串。
+- 可在正式采集前先执行一次 `printf 'LOCAL_STEM=<%s>\n' "$LOCAL_STEM"`；若输出为 `LOCAL_STEM=<>`，说明变量尚未生效，需要先重新执行上面的定义块。
+- 采后复制前建议同时检查 `printf 'SHARE_DIR=<%s>\n' "$SHARE_DIR"`；若输出为 `SHARE_DIR=<>`，不要执行 `mkdir -p "$SHARE_DIR"` 或 `rsync/cp`，应先重新执行变量定义块。
+- 若不想依赖 shell 变量，也可以直接把 `--output-stem` 写成完整绝对路径。
+
+这类错误的典型表现是：
+
+```text
+ValueError: output_stem 在提供时不能为空。
+```
+
+它通常不是 `record_rx.py` 内部采集逻辑出错，而是 shell 在执行命令时已经把 `"$LOCAL_STEM"` 展开成了空字符串，等价于：
+
+```bash
+--output-stem ""
+```
+
+推荐把“变量定义 + 自检 + 采集命令”连续放在同一个终端里执行：
+
+```bash
+CAPTURE_NAME=20260329_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur250p0s
+LOCAL_STEM=/home/shen/GNSS_RX_Data_local/2026/2026_03_29/$CAPTURE_NAME/$CAPTURE_NAME
+SHARE_DIR=/mnt/hgfs/GongXiangDocument/GNSS_RX_Data/2026/2026_03_29/$CAPTURE_NAME
+
+mkdir -p "$(dirname "$LOCAL_STEM")"
+printf 'LOCAL_STEM=<%s>\n' "$LOCAL_STEM"
+
+cd /home/shen/projects/GNSS_RX
+env PYTHONPATH=src python3 scripts/record_rx.py \
+    --config configs/rx_cable_loopback.yaml \
+    --duration 250 \
+    --capture-mode single \
+    --output-stem "$LOCAL_STEM"
+```
+
+如果 `printf` 输出仍然是空值，先不要继续采集；应先重新执行变量定义块，或者直接改用下方“绝对路径写死”的方式。
+
+如果希望先确认路径无误，先在 RX 端做一次 `dry-run`：
+
+```bash
+cd /home/shen/projects/GNSS_RX
+env PYTHONPATH=src python3 scripts/record_rx.py \
+    --config configs/rx_cable_loopback.yaml \
+    --duration 250 \
+    --capture-mode single \
+    --output-stem "$LOCAL_STEM" \
+    --dry-run
+```
+
+若要在 `dry-run` 阶段顺手确认变量是否已经正确展开，可先执行：
+
+```bash
+printf 'LOCAL_STEM=<%s>\n' "$LOCAL_STEM"
+printf 'SHARE_DIR=<%s>\n' "$SHARE_DIR"
+```
+
+只有在两个输出都不是空字符串时，再继续执行后续采集命令。
+
+若希望完全绕开 shell 变量展开问题，可直接使用绝对路径版本：
+
+```bash
+cd /home/shen/projects/GNSS_RX
+env PYTHONPATH=src python3 scripts/record_rx.py \
+    --config configs/rx_cable_loopback.yaml \
+    --duration 250 \
+    --capture-mode single \
+    --output-stem /home/shen/GNSS_RX_Data_local/2026/2026_03_29/20260329_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur250p0s/20260329_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur250p0s
+```
+
+这种写法更长，但不会受到当前 shell 变量状态的影响，适合正式验收时减少操作失误。
+
 先在 TX 端启动：
 
 ```bash
@@ -321,8 +442,75 @@ cd /home/shen/projects/GNSS_RX
 env PYTHONPATH=src python3 scripts/record_rx.py \
     --config configs/rx_cable_loopback.yaml \
     --duration 250 \
-    --capture-mode single
+    --capture-mode single \
+    --output-stem "$LOCAL_STEM"
 ```
+
+采集结束后，再复制到共享目录。当前实测更推荐直接 `cp`，因为 `/mnt/hgfs/...` 上使用 `rsync` 时，可能因临时文件名过长而失败：
+
+```text
+rsync: [receiver] mkstemp ".../.<very_long_filename>.<suffix>" failed: File name too long (36)
+```
+
+因此，正式验收时推荐优先使用：
+
+```bash
+mkdir -p "$SHARE_DIR"
+cp -v "$(dirname "$LOCAL_STEM")"/*.json "$SHARE_DIR"/
+cp -v "$(dirname "$LOCAL_STEM")"/*.sc16 "$SHARE_DIR"/
+```
+
+复制完成后，建议立刻确认共享目录内已经真的出现两份文件：
+
+```bash
+ls -lh "$SHARE_DIR"
+```
+
+判定标准：
+
+- 目录内至少应看到同名的 `.json` 与 `.sc16`
+- `250 s @ 4.092 Msps` 时，`.sc16` 文件量级应约为 `3.9 ~ 4.1 GB`
+
+如果仍希望使用 `rsync`，建议至少加上以下参数，减少 `/mnt/hgfs/...` 上的兼容性问题：
+
+```bash
+mkdir -p "$SHARE_DIR"
+rsync -av --inplace --no-owner --no-group --no-perms \
+    "$(dirname "$LOCAL_STEM")"/ "$SHARE_DIR"/
+```
+
+但当前 runbook 默认推荐仍然是 `cp`，因为它在本轮实测中比默认 `rsync` 更稳。
+
+另一个常见错误是 `SHARE_DIR` 为空时直接执行：
+
+```bash
+mkdir -p "$SHARE_DIR"
+rsync ...
+```
+
+这时可能出现：
+
+```text
+mkdir: 无法创建目录 "": 没有那个文件或目录
+```
+
+或让 `rsync` 误把目标解析成根目录 `/`。因此，复制前的变量自检不要省略。
+
+之后在宿主机 MATLAB 中显式指定共享目录副本：
+
+```matlab
+CAPTURE_PATH = ['C:\VMwareVirtualMachines\GongXiangDocument\GNSS_RX_Data\2026\' ...
+    '2026_03_28\20260328_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_' ...
+    'sr4092000_cf100000000_dur250p0s\20260328_ber250s_localdisk_rawiq_' ...
+    'sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur250p0s'];
+ber
+```
+
+操作提醒：
+
+- `250 s @ 4.092 Msps` 的 `.sc16` 文件约为 `4.1 GB`，建议 VM 本地磁盘至少预留 `6~8 GB` 空间。
+- `tx_truth.json` 体积很小，仍然可以继续放在共享目录，不需要为了它改成本地中转。
+- 如果这套“本地落盘后再复制”的流程下仍然出现 overflow，再优先怀疑主机吞吐或 GNU Radio/USRP 链路本身，而不是先怀疑 `/mnt/hgfs/...`。
 
 完成标志：
 
@@ -330,6 +518,7 @@ env PYTHONPATH=src python3 scripts/record_rx.py \
 - [ ] 总 BER 保持低误码
 - [ ] 无长时间失锁区间
 - [ ] 记录实际使用的 `tx_gain`
+- [ ] 原始 IQ 先成功写入 VM 本地磁盘，再完整复制到共享目录
 
 ### Step 6：准备并执行 1 h
 
