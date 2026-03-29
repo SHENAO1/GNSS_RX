@@ -1,0 +1,44 @@
+<mxfile host="app.diagrams.net" modified="2026-03-29T00:00:00.000Z" agent="Codex" version="24.7.17">
+  <diagram id="writer-module" name="writer.py">
+    <mxGraphModel dx="1300" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" math="0" shadow="0" adaptiveColors="auto">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" value="writer.py：fc32 → SC16 的共享转换层（流式与批量共用）" style="text;html=1;fontStyle=1;fontSize=18;align=center;" parent="1" vertex="1">
+          <mxGeometry x="260" y="20" width="1080" height="30" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="input" value="输入样本&#xa;np.complex64 / fc32&#xa;幅度预期在 [-1, 1]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;" parent="1" vertex="1">
+          <mxGeometry x="90" y="200" width="220" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="convert" value="complex_to_sc16_interleaved(samples)&#xa;1. np.asarray(..., complex64)&#xa;2. real/imag 分离&#xa;3. clip 到 [-1, 1]&#xa;4. × SC16_SCALE=32767.0 并 rint&#xa;5. 交织为 [I0,Q0,I1,Q1,...] int16" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="380" y="150" width="420" height="190" as="geometry"/>
+        </mxCell>
+        <mxCell id="sc16" value="输出数组&#xa;np.int16[2N]&#xa;little-endian IQ interleaved" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;" parent="1" vertex="1">
+          <mxGeometry x="860" y="200" width="220" height="90" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="batch" value="write_sc16_file(path, samples)&#xa;批量写盘&#xa;output_path.write_bytes(...astype('&lt;i2').tobytes())&#xa;返回 samples.size" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;" parent="1" vertex="1">
+          <mxGeometry x="430" y="430" width="320" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="stream" value="Sc16CaptureSink(gr.sync_block)&#xa;__init__: 打开句柄 / 注册 in_sig=[complex64]&#xa;work(): 调用同一转换函数并追加写盘&#xa;close(): flush + close" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;" parent="1" vertex="1">
+          <mxGeometry x="830" y="410" width="360" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="samples_written" value="samples_written&#xa;流式路径累计的是复数样本数&#xa;不是 int16 元素数" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;" parent="1" vertex="1">
+          <mxGeometry x="1230" y="440" width="220" height="80" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="uses" value="调用方&#xa;gen_synthetic_capture.py → write_sc16_file()&#xa;测试/兼容路径 → Sc16CaptureSink&#xa;flowgraph 默认主路已尽量改用 GNU Radio 原生 file_sink" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;dashed=1;" parent="1" vertex="1">
+          <mxGeometry x="260" y="610" width="980" height="110" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="input" target="convert" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="convert" target="sc16" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="convert" target="batch" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="convert" target="stream" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="stream" target="samples_written" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

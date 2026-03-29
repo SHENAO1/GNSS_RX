@@ -1,308 +1,158 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<mxfile host="app.diagrams.net" modified="2026-03-26" version="21.0.0">
-  <diagram id="gnss-sdr-system" name="GNSS SDR System Architecture">
-    <mxGraphModel dx="1800" dy="1000" grid="1" gridSize="10" guides="1"
-                  tooltips="1" connect="1" arrows="1" fold="1" page="1"
-                  pageScale="1" pageWidth="1900" pageHeight="1300"
-                  math="0" shadow="0">
+<mxfile host="app.diagrams.net" modified="2026-03-29T00:00:00.000Z" agent="Codex" version="24.7.17">
+  <diagram id="system-architecture" name="System Architecture">
+    <mxGraphModel dx="1800" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2200" pageHeight="1200" math="0" shadow="0" adaptiveColors="auto">
       <root>
         <mxCell id="0"/>
         <mxCell id="1" parent="0"/>
 
-        <!-- TX Lane background -->
-        <mxCell id="lane-tx-bg" value="TX 链路 (gnss_tx / Python + GNU Radio)"
-                style="swimlane;startSize=30;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=12;align=center;"
-                vertex="1" parent="1">
-          <mxGeometry x="20" y="20" width="380" height="1060" as="geometry"/>
+        <mxCell id="title" value="GNSS_RX 端到端架构：配置/采集/落盘/MATLAB 离线分析/BER" style="text;html=1;fontStyle=1;fontSize=18;align=center;verticalAlign=middle;" parent="1" vertex="1">
+          <mxGeometry x="420" y="20" width="1360" height="30" as="geometry"/>
         </mxCell>
 
-        <!-- RF Channel background -->
-        <mxCell id="lane-rf-bg" value="RF 信道"
-                style="swimlane;startSize=30;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;fontSize=12;align=center;"
-                vertex="1" parent="1">
-          <mxGeometry x="420" y="20" width="200" height="1060" as="geometry"/>
+        <mxCell id="lane0" value="配置与入口" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontStyle=1;fontSize=13;" parent="1" vertex="1">
+          <mxGeometry x="20" y="70" width="300" height="900" as="geometry"/>
+        </mxCell>
+        <mxCell id="lane1" value="Python 采集运行时" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontStyle=1;fontSize=13;" parent="1" vertex="1">
+          <mxGeometry x="340" y="70" width="420" height="900" as="geometry"/>
+        </mxCell>
+        <mxCell id="lane2" value="落盘产物 / sidecar" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontStyle=1;fontSize=13;" parent="1" vertex="1">
+          <mxGeometry x="780" y="70" width="280" height="900" as="geometry"/>
+        </mxCell>
+        <mxCell id="lane3" value="MATLAB 离线分析" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontStyle=1;fontSize=13;" parent="1" vertex="1">
+          <mxGeometry x="1080" y="70" width="440" height="900" as="geometry"/>
+        </mxCell>
+        <mxCell id="lane4" value="BER / tracking 诊断" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontStyle=1;fontSize=13;" parent="1" vertex="1">
+          <mxGeometry x="1540" y="70" width="360" height="900" as="geometry"/>
         </mxCell>
 
-        <!-- RX Lane background -->
-        <mxCell id="lane-rx-bg" value="RX 链路 (GNSS_RX / Python + GNU Radio)"
-                style="swimlane;startSize=30;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=12;align=center;"
-                vertex="1" parent="1">
-          <mxGeometry x="640" y="20" width="380" height="1060" as="geometry"/>
+        <mxCell id="cfg_yaml" value="YAML 配置&#xa;configs/rx_*.yaml" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;" parent="1" vertex="1">
+          <mxGeometry x="50" y="130" width="240" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="cli_record" value="scripts/record_rx.py&#xa;真实采集入口&#xa;--config / --prn-id / --duration / --dry-run&#xa;支持 single / chunked" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;" parent="1" vertex="1">
+          <mxGeometry x="50" y="240" width="240" height="110" as="geometry"/>
+        </mxCell>
+        <mxCell id="cli_synth" value="scripts/gen_synthetic_capture.py&#xa;无硬件旁路&#xa;复用 gnss_tx 生成 clean signal + AWGN" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;dashed=1;" parent="1" vertex="1">
+          <mxGeometry x="50" y="390" width="240" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="tx_dep" value="gnss_tx 发端依赖&#xa;GpsL1CaBpskGenerator&#xa;build_multi_sat_replay_samples" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;dashed=1;" parent="1" vertex="1">
+          <mxGeometry x="50" y="520" width="240" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="sync_matlab" value="scripts/sync_matlab.sh&#xa;把 matlab/ 镜像到宿主机" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;" parent="1" vertex="1">
+          <mxGeometry x="50" y="640" width="240" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="mat_entry" value="MATLAB 入口&#xa;run_capture_analysis()&#xa;run_ber_loopback.m" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;" parent="1" vertex="1">
+          <mxGeometry x="50" y="760" width="240" height="80" as="geometry"/>
         </mxCell>
 
-        <!-- MATLAB Analysis background -->
-        <mxCell id="lane-matlab-bg" value="MATLAB 离线分析链"
-                style="swimlane;startSize=30;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;fontSize=12;align=center;"
-                vertex="1" parent="1">
-          <mxGeometry x="1040" y="20" width="840" height="1060" as="geometry"/>
+        <mxCell id="runtime_cfg" value="runtime.py&#xa;load_rx_runtime_config()&#xa;apply_overrides()&#xa;RxRuntimeConfig.validate()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;" parent="1" vertex="1">
+          <mxGeometry x="400" y="120" width="300" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="path_resolve" value="路径/报告层&#xa;resolve_capture_paths()&#xa;resolve_chunk_capture_paths()&#xa;format_capture_report() / format_matlab_handoff()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;" parent="1" vertex="1">
+          <mxGeometry x="400" y="250" width="300" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="dev_check" value="设备探测&#xa;uhd_find_devices_output()&#xa;is_uhd_device_available()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;" parent="1" vertex="1">
+          <mxGeometry x="400" y="380" width="300" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="usrp_src" value="GNU Radio / UHD&#xa;create_usrp_source(config)&#xa;fc32 CPU, sc16 OTW, ch0" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE5CD;strokeColor=#D79B00;" parent="1" vertex="1">
+          <mxGeometry x="400" y="500" width="300" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="top_block" value="ZeroIfCaptureTopBlock&#xa;source → head → complex_to_interleaved_short → file_sink&#xa;自定义 sink 注入时改走 CaptureSinkHandle" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;" parent="1" vertex="1">
+          <mxGeometry x="400" y="610" width="300" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="metadata_build" value="metadata.py&#xa;build_capture_metadata(config, samples_captured, data_path, chunk info)&#xa;write_metadata_json()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;" parent="1" vertex="1">
+          <mxGeometry x="400" y="760" width="300" height="90" as="geometry"/>
         </mxCell>
 
-        <!-- ===== TX CHAIN ===== -->
-        <mxCell id="tx-config" value="YAML Config + PRN ID (1~32)&#xa;configs/tx_b210*.yaml"
-                style="rounded=1;whiteSpace=wrap;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=10;"
-                vertex="1" parent="1">
-          <mxGeometry x="60" y="65" width="300" height="50" as="geometry"/>
+        <mxCell id="sc16_file" value=".sc16&#xa;原始 IQ 文件&#xa;SC16 / iq_int16_interleaved_le" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;" parent="1" vertex="1">
+          <mxGeometry x="820" y="170" width="200" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="json_meta" value=".json&#xa;CaptureMetadata&#xa;sample_rate / prn_id / all_prns / chunk fields" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;" parent="1" vertex="1">
+          <mxGeometry x="820" y="290" width="200" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="capture_group" value="目录组织&#xa;&lt;YYYY&gt;/&lt;YYYY_MM_DD&gt;/&lt;stem&gt;/&#xa;chunked 时同 group_id 下拆分多段" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;" parent="1" vertex="1">
+          <mxGeometry x="820" y="420" width="200" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="tx_truth" value="可选 TX truth JSON&#xa;由 gnss_tx 导出&#xa;供 BER 对齐/真值比较" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;dashed=1;" parent="1" vertex="1">
+          <mxGeometry x="820" y="560" width="200" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="analysis_dir" value="analysis/&lt;stem&gt;/&#xa;overview PNG&#xa;multi_prn_survey.png&#xa;analysis_summary.json/.mat" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;" parent="1" vertex="1">
+          <mxGeometry x="820" y="700" width="200" height="100" as="geometry"/>
         </mxCell>
 
-        <mxCell id="tx-prn-gen" value="generate_ca_code(prn_id)&#xa;ca/prn_generator.py&#xa;G1/G2 LFSR 生成 C/A 码"
-                style="rounded=1;whiteSpace=wrap;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;"
-                vertex="1" parent="1">
-          <mxGeometry x="60" y="155" width="300" height="60" as="geometry"/>
+        <mxCell id="load_capture" value="load_gnss_rx_capture()&#xa;解析 stem/.json/.sc16&#xa;读 sidecar + 反序列化 SC16 → complex samples" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;" parent="1" vertex="1">
+          <mxGeometry x="1140" y="130" width="320" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="resolve_accel" value="辅助配置&#xa;gnss_rx_resolve_data_dir()&#xa;find_latest_capture()&#xa;gnss_rx_resolve_accel_options()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;" parent="1" vertex="1">
+          <mxGeometry x="1140" y="260" width="320" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="plot_overview" value="plot_capture_overview()&#xa;时域 / 频谱 / IQ 散点" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;" parent="1" vertex="1">
+          <mxGeometry x="1140" y="390" width="320" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="acquisition" value="run_prn_acquisition()&#xa;目标 PRN 二维搜索&#xa;Doppler × code phase&#xa;CPU / parfor / GPU backend" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;" parent="1" vertex="1">
+          <mxGeometry x="1140" y="500" width="320" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="survey" value="run_multi_prn_survey()&#xa;PRN 1~32 批量扫描&#xa;plot_multi_prn_survey()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;" parent="1" vertex="1">
+          <mxGeometry x="1140" y="630" width="320" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="save_artifacts" value="save_analysis_artifacts()&#xa;保存 overview / acquisition / summary&#xa;落盘到 analysis/&lt;stem&gt;/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;" parent="1" vertex="1">
+          <mxGeometry x="1140" y="750" width="320" height="90" as="geometry"/>
         </mxCell>
 
-        <mxCell id="lbl-ca" value="np.int8[1023]  {-1, +1}"
-                style="text;html=1;fontSize=9;fontColor=#888888;align=center;"
-                vertex="1" parent="1">
-          <mxGeometry x="110" y="220" width="200" height="18" as="geometry"/>
+        <mxCell id="ber_entry" value="run_ber_loopback.m&#xa;默认 BER_MODE=tracked_truth&#xa;acq 仅取前 100 ms" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;" parent="1" vertex="1">
+          <mxGeometry x="1600" y="150" width="240" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="truth_resolve" value="truth 输入&#xa;load_tx_truth_json()&#xa;或 build_fallback_tx_truth()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;" parent="1" vertex="1">
+          <mxGeometry x="1600" y="270" width="240" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="open_loop" value="recover_nav_bits()&#xa;open-loop truth 基线&#xa;大采样量时可因 OOM 跳过" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;" parent="1" vertex="1">
+          <mxGeometry x="1600" y="390" width="240" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="tracked" value="track_nav_bits()&#xa;tracking 主链&#xa;输出 BER / lock metrics / window BER" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;" parent="1" vertex="1">
+          <mxGeometry x="1600" y="520" width="240" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="select_mode" value="结果选择&#xa;tracked_truth 或 open_loop_truth&#xa;生成 analysis_result" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;" parent="1" vertex="1">
+          <mxGeometry x="1600" y="650" width="240" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="plot_ber" value="plot_ber_loopback()&#xa;BER / 滑窗 / 锁定质量 / 频率轨迹总览" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;" parent="1" vertex="1">
+          <mxGeometry x="1600" y="780" width="240" height="80" as="geometry"/>
         </mxCell>
 
-        <mxCell id="tx-nav" value="CyclicNavBitSource / normalize_nav_bits()&#xa;nav/nav_bits.py&#xa;50 bps 循环导航 bit {-1,+1}"
-                style="rounded=1;whiteSpace=wrap;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;"
-                vertex="1" parent="1">
-          <mxGeometry x="60" y="245" width="300" height="60" as="geometry"/>
-        </mxCell>
-
-        <mxCell id="tx-spread" value="GpsL1CaBpskGenerator.generate_samples()&#xa;signal/spreader.py&#xa;spread chip = CA × NavBit"
-                style="rounded=1;whiteSpace=wrap;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;"
-                vertex="1" parent="1">
-          <mxGeometry x="60" y="345" width="300" height="60" as="geometry"/>
-        </mxCell>
-
-        <mxCell id="tx-resamp" value="repeat_chips(spc=4) — ca/resampler.py&#xa;零阶保持上采样"
-                style="rounded=1;whiteSpace=wrap;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=9;"
-                vertex="1" parent="1">
-          <mxGeometry x="60" y="425" width="190" height="40" as="geometry"/>
-        </mxCell>
-
-        <mxCell id="tx-iq" value="chips_to_complex_baseband()&#xa;signal/iq_builder.py&#xa;BPSK → complex64, Q=0"
-                style="rounded=1;whiteSpace=wrap;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;"
-                vertex="1" parent="1">
-          <mxGeometry x="60" y="485" width="300" height="55" as="geometry"/>
-        </mxCell>
-
-        <mxCell id="lbl-iq" value="np.complex64 baseband (振幅 ~1.0 per PRN)"
-                style="text;html=1;fontSize=9;fontColor=#888888;align=center;"
-                vertex="1" parent="1">
-          <mxGeometry x="60" y="545" width="300" height="18" as="geometry"/>
-        </mxCell>
-
-        <mxCell id="tx-multisat" value="[多星模式] build_multi_sat_replay_samples()&#xa;signal/multi_sat_combiner.py&#xa;PRN1~32 线性叠加 ÷√32 归一化"
-                style="rounded=1;whiteSpace=wrap;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=2;fontSize=10;dashed=1;strokeWidth=2;"
-                vertex="1" parent="1">
-          <mxGeometry x="60" y="568" width="300" height="65" as="geometry"/>
-        </mxCell>
-
-        <mxCell id="lbl-combined" value="np.complex64 归一化合并基带"
-                style="text;html=1;fontSize=9;fontColor=#888888;align=center;"
-                vertex="1" parent="1">
-          <mxGeometry x="60" y="638" width="300" height="18" as="geometry"/>
-        </mxCell>
-
-        <mxCell id="tx-gr-src" value="blocks.vector_source_c(repeat=True)&#xa;gr/top_block.py — GpsL1CaTxTopBlock&#xa;预生成缓冲区循环回放"
-                style="rounded=1;whiteSpace=wrap;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;"
-                vertex="1" parent="1">
-          <mxGeometry x="60" y="660" width="300" height="60" as="geometry"/>
-        </mxCell>
-
-        <mxCell id="tx-amp" value="blocks.multiply_const_cc(amplitude=0.25)&#xa;gr/top_block.py — 幅度缩放 gr_complex 流"
-                style="rounded=1;whiteSpace=wrap;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;"
-                vertex="1" parent="1">
-          <mxGeometry x="60" y="750" width="300" height="55" as="geometry"/>
-        </mxCell>
-
-        <mxCell id="tx-usrp" value="uhd.usrp_sink (USRP B210)&#xa;usrp/b210_sink.py&#xa;fc32→sc16 OTW, 4.092 MSPS&#xa;center_freq: 100 MHz"
-                style="rounded=1;whiteSpace=wrap;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;fontSize=10;"
-                vertex="1" parent="1">
-          <mxGeometry x="60" y="835" width="300" height="65" as="geometry"/>
-        </mxCell>
-
-        <mxCell id="tx-unimpl" value="[未实现占位符]&#xa;nav/subframe_builder.py&#xa;utils/timebase.py / utils/logging.py"
-                style="rounded=1;whiteSpace=wrap;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;dashed=1;fontSize=10;"
-                vertex="1" parent="1">
-          <mxGeometry x="60" y="925" width="300" height="55" as="geometry"/>
-        </mxCell>
-
-        <mxCell id="tx-ant" value="TX 天线"
-                style="ellipse;whiteSpace=wrap;fillColor=#FF8000;strokeColor=#d79b00;fontStyle=1;fontSize=10;"
-                vertex="1" parent="1">
-          <mxGeometry x="160" y="1000" width="100" height="40" as="geometry"/>
-        </mxCell>
-
-        <!-- ===== RF CHANNEL ===== -->
-        <mxCell id="rf-air" value="自由空间传播&#xa;RF 信号 @ 100 MHz&#xa;(实验室近场)&#xa;路径损耗 ~30 dB"
-                style="ellipse;whiteSpace=wrap;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;fontSize=10;"
-                vertex="1" parent="1">
-          <mxGeometry x="445" y="440" width="160" height="130" as="geometry"/>
-        </mxCell>
-
-        <mxCell id="lbl-rf" value="GPS L1 C/A 兼容格式&#xa;BPSK(1), 2.046 MHz 双边带&#xa;码率 1.023 Mcps"
-                style="text;html=1;fontSize=9;fontColor=#d79b00;align=center;"
-                vertex="1" parent="1">
-          <mxGeometry x="430" y="590" width="185" height="50" as="geometry"/>
-        </mxCell>
-
-        <mxCell id="rx-ant" value="RX 天线"
-                style="ellipse;whiteSpace=wrap;fillColor=#6c8ebf;strokeColor=#6c8ebf;fontColor=#ffffff;fontStyle=1;fontSize=10;"
-                vertex="1" parent="1">
-          <mxGeometry x="455" y="660" width="100" height="40" as="geometry"/>
-        </mxCell>
-
-        <!-- ===== RX CHAIN ===== -->
-        <mxCell id="rx-config" value="YAML Config → RxRuntimeConfig&#xa;configs/rx_*.yaml — runtime.py"
-                style="rounded=1;whiteSpace=wrap;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=10;"
-                vertex="1" parent="1">
-          <mxGeometry x="670" y="65" width="300" height="50" as="geometry"/>
-        </mxCell>
-
-        <mxCell id="rx-usrp" value="uhd.usrp_source (USRP B210)&#xa;flowgraph.py / create_usrp_source()&#xa;fc32 CPU, sc16 OTW&#xa;center_freq: 100 MHz, 4.092 MSPS"
-                style="rounded=1;whiteSpace=wrap;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;fontSize=10;"
-                vertex="1" parent="1">
-          <mxGeometry x="670" y="155" width="300" height="65" as="geometry"/>
-        </mxCell>
-
-        <mxCell id="lbl-rx-iq" value="零中频 IQ 流 [gr_complex / complex64]"
-                style="text;html=1;fontSize=9;fontColor=#888888;align=center;"
-                vertex="1" parent="1">
-          <mxGeometry x="670" y="225" width="300" height="18" as="geometry"/>
-        </mxCell>
-
-        <mxCell id="rx-head" value="blocks.head(capture_samples)&#xa;flowgraph.py / ZeroIfCaptureTopBlock&#xa;截断至精确采样数后停止流图"
-                style="rounded=1;whiteSpace=wrap;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;"
-                vertex="1" parent="1">
-          <mxGeometry x="670" y="248" width="300" height="60" as="geometry"/>
-        </mxCell>
-
-        <mxCell id="rx-sc16-sink" value="Sc16CaptureSink (gr.sync_block)&#xa;writer.py&#xa;complex_to_sc16_interleaved()&#xa;流式写 .sc16 (int16 IQ interleaved LE)"
-                style="rounded=1;whiteSpace=wrap;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;"
-                vertex="1" parent="1">
-          <mxGeometry x="670" y="335" width="300" height="65" as="geometry"/>
-        </mxCell>
-
-        <mxCell id="rx-files" value=".sc16 数据文件 + .json 元数据&#xa;metadata.py / CaptureMetadata&#xa;{sample_rate, center_freq, prn_id, layout...}"
-                style="shape=document;whiteSpace=wrap;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=10;"
-                vertex="1" parent="1">
-          <mxGeometry x="670" y="430" width="300" height="65" as="geometry"/>
-        </mxCell>
-
-        <mxCell id="rx-synthetic" value="[合成数据旁路 — 无硬件]&#xa;gen_synthetic_capture.py&#xa;GpsL1CaBpskGenerator / build_multi_sat_replay_samples()&#xa;→ _add_awgn(snr_db) → write_sc16_file()&#xa;文件名含 '_synthetic' 标签"
-                style="rounded=1;whiteSpace=wrap;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=2;dashed=1;fontSize=10;strokeWidth=2;"
-                vertex="1" parent="1">
-          <mxGeometry x="670" y="525" width="300" height="90" as="geometry"/>
-        </mxCell>
-
-        <mxCell id="rx-cli" value="scripts/record_rx.py (CLI 入口)&#xa;--config --prn-id --duration --dry-run"
-                style="rounded=1;whiteSpace=wrap;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=9;"
-                vertex="1" parent="1">
-          <mxGeometry x="670" y="635" width="300" height="50" as="geometry"/>
-        </mxCell>
-
-        <!-- ===== MATLAB ANALYSIS ===== -->
-        <mxCell id="mat-entry" value="run_capture_analysis.m (主入口)&#xa;matlab/scripts/run_capture_analysis.m&#xa;gnss_rx_resolve_data_dir()&#xa;find_latest_capture() — 自动找最新文件"
-                style="rounded=1;whiteSpace=wrap;fillColor=#9673a6;strokeColor=#6d3e87;fontColor=#ffffff;fontStyle=1;fontSize=10;"
-                vertex="1" parent="1">
-          <mxGeometry x="1430" y="65" width="300" height="80" as="geometry"/>
-        </mxCell>
-
-        <mxCell id="mat-load" value="load_gnss_rx_capture()&#xa;matlab/functions/load_gnss_rx_capture.m&#xa;读 .json 元数据 + 解析 .sc16&#xa;→ complex[N×1] double + meta struct"
-                style="rounded=1;whiteSpace=wrap;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;fontSize=10;"
-                vertex="1" parent="1">
-          <mxGeometry x="1080" y="65" width="300" height="75" as="geometry"/>
-        </mxCell>
-
-        <mxCell id="mat-plot-ov" value="plot_capture_overview()&#xa;时域波形 | 频谱 (65536 pt FFT) | IQ 散点图"
-                style="rounded=1;whiteSpace=wrap;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;"
-                vertex="1" parent="1">
-          <mxGeometry x="1080" y="175" width="300" height="60" as="geometry"/>
-        </mxCell>
-
-        <mxCell id="mat-ca-local" value="本地 C/A 码 replica 生成&#xa;generate_ca_code() [MATLAB 内嵌]&#xa;重采样 → FFT 域循环相关"
-                style="rounded=1;whiteSpace=wrap;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;"
-                vertex="1" parent="1">
-          <mxGeometry x="1430" y="265" width="300" height="65" as="geometry"/>
-        </mxCell>
-
-        <mxCell id="mat-acq" value="run_prn_acquisition(samples, meta, cfg)&#xa;matlab/functions/run_prn_acquisition.m&#xa;二维搜索：Doppler × 码相位&#xa;Doppler: ±10 kHz, step 500 Hz&#xa;码相位: 0~1022 chips&#xa;非相干累加: 10 ms, FFT 循环相关"
-                style="rounded=1;whiteSpace=wrap;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;"
-                vertex="1" parent="1">
-          <mxGeometry x="1080" y="265" width="300" height="105" as="geometry"/>
-        </mxCell>
-
-        <mxCell id="mat-decision" value="捕获判决&#xa;次峰比 ≥ 2.5 → detected=true&#xa;acq_result: {doppler_hz, code_phase}"
-                style="rhombus;whiteSpace=wrap;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;"
-                vertex="1" parent="1">
-          <mxGeometry x="1080" y="400" width="300" height="90" as="geometry"/>
-        </mxCell>
-
-        <mxCell id="mat-survey" value="run_multi_prn_survey()&#xa;matlab/functions/run_multi_prn_survey.m&#xa;PRN 1~32 批量扫描&#xa;返回次峰比数组 + detected 向量"
-                style="rounded=1;whiteSpace=wrap;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;"
-                vertex="1" parent="1">
-          <mxGeometry x="1080" y="520" width="300" height="70" as="geometry"/>
-        </mxCell>
-
-        <mxCell id="mat-plot-survey" value="plot_multi_prn_survey()&#xa;PRN 次峰比柱状图（哪些星被捕获）"
-                style="rounded=1;whiteSpace=wrap;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;"
-                vertex="1" parent="1">
-          <mxGeometry x="1080" y="620" width="300" height="60" as="geometry"/>
-        </mxCell>
-
-        <mxCell id="mat-save" value="save_analysis_artifacts()&#xa;matlab/functions/save_analysis_artifacts.m&#xa;PNG + JSON summary + MAT&#xa;→ analysis/&lt;stem&gt;/"
-                style="shape=document;whiteSpace=wrap;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;fontSize=10;"
-                vertex="1" parent="1">
-          <mxGeometry x="1080" y="710" width="300" height="65" as="geometry"/>
-        </mxCell>
-
-        <!-- ===== LEGEND ===== -->
-        <mxCell id="legend-bg" value="图例"
-                style="swimlane;startSize=22;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;fontStyle=1;fontSize=11;"
-                vertex="1" parent="1">
-          <mxGeometry x="1430" y="420" width="310" height="270" as="geometry"/>
-        </mxCell>
-        <mxCell id="leg1" value="信号生成（Python）" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1"><mxGeometry x="1445" y="450" width="200" height="28" as="geometry"/></mxCell>
-        <mxCell id="leg2" value="RF 硬件 (GNU Radio/UHD)" style="rounded=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="1"><mxGeometry x="1445" y="485" width="200" height="28" as="geometry"/></mxCell>
-        <mxCell id="leg3" value="USRP B210 硬件" style="rounded=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1"><mxGeometry x="1445" y="520" width="200" height="28" as="geometry"/></mxCell>
-        <mxCell id="leg4" value="文件存储 / RX 流程" style="rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="1"><mxGeometry x="1445" y="555" width="200" height="28" as="geometry"/></mxCell>
-        <mxCell id="leg5" value="MATLAB 分析" style="rounded=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1"><mxGeometry x="1445" y="590" width="200" height="28" as="geometry"/></mxCell>
-        <mxCell id="leg6" value="合成数据旁路（无硬件）" style="rounded=1;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;fontSize=10;" vertex="1" parent="1"><mxGeometry x="1445" y="625" width="200" height="28" as="geometry"/></mxCell>
-        <mxCell id="leg7" value="未实现占位符" style="rounded=1;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;fontSize=10;" vertex="1" parent="1"><mxGeometry x="1445" y="660" width="200" height="28" as="geometry"/></mxCell>
-
-        <!-- ===== EDGES — TX chain ===== -->
-        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="tx-config" target="tx-prn-gen" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;dashed=1;" edge="1" source="tx-config" target="tx-nav" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="tx-prn-gen" target="tx-spread" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="tx-nav" target="tx-spread" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="tx-spread" target="tx-resamp" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="tx-resamp" target="tx-iq" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;dashed=1;" edge="1" source="tx-iq" target="tx-multisat" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e8" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="tx-multisat" target="tx-gr-src" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e9" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="tx-iq" target="tx-gr-src" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e10" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="tx-gr-src" target="tx-amp" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e11" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="tx-amp" target="tx-usrp" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e12" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#b85450;strokeWidth=2;" edge="1" source="tx-usrp" target="tx-ant" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-
-        <!-- ===== EDGES — RF ===== -->
-        <mxCell id="e13" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#FF8000;strokeWidth=2;" edge="1" source="tx-ant" target="rf-air" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e14" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#FF8000;strokeWidth=2;" edge="1" source="rf-air" target="rx-ant" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-
-        <!-- ===== EDGES — RX chain ===== -->
-        <mxCell id="e15" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#b85450;strokeWidth=2;" edge="1" source="rx-ant" target="rx-usrp" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e16" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="rx-config" target="rx-usrp" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e17" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="rx-usrp" target="rx-head" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e18" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="rx-head" target="rx-sc16-sink" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e19" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="rx-sc16-sink" target="rx-files" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e20" style="edgeStyle=orthogonalEdgeStyle;dashed=1;strokeColor=#d6b656;" edge="1" source="rx-synthetic" target="rx-files" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-
-        <!-- ===== EDGES — to MATLAB ===== -->
-        <mxCell id="e21" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#9673a6;strokeWidth=2;" edge="1" source="rx-files" target="mat-load" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e22" style="edgeStyle=orthogonalEdgeStyle;dashed=1;" edge="1" source="mat-entry" target="mat-load" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e23" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="mat-load" target="mat-plot-ov" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e24" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="mat-plot-ov" target="mat-acq" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e25" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="mat-ca-local" target="mat-acq" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e26" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="mat-acq" target="mat-decision" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e27" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="mat-decision" target="mat-survey" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e28" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="mat-survey" target="mat-plot-survey" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e29" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="mat-plot-survey" target="mat-save" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e30" style="edgeStyle=orthogonalEdgeStyle;dashed=1;" edge="1" source="mat-decision" target="mat-save" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" source="cfg_yaml" target="cli_record" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" source="cfg_yaml" target="runtime_cfg" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" source="cli_record" target="runtime_cfg" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" source="runtime_cfg" target="path_resolve" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" source="path_resolve" target="dev_check" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" source="dev_check" target="usrp_src" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" source="usrp_src" target="top_block" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" source="top_block" target="sc16_file" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" source="top_block" target="metadata_build" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" source="metadata_build" target="json_meta" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;" edge="1" source="cli_synth" target="tx_dep" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;" edge="1" source="tx_dep" target="sc16_file" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e13" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;" edge="1" source="cli_synth" target="json_meta" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" source="path_resolve" target="capture_group" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#9673A6;strokeWidth=2;" edge="1" source="sc16_file" target="load_capture" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e16" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#9673A6;strokeWidth=2;" edge="1" source="json_meta" target="load_capture" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" source="sync_matlab" target="mat_entry" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e18" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" source="mat_entry" target="resolve_accel" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e19" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" source="resolve_accel" target="load_capture" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e20" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" source="load_capture" target="plot_overview" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e21" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" source="plot_overview" target="acquisition" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e22" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" source="acquisition" target="survey" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e23" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" source="survey" target="save_artifacts" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e24" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" source="save_artifacts" target="analysis_dir" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e25" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#B85450;strokeWidth=2;" edge="1" source="mat_entry" target="ber_entry" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e26" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#B85450;strokeWidth=2;" edge="1" source="load_capture" target="ber_entry" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e27" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" source="ber_entry" target="acquisition" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e28" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#B85450;" edge="1" source="tx_truth" target="truth_resolve" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e29" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#B85450;dashed=1;" edge="1" source="ber_entry" target="truth_resolve" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e30" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#B85450;" edge="1" source="truth_resolve" target="open_loop" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e31" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#B85450;" edge="1" source="truth_resolve" target="tracked" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e32" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#B85450;" edge="1" source="acquisition" target="open_loop" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e33" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#B85450;" edge="1" source="acquisition" target="tracked" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e34" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#B85450;" edge="1" source="open_loop" target="select_mode" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e35" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#B85450;" edge="1" source="tracked" target="select_mode" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e36" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#B85450;" edge="1" source="select_mode" target="plot_ber" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
       </root>
     </mxGraphModel>
   </diagram>

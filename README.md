@@ -60,9 +60,15 @@ GNSS_RX/
 
 | 文件 | 说明 |
 |------|------|
-| [docs/system_architecture.drawio](docs/system_architecture.drawio) | 系统整体架构：TX → RF → RX → MATLAB 端到端流程 |
-| [src/gnss_rx/architecture.drawio](src/gnss_rx/architecture.drawio) | Python 核心包（`gnss_rx`）模块结构与数据流 |
-| [matlab/architecture.drawio](matlab/architecture.drawio) | MATLAB 离线分析链：`run_capture_analysis` 函数调用关系 |
+| [docs/system_architecture.drawio](docs/system_architecture.drawio) | 系统整体架构：配置/采集/落盘/MATLAB 分析/BER 端到端流程 |
+| [src/gnss_rx/architecture.drawio](src/gnss_rx/architecture.drawio) | Python 核心包（`gnss_rx`）包级依赖图 |
+| [src/gnss_rx/runtime.drawio](src/gnss_rx/runtime.drawio) | `runtime.py`：配置加载、覆盖、命名、chunk 路径解析 |
+| [src/gnss_rx/flowgraph.drawio](src/gnss_rx/flowgraph.drawio) | `flowgraph.py`：UHD 探测、USRP source、top block 组装 |
+| [src/gnss_rx/writer.drawio](src/gnss_rx/writer.drawio) | `writer.py`：fc32 → SC16 转换、流式/批量写盘 |
+| [src/gnss_rx/metadata.drawio](src/gnss_rx/metadata.drawio) | `metadata.py`：CaptureMetadata 映射与 JSON sidecar |
+| [src/gnss_rx/utils/architecture.drawio](src/gnss_rx/utils/architecture.drawio) | `utils/io.py`：YAML 读取与顶层结构校验 |
+| [matlab/architecture.drawio](matlab/architecture.drawio) | MATLAB 主分析链：`run_capture_analysis` 调用关系 |
+| [matlab/ber_loopback.drawio](matlab/ber_loopback.drawio) | MATLAB BER 诊断链：`run_ber_loopback` / truth / tracking |
 
 ---
 

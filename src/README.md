@@ -19,6 +19,21 @@
 - `gnss_rx/utils/io.py`
   YAML 等基础 I/O 工具
 
+## 架构图
+
+- `gnss_rx/architecture.drawio`
+  包级依赖图，适合先看整体模块边界和外部入口。
+- `gnss_rx/runtime.drawio`
+  `runtime.py` 的配置生命周期、命名规则和 chunk 解析。
+- `gnss_rx/flowgraph.drawio`
+  `flowgraph.py` 的 UHD 探测、USRP Source 配置和 top block 组装。
+- `gnss_rx/writer.drawio`
+  `writer.py` 的 fc32 → SC16 转换逻辑，以及流式/批量两条写盘路径。
+- `gnss_rx/metadata.drawio`
+  `metadata.py` 如何把 `RxRuntimeConfig` 与实际采集结果映射成 JSON sidecar。
+- `gnss_rx/utils/architecture.drawio`
+  `utils/io.py` 的 YAML 读入与结构校验。
+
 ## 如何间接运行这些模块
 
 通过 CLI 入口调用整套 Python 包：

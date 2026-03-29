@@ -23,6 +23,15 @@
 
 ---
 
+## 架构图
+
+| 文件 | 说明 |
+|------|------|
+| `architecture.drawio` | `run_capture_analysis` 主链：加载、总览、PRN 捕获、多星扫描、归档 |
+| `ber_loopback.drawio` | `run_ber_loopback` 诊断链：truth 读取、open-loop 基线、tracked BER 主链 |
+
+---
+
 ## 快速开始
 
 ### 1. 配置数据目录

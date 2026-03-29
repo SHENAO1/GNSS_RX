@@ -1,0 +1,74 @@
+<mxfile host="app.diagrams.net" modified="2026-03-29T00:00:00.000Z" agent="Codex" version="24.7.17">
+  <diagram id="runtime-module" name="runtime.py">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1700" pageHeight="1000" math="0" shadow="0" adaptiveColors="auto">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" value="runtime.py：配置生命周期、路径规则与 chunk 解析" style="text;html=1;fontStyle=1;fontSize=18;align=center;" parent="1" vertex="1">
+          <mxGeometry x="300" y="20" width="1100" height="30" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="input_yaml" value="输入 1&#xa;YAML 文件路径" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;" parent="1" vertex="1">
+          <mxGeometry x="60" y="120" width="180" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="load_cfg" value="load_rx_runtime_config(path)&#xa;load_yaml_file()&#xa;未显式给 bandwidth_hz 时&#xa;自动补成 sample_rate_hz" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;" parent="1" vertex="1">
+          <mxGeometry x="300" y="105" width="260" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="config_dc" value="RxRuntimeConfig&#xa;frozen dataclass&#xa;usrp / rf / duration / capture_mode / chunk / naming / truth ref" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;" parent="1" vertex="1">
+          <mxGeometry x="620" y="105" width="280" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="validate" value="validate()&#xa;检查 sample_rate / duration / PRN / mode / output_stem 等约束" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;" parent="1" vertex="1">
+          <mxGeometry x="960" y="115" width="260" height="80" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="overrides" value="输入 2&#xa;CLI 覆盖参数&#xa;apply_overrides(config, **overrides)&#xa;仅非 None 生效；sample_rate 改动时同步 bandwidth" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;" parent="1" vertex="1">
+          <mxGeometry x="60" y="260" width="220" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="props" value="派生属性&#xa;capture_samples&#xa;chunk_count&#xa;chunk_samples" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;" parent="1" vertex="1">
+          <mxGeometry x="620" y="255" width="200" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="stem" value="format_capture_tag()&#xa;build_timestamped_capture_stem()&#xa;生成 prn/sr/cf/dur 标签" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;" parent="1" vertex="1">
+          <mxGeometry x="880" y="255" width="220" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="resolve" value="resolve_output_stem_path()&#xa;自动目录: &lt;YYYY&gt;/&lt;YYYY_MM_DD&gt;/&lt;stem&gt;/&lt;stem&gt;&#xa;或直接使用 output_stem" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;" parent="1" vertex="1">
+          <mxGeometry x="1160" y="245" width="300" height="110" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="paths" value="resolve_capture_paths()&#xa;→ (data_path.sc16, metadata_path.json)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;" parent="1" vertex="1">
+          <mxGeometry x="1060" y="420" width="220" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="chunk_paths" value="resolve_chunk_capture_paths()&#xa;single: 仅 1 段&#xa;chunked: 生成 chunk0001ofNNNN ...&#xa;并附带 duration / index / count / group_id" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;" parent="1" vertex="1">
+          <mxGeometry x="780" y="410" width="240" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="report" value="format_capture_report()&#xa;终端打印完整运行时配置 + 路径 + capture_samples" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;" parent="1" vertex="1">
+          <mxGeometry x="430" y="420" width="280" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="handoff" value="format_matlab_handoff()&#xa;给 MATLAB 的关键字段摘要&#xa;sample_format / sample_rate / prn / files" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;" parent="1" vertex="1">
+          <mxGeometry x="100" y="420" width="280" height="80" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="single_note" value="single 模式&#xa;duration_s 一次采完&#xa;group_id = stem" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;dashed=1;" parent="1" vertex="1">
+          <mxGeometry x="780" y="560" width="220" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="chunk_note" value="chunked 模式&#xa;duration_s 被拆成多段&#xa;每段单独 .sc16/.json&#xa;metadata 里记录 chunk 字段" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;dashed=1;" parent="1" vertex="1">
+          <mxGeometry x="1060" y="550" width="240" height="90" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="input_yaml" target="load_cfg" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="load_cfg" target="config_dc" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="config_dc" target="validate" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="overrides" target="config_dc" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="config_dc" target="props" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="config_dc" target="stem" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="stem" target="resolve" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e8" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="resolve" target="paths" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e9" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="resolve" target="chunk_paths" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e10" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="config_dc" target="report" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e11" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="config_dc" target="handoff" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e12" style="edgeStyle=orthogonalEdgeStyle;html=1;dashed=1;" edge="1" source="chunk_paths" target="single_note" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e13" style="edgeStyle=orthogonalEdgeStyle;html=1;dashed=1;" edge="1" source="chunk_paths" target="chunk_note" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -10,7 +10,11 @@
 - `experiment_workflow.md`
   实验操作顺序，适合真正开始跑一遍采集和分析时作为清单使用。
 - `system_architecture.drawio`
-  系统架构图（DrawIO 格式），可视化接收机整体模块关系。
+  系统架构图（DrawIO 格式），可视化配置/采集/落盘/MATLAB/BER 的整体关系。
+- `../src/gnss_rx/*.drawio`
+  Python 核心模块图，适合按 `runtime / flowgraph / writer / metadata / utils` 逐个看实现。
+- `../matlab/architecture.drawio` / `../matlab/ber_loopback.drawio`
+  MATLAB 主分析链与 BER 诊断链的专用图。
 
 ## 按文档复现的入口命令
 
