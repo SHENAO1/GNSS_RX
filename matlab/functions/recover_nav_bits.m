@@ -8,7 +8,14 @@ function [bits, timestamps_s, recovery_result] = recover_nav_bits(samples, meta,
 % 当提供 truth.nav_bits_pattern_pm1 时，函数会进行联合搜索：
 %   bit_offset_ms × pattern_offset × polarity
 % 并返回结构化评分、诊断和最优候选结果。
+%
+% 新手可以把 open-loop 理解成一种“先不做持续跟踪，而是离线把每种可能性都试一遍”的方法：
+%   1. 根据 acquisition 给出的粗 Doppler 和码相位，先把每个 1 ms 块相关出来
+%   2. 再把 20 个 1 ms 块累加成一个导航 bit
+%   3. 对不同的 bit 边界、pattern 起点和极性逐一评分
+%   4. 选出最像 truth 的那组参数
 
+    % 统一补全可选输入，并把加速配置解析成稳定字段，避免后面层层判空。
     if nargin < 4
         truth = struct();
     end
@@ -28,10 +35,13 @@ function [bits, timestamps_s, recovery_result] = recover_nav_bits(samples, meta,
     samples = samples(:);
     samples_mean = mean(samples);
 
+    % 生成 1 ms 的本地 PRN 码。后面每个 1 ms 片段都会拿它做一次相关。
     prn_chips = generate_ca_code(meta.prn_id);
     prn_samples = repelem(prn_chips, round(samples_per_chip));
     prn_one_ms = prn_samples(1:samples_per_ms)';
 
+    % code_phase 是 acquisition 找到的峰值码相位。这里从该位置开始切 1 ms 块，
+    % 等价于“先按捕获结果做一次粗对齐”，否则后面的 bit 恢复几乎不可能成立。
     base_start = code_phase + 1;
     num_ms = floor((length(samples) - base_start + 1) / samples_per_ms);
     if num_ms < epochs_per_bit
@@ -44,10 +54,13 @@ function [bits, timestamps_s, recovery_result] = recover_nav_bits(samples, meta,
         return;
     end
 
+    % 先把每个 1 ms 块和本地码做一次复相关，得到一串“每毫秒一个复数”的相关结果。
     corr_ms = compute_ms_correlations( ...
         samples, samples_mean, base_start, num_ms, samples_per_ms, ...
         prn_one_ms, doppler_hz, fs, accel_options);
 
+    % 用平方相位差估计一个粗残余频偏，再先做一次统一频补。
+    % 这样后续按 20 ms 积分时，相位不会因为慢慢旋转而互相抵消。
     n_pre_ms = min(2000, num_ms);
     sq_pre = corr_ms(1:n_pre_ms).^2;
     dphi_pre = angle(conj(sq_pre(1:end-1)) .* sq_pre(2:end));
@@ -66,6 +79,7 @@ function [bits, timestamps_s, recovery_result] = recover_nav_bits(samples, meta,
         && ~isempty(truth.nav_bits_pattern_pm1);
 
     if have_truth
+        % 有 truth 时走“联合搜索”路径，能同时估计 bit 边界、pattern 偏移和极性。
         truth_pattern = double(truth.nav_bits_pattern_pm1(:));
         [search_grid_summary, best_candidate] = joint_search_with_truth( ...
             corr_ms_fcorr, base_start, samples_per_ms, fs, epochs_per_bit, truth_pattern);
@@ -123,6 +137,7 @@ function [bits, timestamps_s, recovery_result] = recover_nav_bits(samples, meta,
             'corr_rotated', best_candidate.corr_rotated, ...
             'corr_rotated_phase_deg', rad2deg(angle(best_candidate.corr_rotated)));
     else
+        % 没有 truth 时只能退回旧版启发式：按能量挑一个 bit 边界，再直接判比特。
         [bits, timestamps_s, legacy_result] = legacy_recover_without_truth( ...
             corr_ms_fcorr, base_start, samples_per_ms, fs, epochs_per_bit);
         recovery_result = legacy_result;
@@ -134,6 +149,8 @@ end
 function corr_ms = compute_ms_correlations( ...
     samples, samples_mean, base_start, num_ms, samples_per_ms, prn_one_ms, doppler_hz, fs, accel_options)
 
+    % 该函数的输出 corr_ms 可以看成“每个 1 ms epoch 对本地 PRN 的匹配程度”。
+    % 结果是复数：幅度表示相关强弱，相位还保留了残余载波信息。
     corr_ms = complex(zeros(num_ms, 1));
     precision_class = accel_options.precision_class;
     weighted_prn = build_weighted_prn(prn_one_ms, doppler_hz, fs, samples_per_ms, precision_class);
@@ -150,6 +167,8 @@ function corr_ms = compute_ms_correlations( ...
         segment_block = reshape(samples(sample_start:sample_end), samples_per_ms, batch_len);
         segment_block = cast(segment_block - samples_mean, precision_class);
 
+        % 每一列对应一个 1 ms 块；phase_vector 用来把 Doppler 去掉，
+        % weighted_prn 则相当于“本地参考码 × 去载波”。
         phase_offsets = cast(0:batch_len-1, precision_class);
         phase_vector = phase_start .* (phase_step_ms .^ phase_offsets);
         weight_block = weighted_prn .* reshape(phase_vector, 1, []);
@@ -166,6 +185,7 @@ function corr_ms = compute_ms_correlations( ...
 end
 
 function weighted_prn = build_weighted_prn(prn_one_ms, doppler_hz, fs, samples_per_ms, precision_class)
+    % 预先把“本地 PRN 码 × Doppler 去载波指数”乘好，避免在大循环里重复生成。
     sample_grid = cast((0:samples_per_ms-1)', precision_class);
     weighted_prn = cast(prn_one_ms, precision_class) ...
         .* exp(-1j * 2 * pi * cast(doppler_hz / fs, precision_class) * sample_grid);
@@ -174,6 +194,8 @@ end
 function [search_grid_summary, best_candidate] = joint_search_with_truth( ...
     corr_ms_fcorr, base_start, samples_per_ms, fs, epochs_per_bit, truth_pattern)
 
+    % 遍历 20 种可能的 bit 边界，再遍历 truth pattern 的起点和极性。
+    % 这是 open-loop 的核心：用“枚举 + 打分”换取简单直接的可解释性。
     pattern_len = length(truth_pattern);
     num_ms = length(corr_ms_fcorr);
     bit_offsets = 0:(epochs_per_bit - 1);
@@ -220,6 +242,8 @@ function [search_grid_summary, best_candidate] = joint_search_with_truth( ...
                 corr_ref_rot = corr_ref .* exp(-1j * phi_est);
                 projected = real(corr_ref_rot);
 
+                % 评分时不仅看 match_rate，也看投影裕量和聚类强度，
+                % 这样在多组候选都“差不多对”时，更容易挑出更稳定的那一组。
                 rx_bits_candidate = sign(real(corr_all_fcorr .* exp(-1j * phi_est)));
                 rx_bits_candidate(rx_bits_candidate == 0) = 1;
 
@@ -292,6 +316,8 @@ end
 function [corr_all, bit_times_s] = integrate_bit_correlations( ...
     corr_ms_fcorr, base_start, samples_per_ms, fs, epochs_per_bit, bit_offset_ms)
 
+    % 把 20 个 1 ms 相关结果累加成 1 个导航 bit 的复相关值。
+    % 如果 bit_offset_ms 正确，累加后幅度通常会明显更高。
     start_ms = bit_offset_ms + 1;
     num_bits = floor((length(corr_ms_fcorr) - bit_offset_ms) / epochs_per_bit);
     corr_all = complex(zeros(num_bits, 1));
@@ -350,6 +376,8 @@ end
 function [bits, timestamps_s, recovery_result] = legacy_recover_without_truth( ...
     corr_ms_fcorr, base_start, samples_per_ms, fs, epochs_per_bit)
 
+    % 旧版无 truth 流程：只按“哪个 bit 边界累加后能量最大”来选偏移，
+    % 因此能跑通，但可解释性和最终 BER 可信度都弱于 truth 驱动模式。
     best_bit_offset = 0;
     best_energy = -1;
     n_probe = 50;

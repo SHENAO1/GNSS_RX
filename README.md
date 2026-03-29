@@ -107,7 +107,7 @@ PYTHONPATH=/home/shen/projects/gnss_tx/src:src \
     python3 scripts/gen_synthetic_capture.py --snr-db 10
 
 # 同步 MATLAB 代码到宿主机共享目录
-rsync -av --delete matlab/ /mnt/hgfs/GongXiangDocument/GNSS_RX_matlab/
+./scripts/sync_matlab.sh /mnt/hgfs/GongXiangDocument/GNSS_RX_matlab
 ```
 
 然后在 MATLAB 中运行：

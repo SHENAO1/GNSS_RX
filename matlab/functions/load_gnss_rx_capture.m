@@ -15,6 +15,9 @@ function [samples, meta, paths] = load_gnss_rx_capture(stem_or_json_path, output
 %       samples  —— 复数基带样本列向量，归一化到 [-1, 1]（I 为实部，Q 为虚部）
 %       meta     —— 元数据结构体（解析自 .json，包含 sample_rate_hz 等字段）
 %       paths    —— 路径信息结构体（包含各文件路径和分析结果目录）
+%
+%   这是整个 MATLAB 分析链从“磁盘文件”进入“内存对象”的桥梁函数。
+%   后续几乎所有分析函数都默认输入已经是这里整理好的 samples / meta / paths。
 
 % 检查输入参数，不允许为空，否则无从知道要读哪组文件。
 if nargin < 1 || strlength(string(stem_or_json_path)) == 0
@@ -94,7 +97,7 @@ i_samples = raw_iq(1:2:end) ./ scale;
 q_samples = raw_iq(2:2:end) ./ scale;
 
 % 组合成复数基带信号：实部 = I，虚部 = Q。
-% 这是软件无线电（SDR）领域的标准表示方式。
+% 这是软件无线电（SDR）领域的标准表示方式，后续频谱、相关、去载波都基于这种复数形式。
 samples = complex(i_samples, q_samples);
 
 % 交叉验证：元数据中记录的样本数应与实际读取的复数样本数一致。

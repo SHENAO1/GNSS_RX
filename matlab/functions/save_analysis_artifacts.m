@@ -19,6 +19,10 @@ function save_info = save_analysis_artifacts(meta, paths, figures, acq_result, c
 %     figures     —— 图形句柄结构体（来自 plot_capture_overview）
 %     acq_result  —— 捕获结果结构体（来自 run_prn1_acquisition）
 %     cfg         —— 可选配置（详见 ensure_save_defaults）
+%
+%   这个函数对应“分析结束后的归档环节”。
+%   它的目标不是再做新计算，而是把最重要的图和数字稳定地落盘，
+%   方便后续发给别人、写汇报或做不同采集之间的横向比较。
 
 if nargin < 5
     cfg = struct();
@@ -106,6 +110,7 @@ end
 
 function cfg = ensure_save_defaults(cfg)
 %ENSURE_SAVE_DEFAULTS 为保存配置结构体填充缺省值。
+% 默认策略偏向“图和摘要都留一份”，这样最方便后续复盘。
 if ~isfield(cfg, 'figure_visibility') || isempty(cfg.figure_visibility)
     cfg.figure_visibility = 'on';   % 保存时顺便显示图窗；设为 'off' 可静默批量保存
 end

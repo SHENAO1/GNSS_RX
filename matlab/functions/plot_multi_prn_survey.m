@@ -11,6 +11,10 @@ function fig = plot_multi_prn_survey(survey, paths, cfg)
 %     survey  —— run_multi_prn_survey 的返回值
 %     paths   —— load_gnss_rx_capture 的 paths 结构体（用于图标题），可省略
 %     cfg     —— 可选配置（目前仅支持 cfg.figure_visibility）
+%
+%   这张图特别适合做“信号来源解释”：
+%   如果某个 PRN 的柱子显著高于门限，而其他 PRN 接近噪底，
+%   那么就可以很直观地说明当前采集最像哪颗卫星。
 
 if nargin < 2
     paths = struct('stem_name', '');

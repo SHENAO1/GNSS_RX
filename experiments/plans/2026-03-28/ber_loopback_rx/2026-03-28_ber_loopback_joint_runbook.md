@@ -205,11 +205,11 @@ which gnss_rx_resolve_accel_options -all
 
 确认宿主机 MATLAB 确实已经加载到共享目录中的新文件。
 
-另外确认根目录存在快捷入口脚本（**不在 `matlab/` 子目录下，rsync 不会覆盖它**）：
+另外确认根目录存在快捷入口脚本：
 
 - `GNSS_RX_matlab/ber.m`
 
-`ber.m` 直接存放在宿主机共享目录根目录，修改或首次部署时需手动复制，不通过 rsync 管理。
+当前约定改为：`GNSS_RX/matlab/ber.m` 是源码真相源，使用同步脚本发布到宿主机共享目录根目录；不要在共享目录中手工维护它。
 
 完成标志：
 

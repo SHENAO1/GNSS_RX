@@ -15,6 +15,11 @@ function result = run_capture_analysis(stem_or_json_path, cfg)
 %
 %   输出 result 结构体包含 samples、meta、paths、acq_result、survey 等所有中间结果，
 %   方便在命令窗口中进一步交互式分析。
+%
+%   如果要给别人介绍这条链，可以把它概括成三句话：
+%     - 先把原始采集文件读进来，确认“拿到的是什么信号”
+%     - 再做 acquisition / survey，确认“信号来自哪颗星、落在什么 Doppler 和码相位”
+%     - 最后把图和摘要归档，方便复盘、对比和汇报
 
 % 将 functions/ 目录加入 MATLAB 搜索路径，确保能找到各子函数。
 % 使用 exist 检查避免重复加载（不影响功能，只是更整洁）。
@@ -56,9 +61,11 @@ fprintf('【GNSS_RX】分析目标文件：\n  %s\n', char(string(stem_or_json_p
 figures = plot_capture_overview(samples, meta, paths, cfg);
 
 % 步骤 3：对目标 PRN 执行捕获搜索（PRN 编号从 meta.prn_id 读取，默认 PRN1）。
+% 这是“粗同步”步骤，目的是先回答信号大概落在哪个 Doppler 和码相位。
 acq_result = run_prn_acquisition(samples, meta, cfg);
 
 % 步骤 4：对 PRN1~32 进行多星对比扫描（判断是哪颗卫星，或有几颗卫星可见）。
+% 和单星捕获相比，多星扫描更像一次“身份核验”：谁的次峰比最高，谁就最可能是真正目标。
 survey     = run_multi_prn_survey(samples, meta, cfg);
 fig_survey = plot_multi_prn_survey(survey, paths, cfg);
 
@@ -112,6 +119,9 @@ end
 
 function cfg = build_default_cfg()
 %BUILD_DEFAULT_CFG 构建分析链的默认配置，目标是”先跑通、快出结果”。
+%
+% 这些默认值偏向“第一次看数据先别太慢，也别太复杂”。
+% 真正做深度排查时，最常调整的通常是 noncoherent_ms 和 Doppler 搜索范围。
 cfg = struct();
 cfg.capture_root_dir     = gnss_rx_resolve_data_dir();
 cfg.time_plot_samples    = 5000;        % 时域图采样点数

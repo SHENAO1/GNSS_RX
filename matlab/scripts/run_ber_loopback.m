@@ -2,6 +2,15 @@
 % BER 闭环验证主脚本：
 %   - open_loop_truth：现有 truth 驱动开环诊断基线
 %   - tracked_truth：新的 tracking BER 主链（默认）
+%
+% 如果把整条分析链想成“先找到信号，再判断它发了什么比特”，本脚本做的事情可以概括为：
+%   1. 选择一组 IQ 采集文件
+%   2. 先做 acquisition，确认信号的 Doppler 和码相位
+%   3. 读取 TX truth（如果有）作为“标准答案”
+%   4. 用 open-loop 方法做一个容易理解的诊断基线
+%   5. 用 tracked 方法做更稳健的主流程 BER 估计
+%   6. 生成图和摘要，帮助判断当前链路到底卡在哪一层
+%
 % 执行入口的 4 个关键量：
 %   - CAPTURE_PATH：待分析的采集输入，可为 stem / .json / .sc16 路径
 %   - latest_capture：当 CAPTURE_PATH 未显式给出时，自动选出的最新一组采集 stem
@@ -58,7 +67,7 @@ end
 fprintf('本次分析文件：%s\n', char(string(CAPTURE_PATH)));
 
 DEFAULT_TX_PATTERN = [+1, -1, +1, +1, -1, -1, +1, -1];
-ACQ_DURATION_S = 0.1;
+ACQ_DURATION_S = 0.1;   % acquisition 只取前 100 ms，通常已足够完成捕获且更省时
 accel_options = gnss_rx_resolve_accel_options(ACCEL_OPTIONS);
 stage_timings = struct();
 
@@ -87,11 +96,14 @@ fprintf('Step 2 后端：%s（precision=%s）\n', ...
     accel_options.resolved_backend, accel_options.precision);
 step_timer = tic;
 acq_len = round(ACQ_DURATION_S * meta.sample_rate_hz);
+% 捕获阶段不必使用整段长采集，前一小段通常就足够估计出粗 Doppler 和码相位。
 acq_samples = samples(1:min(acq_len, length(samples)));
 acq_cfg = struct('accel_options', accel_options);
 acq_result = run_prn_acquisition(acq_samples, meta, acq_cfg);
 stage_timings.step2_acquisition_s = toc(step_timer);
 
+% 兼容两类历史字段名：新版统一使用 detected / second_peak_ratio，
+% 老版本脚本可能仍返回 acquired / secondary_peak_ratio。
 if isfield(acq_result, 'detected')
     acq_detected = logical(acq_result.detected);
 elseif isfield(acq_result, 'acquired')
@@ -132,6 +144,8 @@ if ~isempty(truth_path) && isfile(truth_path)
     truth = load_tx_truth_json(truth_path);
     fprintf('TX truth：JSON 模式，来源 = %s\n', truth.source_path);
 else
+    % fallback truth 只能提供“兼容旧流程”的参考模式，不能保证和发送端真实状态完全对齐，
+    % 因此适合排查脚本链路是否能跑通，但不适合做严格 BER 结论。
     truth = build_fallback_tx_truth(DEFAULT_TX_PATTERN, meta, acq_result);
     warning(['未提供 TX truth JSON；当前将回退到脚本内默认 pattern。', ...
              ' 该模式仅用于兼容旧流程，建议优先使用 gnss_tx 导出的 truth JSON。']);
@@ -144,6 +158,8 @@ fprintf('Step 3 后端：%s（precision=%s, batch_ms=%d）\n', ...
     accel_options.resolved_backend, accel_options.precision, accel_options.batch_ms);
 step_timer = tic;
 try
+    % open-loop 方法更接近“离线枚举 + 对齐搜索”，实现思路直观，
+    % 很适合当成诊断基线，帮助确认问题出在 truth 对齐还是 tracking 稳定性。
     [~, ~, open_loop_result] = recover_nav_bits(samples, meta, acq_result, truth, accel_options);
     fprintf('open-loop 匹配率：%.1f%%，bit 偏移：%d ms，pattern 偏移：%d bit\n', ...
         open_loop_result.match_rate * 100, ...
@@ -165,6 +181,7 @@ fprintf('Step 3 用时：%.2f s\n', stage_timings.step3_open_loop_s);
 fprintf('=== Step 4: tracked BER 主链 ===\n');
 fprintf('Step 4 后端：cpu（tracking 主循环在 v1 保持 CPU）\n');
 step_timer = tic;
+% tracked 主链更接近真正接收机的工作方式：先持续跟踪，再做 bit 判决。
 tracked_result = track_nav_bits(samples, meta, acq_result, truth, TRACKING_OPTIONS, accel_options);
 stage_timings.step4_tracked_s = toc(step_timer);
 fprintf('tracked BER：%.2e，匹配率：%.1f%%，bit 偏移：%d ms，pattern 偏移：%d bit\n', ...
@@ -257,6 +274,7 @@ else
 end
 
 function truth_path = discover_tx_truth_json(capture_path)
+    % 尝试几种常见命名方式，减少用户必须手工传 TX_TRUTH_PATH 的次数。
     truth_path = '';
     capture_str = char(string(capture_path));
     capture_dir = fileparts(capture_str);
@@ -282,6 +300,8 @@ function truth_path = discover_tx_truth_json(capture_path)
 end
 
 function tf = is_out_of_memory_exception(ME)
+    % MATLAB 的内存不足异常在不同版本/语言环境下提示文本不完全一致，
+    % 这里统一做宽松匹配，便于上层决定是否跳过 open-loop。
     message_text = lower(char(string(ME.message)));
     identifier_text = lower(char(string(ME.identifier)));
     tf = contains(message_text, 'out of memory') ...
@@ -291,6 +311,8 @@ function tf = is_out_of_memory_exception(ME)
 end
 
 function result = build_skipped_open_loop_result(truth, reason)
+    % 当 open-loop 因资源不足被跳过时，仍返回一个结构完整的占位结果，
+    % 这样后续绘图和汇总逻辑就不需要到处判断“这个字段是否存在”。
     result = struct();
     result.mode = 'open_loop_truth';
     result.truth_mode = truth.truth_mode;

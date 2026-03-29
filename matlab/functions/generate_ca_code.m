@@ -1,6 +1,9 @@
 function prn = generate_ca_code(prn_id)
 % GENERATE_CA_CODE  生成 GPS L1 C/A PRN 码（双极性，+1/-1，1023 chip）
 %
+% 从讲解角度看，PRN 码可以理解为“每颗卫星的专属扩频序列”。
+% 接收端之所以能在同一频点把不同卫星区分开，就是因为每颗星使用了不同的 PRN。
+%
 % 输入：
 %   prn_id  - PRN 编号（整数，1~32）
 %
@@ -8,7 +11,8 @@ function prn = generate_ca_code(prn_id)
 %   prn     - C/A 码序列（行向量，+1/-1，长度 1023）
 %
 % 算法：双 LFSR（G1 + G2），与 gnss_tx/src/gnss_tx/ca/prn_generator.py 逻辑一致。
-% 0 → +1，1 → -1（双极性约定）。
+% G1 是所有 PRN 共用的；G2 会根据不同 PRN 选不同抽头组合，因此得到不同码序列。
+% 最后再把二进制 0/1 映射到 +1/-1，便于与 IQ 样本直接做相关。
 
     % G2 移位寄存器抽头表（索引对应 PRN 1~32）
     G2_taps = {
@@ -28,6 +32,7 @@ function prn = generate_ca_code(prn_id)
     prn = zeros(1, 1023);
 
     for i = 1:1023
+        % 每轮输出 1 个 chip。G1 取固定输出位，G2 取该 PRN 对应的两个抽头异或。
         g1_out  = G1(10);
         g2_out  = xor(G2(taps(1)), G2(taps(2)));
         prn(i)  = xor(g1_out, g2_out);

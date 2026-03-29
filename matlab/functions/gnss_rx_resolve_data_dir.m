@@ -8,6 +8,9 @@ function data_dir = gnss_rx_resolve_data_dir()
 %
 %   首次使用前，请复制 matlab/gnss_rx_user_paths.m.example 为
 %   matlab/gnss_rx_user_paths.m，并在其中填写本地数据目录路径。
+%
+%   把路径解析集中写成一个函数的好处是：
+%   上层脚本就不需要到处写硬编码目录，也更容易在不同电脑之间迁移。
 
 % 找到当前函数文件所在的目录（matlab/functions/），进而推导出 matlab/ 目录。
 this_dir    = fileparts(mfilename('fullpath'));   % matlab/functions/

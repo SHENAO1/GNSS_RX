@@ -23,6 +23,9 @@ function survey = run_multi_prn_survey(samples, meta, cfg)
 %     second_peak_ratio —— 每个 PRN 的主峰与次峰比（捕获判决指标）
 %     detected          —— 每个 PRN 是否捕获成功（逻辑数组）
 %     best_doppler_hz   —— 每个 PRN 对应的最优 Doppler 频移估计
+%
+%   和单颗卫星捕获相比，这个函数更像一次“批量身份比对”：
+%   同一段数据分别拿去和 32 颗星的本地码做搜索，最后比较谁的峰值最像真正目标。
 
 if nargin < 3
     cfg = struct();
@@ -66,6 +69,7 @@ fprintf('多星搜索：共 %d 个 PRN，每星 %d ms 非相干累加，%d 个 D
     n_prn, num_noncoherent_ms, numel(doppler_bins_hz));
 
 if accel.gpu_enabled
+    % GPU 路径直接复用单星 acquisition，代码更统一，也更容易保持数值行为一致。
     survey = run_multi_prn_survey_via_acquisition(samples, meta, cfg, prn_list);
     return;
 end
@@ -138,6 +142,7 @@ end
 
 
 function local_result = run_single_prn_search(prn_id, search_samples, carriers, doppler_bins_hz, sample_rate_hz, samples_per_code, cfg)
+    % 单星版本是多星 survey 的最小工作单元：固定一个 PRN，只在 Doppler × 码相位上搜索。
     num_noncoherent_ms = floor(numel(search_samples) / samples_per_code);
     local_code     = build_sampled_ca_code(prn_id, samples_per_code, sample_rate_hz);
     local_code_fft = fft(local_code);
@@ -177,6 +182,8 @@ end
 
 
 function survey = run_multi_prn_survey_via_acquisition(samples, meta, cfg, prn_list)
+    % GPU 版本走“循环调用单星 acquisition”的策略，虽然结构简单，
+    % 但能直接复用 run_prn_acquisition 里已经实现好的 GPU 搜索逻辑。
     n_prn = numel(prn_list);
     peak_metric = zeros(1, n_prn);
     second_peak_ratio = zeros(1, n_prn);

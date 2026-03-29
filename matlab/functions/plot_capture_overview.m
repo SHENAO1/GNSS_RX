@@ -15,6 +15,9 @@ function figures = plot_capture_overview(samples, meta, paths, cfg)
 %     cfg      —— 可选配置（详见 ensure_plot_defaults）
 %
 %   输出：figures 结构体，包含三个图形句柄
+%
+%   如果给别人介绍分析结果，通常最先展示的就是这三张图：
+%   它们分别从时间域、频率域和 IQ 几何分布三个角度，帮助快速建立“这段采集看起来是否正常”的直觉。
 
 if nargin < 4
     cfg = struct();
@@ -84,6 +87,7 @@ end
 
 function cfg = ensure_plot_defaults(cfg)
 %ENSURE_PLOT_DEFAULTS 为绘图配置结构体填充缺省值。
+% 这些默认值偏向“看趋势够用、绘图也不要太慢”。
 if ~isfield(cfg, 'time_plot_samples') || isempty(cfg.time_plot_samples)
     cfg.time_plot_samples = 5000;      % 时域图显示的样本数（取前段即可看清波形）
 end

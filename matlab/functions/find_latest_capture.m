@@ -11,6 +11,10 @@ function stem_path = find_latest_capture(root_dir)
 %   用法：
 %       stem = find_latest_capture()               % 自动使用默认数据目录
 %       stem = find_latest_capture('/path/to/dir') % 指定数据根目录
+%
+%   这个函数的价值在于把“手工翻目录找最新文件”这件重复劳动自动化。
+%   在演示、联调或批量分析时，往往希望直接分析最近一次采集，
+%   这里就是专门解决这个入口问题。
 
 % 如果调用时没有传入目录参数，或者传入的是空字符串，就自动解析默认数据目录。
 if nargin < 1 || strlength(string(root_dir)) == 0

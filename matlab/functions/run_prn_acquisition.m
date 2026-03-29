@@ -12,6 +12,10 @@ function result = run_prn_acquisition(samples, meta, cfg)
 %     cfg      —— 可选配置结构体（各字段说明见 ensure_acq_defaults）
 %
 %   输出：result 结构体，包含捕获结论、峰值位置、多普勒估计和搜索图数据
+%
+%   从接收机流程看，acquisition 的任务是“粗同步”：
+%   在还不知道码相位和 Doppler 的情况下，先通过二维搜索找到一个最可能的峰值，
+%   后续 tracking 才能围绕这个粗估计继续精细工作。
 
 if nargin < 3
     cfg = struct();
@@ -59,6 +63,7 @@ sample_matrix = reshape(search_samples, samples_per_code, num_noncoherent_ms);
 doppler_bins_hz = cfg.doppler_min_hz : cfg.doppler_step_hz : cfg.doppler_max_hz;
 
 % 生成目标 PRN 的 C/A 码并做 FFT，用于频域循环相关。
+% 先对本地码做 FFT，可以把“时域逐点滑动相关”改写成“频域乘法 + IFFT”，速度更快。
 local_code     = build_sampled_ca_code(target_prn, samples_per_code, sample_rate_hz);
 local_code_fft = fft(local_code);
 
@@ -110,6 +115,7 @@ end
 
 
 function cfg = ensure_acq_defaults(cfg)
+%ENSURE_ACQ_DEFAULTS 为捕获配置填充默认值。
 if ~isfield(cfg, 'noncoherent_ms') || isempty(cfg.noncoherent_ms)
     cfg.noncoherent_ms = 10;    % 非相干累加毫秒数（10 ms 为当前默认）
 end
@@ -132,6 +138,7 @@ end
 
 
 function search_map = compute_search_map(sample_matrix, local_code_fft, doppler_bins_hz, t, accel)
+    % 根据当前后端能力，自动切到 CPU / parfor / GPU 实现。
     if accel.gpu_enabled
         search_map = compute_search_map_gpu(sample_matrix, local_code_fft, doppler_bins_hz, t, accel);
     elseif accel.parfor_enabled
@@ -143,6 +150,7 @@ end
 
 
 function search_map = compute_search_map_cpu(sample_matrix, local_code_fft, doppler_bins_hz, t, accel)
+    % CPU 版本：每个 Doppler 分格逐列处理，逻辑最直观，也最容易调试。
     sample_matrix = cast(sample_matrix, accel.precision_class);
     local_code_fft = cast(local_code_fft, accel.precision_class);
     doppler_bins_hz = cast(doppler_bins_hz(:).', accel.precision_class);
@@ -154,6 +162,7 @@ function search_map = compute_search_map_cpu(sample_matrix, local_code_fft, dopp
     for doppler_idx = 1:numel(doppler_bins_hz)
         carrier = carriers(:, doppler_idx);
         mixed = sample_matrix .* carrier;
+        % 频域循环相关：FFT(输入) .* conj(FFT(本地码))，再 IFFT 回到码相位域。
         correlation = ifft(fft(mixed, [], 1) .* conj(local_code_fft), [], 1);
         search_map(doppler_idx, :) = sum(abs(correlation) .^ 2, 2).';
     end
@@ -163,6 +172,7 @@ end
 
 
 function search_map = compute_search_map_parfor(sample_matrix, local_code_fft, doppler_bins_hz, t, accel)
+    % parfor 版本：Doppler 分格之间彼此独立，天然适合并行。
     sample_matrix = cast(sample_matrix, accel.precision_class);
     local_code_fft = cast(local_code_fft, accel.precision_class);
     doppler_bins_hz = cast(doppler_bins_hz(:).', accel.precision_class);
@@ -183,6 +193,7 @@ end
 
 
 function search_map = compute_search_map_gpu(sample_matrix, local_code_fft, doppler_bins_hz, t, accel)
+    % GPU 版本：把“毫秒页 × Doppler 页”一起展开，尽量利用批量 FFT 的吞吐能力。
     precision_class = accel.precision_class;
     sample_matrix = gpuArray(cast(sample_matrix, precision_class));
     local_code_fft = gpuArray(cast(local_code_fft(:), precision_class));
@@ -204,6 +215,8 @@ end
 
 function sampled_code = build_sampled_ca_code(prn_id, samples_per_code, sample_rate_hz)
 %BUILD_SAMPLED_CA_CODE 将指定 PRN 的 C/A 码重采样到 samples_per_code 个采样点。
+% 原始 C/A 码是 1023 个 chip，而实际采集是按 sample_rate_hz 采样的，
+% 因此这里要先把 chip 级参考码映射到“每个采样点对应哪个 chip”。
 chip_rate_hz = 1.023e6;
 chip_count   = 1023;
 chip_indices = floor((0 : samples_per_code - 1) * chip_rate_hz / sample_rate_hz);

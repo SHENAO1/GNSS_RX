@@ -7,7 +7,13 @@ function tracked_result = track_nav_bits(samples, meta, acq_result, truth, optio
 %   3. 用 truth 仅做初始 bit 对齐/极性选择和最终 BER 评估
 %
 % 输出 tracked_result 为结构体，包含比特、BER、tracking history、lock 指标等。
+%
+% 如果说 recover_nav_bits 更像“离线暴力搜索”，那这个函数更像一个简化接收机：
+%   - DLL 思路：靠 early/prompt/late 维持码相位
+%   - FLL/PLL 思路：靠 prompt 相位序列维持载波锁定
+%   - bit 对齐：在 tracking 稳定后，再决定 20 ms bit 边界落在哪里
 
+    % 补全可选参数，并把 tracking 配置整理成固定字段集合。
     if nargin < 5
         options = struct();
     end
@@ -28,6 +34,7 @@ function tracked_result = track_nav_bits(samples, meta, acq_result, truth, optio
     samples = samples(:);
     samples_mean = mean(samples);
 
+    % 构造 1 ms 本地 PRN 码，后面 DLL 会重复拿它和输入片段做相关。
     prn_chips = generate_ca_code(meta.prn_id);
     prn_samples = repelem(prn_chips, samples_per_chip);
     prn_one_ms = prn_samples(1:samples_per_ms)';
@@ -38,21 +45,27 @@ function tracked_result = track_nav_bits(samples, meta, acq_result, truth, optio
             '可用于 tracking 的 1 ms 块数不足，至少需要 %d ms。', options.min_required_ms);
     end
 
+    % 第一阶段：先做码跟踪。输出的 prompt/early/late 是后面所有判断的基础。
     [prompt_ms, early_ms, late_ms, code_phase_samples, code_track_events, lock_metric_ms] = track_code_phase_ms( ...
         samples, samples_mean, prn_one_ms, acq_result.best_code_phase_samples + 1, ...
         samples_per_ms, acq_result.best_doppler_hz, fs, options);
 
+    % 第二阶段：对 prompt 序列做载波频率/相位跟踪。
     [prompt_fll, prompt_pll, carrier_history] = track_carrier_from_prompt(prompt_ms, options);
 
+    % 第三阶段：借助 truth 在训练段上找出最佳 bit 边界、pattern 偏移和极性。
     [initial_alignment, bit_offset_metrics] = estimate_initial_bit_alignment( ...
         prompt_pll, truth.nav_bits_pattern_pm1, options);
 
+    % 第四阶段：在更长时间范围内观察 bit 边界是否漂移，提前发现“看似锁住但 bit 已错位”的情况。
     [window_metrics, bit_timing_events] = check_bit_timing_stability( ...
         prompt_pll, initial_alignment.bit_offset_ms, options);
 
+    % 第五阶段：按估计出的 bit 边界把 20 ms prompt 积分成 1 个 bit。
     [bit_corr, bit_times_s] = integrate_bits_from_prompt( ...
         prompt_pll, code_phase_samples, initial_alignment.bit_offset_ms, samples_per_ms, fs);
 
+    % BPSK 的 180 度翻转会让实部正负互换，因此先估一个公共相位轴再判决比特符号。
     phi_axis = angle(sum(bit_corr.^2)) / 2;
     bit_corr_rot = bit_corr .* exp(-1j * phi_axis);
     rx_bits = sign(real(bit_corr_rot));
@@ -140,6 +153,7 @@ function tracked_result = track_nav_bits(samples, meta, acq_result, truth, optio
 end
 
 function options = ensure_track_defaults(options)
+    % 这些默认值偏向“先稳定跑通”，每个阈值都对应 tracking 链的某个观测窗口或判决门限。
     defaults = struct( ...
         'min_required_ms', 200, ...
         'early_late_spacing_samples', 1, ...
@@ -169,6 +183,9 @@ end
 function [prompt_ms, early_ms, late_ms, code_phase_samples, events, lock_metric_ms] = track_code_phase_ms( ...
     samples, samples_mean, prn_one_ms, start_sample, samples_per_ms, doppler_hz, fs, options)
 
+    % 这里的核心思想和传统 DLL 类似：
+    %   prompt 最大表示当前码相位大致对齐；
+    %   early / late 谁更强，提示我们下一毫秒应该把采样窗口往前还是往后挪一点。
     num_ms = floor((length(samples) - start_sample + 1) / samples_per_ms);
     prompt_ms = complex(zeros(num_ms, 1));
     early_ms = complex(zeros(num_ms, 1));
@@ -203,6 +220,7 @@ function [prompt_ms, early_ms, late_ms, code_phase_samples, events, lock_metric_
         late_ms(ms_idx) = sum(segment .* late_code);
         code_phase_samples(ms_idx) = sample_start - 1;
 
+        % 根据 early/prompt/late 的相对强弱，决定下一步是否把码相位微调 ±1 个采样点。
         next_adjust = choose_code_adjustment(prompt_ms(ms_idx), early_ms(ms_idx), late_ms(ms_idx), options);
         cursor = cursor + step + next_adjust;
 
@@ -210,6 +228,8 @@ function [prompt_ms, early_ms, late_ms, code_phase_samples, events, lock_metric_
         lock_metric_ms(ms_idx) = lock_metric;
         should_search = mod(ms_idx, options.code_search_interval_ms) == 0 || lock_metric < options.code_lock_threshold;
         if should_search
+            % 一旦锁定指标偏低，就在附近几个采样点内做一次小范围重搜，
+            % 相当于给 DLL 一个“就地扶正”的机会。
             search_offsets = -options.code_search_half_span_samples : options.code_search_half_span_samples;
             [best_offset, best_metric] = search_local_code_offset( ...
                 samples, samples_mean, prn_one_ms, sample_start + round(step), ...
@@ -254,6 +274,7 @@ end
 function [best_offset, best_metric] = search_local_code_offset( ...
     samples, samples_mean, prn_one_ms, center_sample, samples_per_ms, ...
     search_offsets, carrier_one_ms, doppler_hz, fs)
+    % 在当前估计点附近做一个很小的局部扫描，避免完整 acquisition 的高开销。
     best_offset = 0;
     best_metric = -inf;
     for off = search_offsets
@@ -273,6 +294,9 @@ function [best_offset, best_metric] = search_local_code_offset( ...
 end
 
 function [prompt_fll, prompt_pll, carrier_history] = track_carrier_from_prompt(prompt_ms, options)
+    % 载波跟踪分两步：
+    %   1. FLL 先估频率漂移，解决“相位一直转”的问题
+    %   2. PLL 再细调相位，把相关点尽量拉回实轴附近
     n_ms = length(prompt_ms);
     if n_ms < 2
         prompt_fll = prompt_ms;
@@ -312,6 +336,8 @@ function [prompt_fll, prompt_pll, carrier_history] = track_carrier_from_prompt(p
 end
 
 function [alignment, bit_offset_metrics] = estimate_initial_bit_alignment(prompt_pll, truth_pattern, options)
+    % 只在前一段训练数据里做 bit 对齐，避免整段长采集都参与搜索而拖慢流程。
+    % 这里遍历 20 种 bit 边界和所有 truth pattern 起点，挑出最匹配的组合。
     training_ms = min(options.alignment_training_ms, length(prompt_pll));
     prompt_train = prompt_pll(1:training_ms);
     pattern_len = length(truth_pattern);
@@ -382,6 +408,9 @@ function [alignment, bit_offset_metrics] = estimate_initial_bit_alignment(prompt
 end
 
 function [window_metrics, events] = check_bit_timing_stability(prompt_pll, initial_bit_offset_ms, options)
+    % 初始 bit 对齐并不代表整个采集过程中一直正确。
+    % 这个检查会周期性比较“当前 bit 边界的能量”与“局部最优边界的能量”，
+    % 用来发现 overflow、重同步或慢性漂移导致的 bit timing 失配。
     step_ms = options.bit_timing_check_interval_ms;
     span_ms = min(options.bit_timing_check_span_ms, length(prompt_pll));
     num_windows = floor((length(prompt_pll) - span_ms) / step_ms) + 1;
@@ -441,6 +470,7 @@ function [window_metrics, events] = check_bit_timing_stability(prompt_pll, initi
 end
 
 function [bit_corr, bit_times_s] = integrate_bits_from_prompt(prompt_pll, code_phase_samples, bit_offset_ms, samples_per_ms, fs)
+    % 把连续 20 个 prompt 相关结果积分成 1 个导航 bit 的复相关值。
     num_bits = floor((length(prompt_pll) - bit_offset_ms) / 20);
     bit_corr = complex(zeros(num_bits, 1));
     bit_times_s = zeros(num_bits, 1);
@@ -459,6 +489,8 @@ function ref_bits = build_reference_bits_local(pattern, num_bits, pattern_offset
 end
 
 function window_ber = compute_window_ber(rx_bits, ref_bits, bit_times_s, window_bits, lock_quality)
+    % 计算滑动窗口 BER 曲线。它回答的问题不是“总 BER 是多少”，
+    % 而是“错误是不是集中在某一段时间爆发出来的”。
     if nargin < 4 || isempty(window_bits)
         window_bits = 100;
     end
@@ -540,6 +572,7 @@ function lock_quality = build_bit_lock_quality(lock_metric_ms, fll_freq_hz, wind
 end
 
 function top_scores = update_top_scores(top_scores, candidate)
+    % 只保留前两名分数，用于估计最佳候选和次佳候选之间的歧义程度。
     if candidate > top_scores(1)
         top_scores = [candidate; top_scores(1)];
     elseif candidate > top_scores(2)
@@ -548,6 +581,7 @@ function top_scores = update_top_scores(top_scores, candidate)
 end
 
 function value = bpsk_cluster_strength(corr_values)
+    % BPSK 理想锁定时，相位会聚成两团（相差 180 度），该指标越接近 1 表示聚类越明显。
     if isempty(corr_values)
         value = 0;
         return;
@@ -556,5 +590,6 @@ function value = bpsk_cluster_strength(corr_values)
 end
 
 function y = wrap_to_pi(x)
+    % 把任意相位角折叠回 [-pi, pi)，方便 PLL 使用最短角距离。
     y = mod(x + pi, 2 * pi) - pi;
 end

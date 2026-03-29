@@ -45,19 +45,22 @@ GNSS_RX_DATA_DIR = '/mnt/hgfs/GongXiangDocument/GNSS_RX_Data';
 
 ### 2. 同步 MATLAB 代码到宿主机（MATLAB 在 Windows 时）
 
+`GNSS_RX/matlab/` 是 MATLAB 代码的唯一真相源。
+`/mnt/hgfs/GongXiangDocument/GNSS_RX_matlab` 仅作为宿主机 MATLAB 的部署镜像，不应手工修改。
+同步脚本会保留共享根目录中的运行期文件，例如 `tx_truth.json`。
+
 ```bash
-# 同步（镜像模式，删除目标目录已不存在的旧文件）
-rsync -av --delete /home/shen/projects/GNSS_RX/matlab/ \
-    /mnt/hgfs/GongXiangDocument/GNSS_RX_matlab/
-
-# 仅同步新增和修改的文件（保留目标目录中的额外文件）
-rsync -av /home/shen/projects/GNSS_RX/matlab/ \
-    /mnt/hgfs/GongXiangDocument/GNSS_RX_matlab/
-
-# 查看差异（同步前可先预览）
-diff -rq /home/shen/projects/GNSS_RX/matlab \
+# 推荐：通过脚本镜像同步整个工作区
+/home/shen/projects/GNSS_RX/scripts/sync_matlab.sh \
     /mnt/hgfs/GongXiangDocument/GNSS_RX_matlab
 ```
+
+同步结果包含：
+
+- `functions/`
+- `scripts/`
+- `README.md`
+- 根目录快捷入口脚本 `ber.m`
 
 ### 3. 在 MATLAB 中运行分析
 
@@ -188,7 +191,8 @@ acq_result = run_prn1_acquisition(samples, meta, cfg);
 cd /home/shen/projects/GNSS_RX
 PYTHONPATH=/home/shen/projects/gnss_tx/src:src \
     python3 scripts/gen_synthetic_capture.py --snr-db 10 --duration 2
-rsync -av --delete matlab/ /mnt/hgfs/GongXiangDocument/GNSS_RX_matlab/
+/home/shen/projects/GNSS_RX/scripts/sync_matlab.sh \
+    /mnt/hgfs/GongXiangDocument/GNSS_RX_matlab
 ```
 
 ```matlab
@@ -200,5 +204,6 @@ run_capture_analysis
 
 ```bash
 PYTHONPATH=src python3 scripts/record_rx.py --config configs/rx_prn1_capture.yaml
-rsync -av --delete matlab/ /mnt/hgfs/GongXiangDocument/GNSS_RX_matlab/
+/home/shen/projects/GNSS_RX/scripts/sync_matlab.sh \
+    /mnt/hgfs/GongXiangDocument/GNSS_RX_matlab
 ```

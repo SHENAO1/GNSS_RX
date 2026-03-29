@@ -4,6 +4,9 @@ function result = run_prn1_acquisition(samples, meta, cfg)
 %   向后兼容封装：强制将 meta.prn_id 设为 1，然后委托给通用化的 run_prn_acquisition。
 %   如需搜索其他 PRN，请直接调用 run_prn_acquisition 并在 meta 中设置正确的 prn_id。
 %
+%   保留这个函数的主要原因是兼容早期只处理 PRN1 的脚本和讲义；
+%   新代码更推荐直接使用 run_prn_acquisition。
+%
 %   输入：
 %     samples  —— 复数基带样本列向量（已归一化到 [-1, 1]）
 %     meta     —— 元数据结构体，须包含 sample_rate_hz 字段

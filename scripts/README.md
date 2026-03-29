@@ -111,17 +111,16 @@ PYTHONPATH=/home/shen/projects/gnss_tx/src:src \
 
 ## sync_matlab.sh — MATLAB 代码同步
 
-将 `matlab/` 目录同步到 VMware 宿主机共享目录，供 Windows 上的 MATLAB 使用。
+将仓库中的 `matlab/` 目录和根目录入口脚本 `matlab/ber.m` 同步到 VMware 宿主机共享目录，供 Windows 上的 MATLAB 使用。
+`/mnt/hgfs/GongXiangDocument/GNSS_RX_matlab` 应视为部署镜像，源码真相源是仓库中的 `GNSS_RX/matlab/`。
+脚本会镜像 `functions/` 与 `scripts/`，并同步根目录受管文件，同时保留 `tx_truth.json` 这类运行期产物。
 同步命令及数据目录配置说明见 [matlab/README.md](../matlab/README.md)。
 
 ```bash
 cd /home/shen/projects/GNSS_RX
 
-# 同步（保留目标目录中的额外文件）
-rsync -av matlab/ /mnt/hgfs/GongXiangDocument/GNSS_RX_matlab/
-
-# 镜像同步（删除目标目录中已不存在的旧文件）
-rsync -av --delete matlab/ /mnt/hgfs/GongXiangDocument/GNSS_RX_matlab/
+# 推荐：使用脚本同步整个 MATLAB 工作区镜像
+./scripts/sync_matlab.sh /mnt/hgfs/GongXiangDocument/GNSS_RX_matlab
 ```
 
 ---
@@ -138,7 +137,7 @@ PYTHONPATH=/home/shen/projects/gnss_tx/src:src \
     python3 scripts/gen_synthetic_capture.py --snr-db 10 --duration 2
 
 # 2. 同步 MATLAB 代码到共享目录
-rsync -av --delete matlab/ /mnt/hgfs/GongXiangDocument/GNSS_RX_matlab/
+./scripts/sync_matlab.sh /mnt/hgfs/GongXiangDocument/GNSS_RX_matlab
 ```
 
 然后在 MATLAB（Windows 宿主机或 Linux 本机）中运行：
@@ -157,5 +156,5 @@ PYTHONPATH=src python3 scripts/record_rx.py \
     --config configs/rx_prn1_capture.yaml
 
 # 2. 同步 MATLAB 代码
-rsync -av --delete matlab/ /mnt/hgfs/GongXiangDocument/GNSS_RX_matlab/
+./scripts/sync_matlab.sh /mnt/hgfs/GongXiangDocument/GNSS_RX_matlab
 ```
