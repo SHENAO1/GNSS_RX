@@ -1,4 +1,4 @@
-function [bits, timestamps_s, recovery_result] = recover_nav_bits(samples, meta, acq_result, truth)
+function [bits, timestamps_s, recovery_result] = recover_nav_bits(samples, meta, acq_result, truth, accel_options)
 % RECOVER_NAV_BITS 基于捕获结果进行开环导航比特恢复，并输出结构化诊断结果。
 %
 % 兼容性：
@@ -12,6 +12,10 @@ function [bits, timestamps_s, recovery_result] = recover_nav_bits(samples, meta,
     if nargin < 4
         truth = struct();
     end
+    if nargin < 5
+        accel_options = struct();
+    end
+    accel_options = gnss_rx_resolve_accel_options(accel_options);
 
     fs               = meta.sample_rate_hz;
     chip_rate        = 1.023e6;
@@ -21,17 +25,15 @@ function [bits, timestamps_s, recovery_result] = recover_nav_bits(samples, meta,
     code_phase       = acq_result.best_code_phase_samples;
     doppler_hz       = acq_result.best_doppler_hz;
 
-    samples = samples(:) - mean(samples);
-    n = (0:length(samples)-1)';
-    freq_comp = exp(-1j * 2 * pi * doppler_hz * n / fs);
-    samples_comp = samples .* freq_comp;
+    samples = samples(:);
+    samples_mean = mean(samples);
 
     prn_chips = generate_ca_code(meta.prn_id);
     prn_samples = repelem(prn_chips, round(samples_per_chip));
     prn_one_ms = prn_samples(1:samples_per_ms)';
 
     base_start = code_phase + 1;
-    num_ms = floor((length(samples_comp) - base_start + 1) / samples_per_ms);
+    num_ms = floor((length(samples) - base_start + 1) / samples_per_ms);
     if num_ms < epochs_per_bit
         bits = zeros(0, 1);
         timestamps_s = zeros(0, 1);
@@ -42,12 +44,9 @@ function [bits, timestamps_s, recovery_result] = recover_nav_bits(samples, meta,
         return;
     end
 
-    corr_ms = complex(zeros(num_ms, 1));
-    for k = 1:num_ms
-        ms_s = base_start + (k-1) * samples_per_ms;
-        ms_e = ms_s + samples_per_ms - 1;
-        corr_ms(k) = sum(samples_comp(ms_s:ms_e) .* prn_one_ms);
-    end
+    corr_ms = compute_ms_correlations( ...
+        samples, samples_mean, base_start, num_ms, samples_per_ms, ...
+        prn_one_ms, doppler_hz, fs, accel_options);
 
     n_pre_ms = min(2000, num_ms);
     sq_pre = corr_ms(1:n_pre_ms).^2;
@@ -130,6 +129,46 @@ function [bits, timestamps_s, recovery_result] = recover_nav_bits(samples, meta,
         recovery_result.df_pre_hz = df_pre_hz;
         recovery_result.truth_mode = 'none';
     end
+end
+
+function corr_ms = compute_ms_correlations( ...
+    samples, samples_mean, base_start, num_ms, samples_per_ms, prn_one_ms, doppler_hz, fs, accel_options)
+
+    corr_ms = complex(zeros(num_ms, 1));
+    precision_class = accel_options.precision_class;
+    weighted_prn = build_weighted_prn(prn_one_ms, doppler_hz, fs, samples_per_ms, precision_class);
+    phase_start = exp(-1j * 2 * pi * cast(doppler_hz * double(base_start - 1) / fs, precision_class));
+    phase_step_ms = exp(-1j * 2 * pi * cast(doppler_hz * double(samples_per_ms) / fs, precision_class));
+    batch_ms = accel_options.batch_ms;
+
+    for batch_start = 1:batch_ms:num_ms
+        batch_end = min(num_ms, batch_start + batch_ms - 1);
+        batch_len = batch_end - batch_start + 1;
+        sample_start = base_start + (batch_start - 1) * samples_per_ms;
+        sample_end = sample_start + batch_len * samples_per_ms - 1;
+
+        segment_block = reshape(samples(sample_start:sample_end), samples_per_ms, batch_len);
+        segment_block = cast(segment_block - samples_mean, precision_class);
+
+        phase_offsets = cast(0:batch_len-1, precision_class);
+        phase_vector = phase_start .* (phase_step_ms .^ phase_offsets);
+        weight_block = weighted_prn .* reshape(phase_vector, 1, []);
+
+        if accel_options.gpu_enabled
+            corr_batch = gather(sum(gpuArray(segment_block) .* gpuArray(weight_block), 1));
+        else
+            corr_batch = sum(segment_block .* weight_block, 1);
+        end
+
+        corr_ms(batch_start:batch_end) = double(corr_batch(:));
+        phase_start = phase_start * (phase_step_ms ^ batch_len);
+    end
+end
+
+function weighted_prn = build_weighted_prn(prn_one_ms, doppler_hz, fs, samples_per_ms, precision_class)
+    sample_grid = cast((0:samples_per_ms-1)', precision_class);
+    weighted_prn = cast(prn_one_ms, precision_class) ...
+        .* exp(-1j * 2 * pi * cast(doppler_hz / fs, precision_class) * sample_grid);
 end
 
 function [search_grid_summary, best_candidate] = joint_search_with_truth( ...

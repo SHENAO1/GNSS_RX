@@ -1,4 +1,4 @@
-function [samples, meta, paths] = load_gnss_rx_capture(stem_or_json_path)
+function [samples, meta, paths] = load_gnss_rx_capture(stem_or_json_path, output_precision)
 %LOAD_GNSS_RX_CAPTURE 读取一组 GNSS_RX 采集文件，输出复数基带样本、元数据和路径信息。
 %
 %   GNSS 接收机的数据采集结果由两个文件组成：
@@ -20,6 +20,14 @@ function [samples, meta, paths] = load_gnss_rx_capture(stem_or_json_path)
 if nargin < 1 || strlength(string(stem_or_json_path)) == 0
     error('GNSS_RX:MissingCapturePath', ...
         '请提供采集文件的 stem 路径或 .json 路径。');
+end
+if nargin < 2 || isempty(output_precision)
+    output_precision = 'double';
+end
+output_precision = lower(char(string(output_precision)));
+if ~ismember(output_precision, {'single', 'double'})
+    error('GNSS_RX:InvalidOutputPrecision', ...
+        'output_precision 必须是 single 或 double，当前为 %s。', output_precision);
 end
 
 % 转换为 string 类型并去除前后空格，避免因误输入空格导致路径解析失败。
@@ -67,9 +75,9 @@ end
 % 使用 onCleanup 确保即使后续发生错误，文件句柄也一定会被关闭，避免资源泄漏。
 file_cleanup = onCleanup(@() fclose(fid)); %#ok<NASGU>
 
-% 读取所有 int16 数据并转换为 double，方便后续浮点运算。
+% 读取所有 int16 数据并转换为指定精度，兼顾长采集内存压力。
 % SC16 格式：奇数位置为 I 分量，偶数位置为 Q 分量，交织存储。
-raw_iq = fread(fid, inf, 'int16=>double');
+raw_iq = fread(fid, inf, sprintf('int16=>%s', output_precision));
 
 % 检查样本数是否为偶数。SC16 格式每个复数样本由 I 和 Q 各一个 int16 组成，
 % 若总数为奇数，说明文件不完整或写入时出错。
@@ -81,8 +89,9 @@ end
 % 将交织的 int16 分离为 I、Q 分量，并归一化到 [-1, 1]。
 % GNSS_RX 使用 32767 作为满量程值（int16 最大正值为 32767）。
 % 奇数下标（1, 3, 5, ...）为 I 分量，偶数下标（2, 4, 6, ...）为 Q 分量。
-i_samples = raw_iq(1:2:end) ./ 32767.0;
-q_samples = raw_iq(2:2:end) ./ 32767.0;
+scale = cast(32767.0, output_precision);
+i_samples = raw_iq(1:2:end) ./ scale;
+q_samples = raw_iq(2:2:end) ./ scale;
 
 % 组合成复数基带信号：实部 = I，虚部 = Q。
 % 这是软件无线电（SDR）领域的标准表示方式。

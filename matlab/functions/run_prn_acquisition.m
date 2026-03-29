@@ -17,6 +17,7 @@ if nargin < 3
     cfg = struct();
 end
 cfg = ensure_acq_defaults(cfg);
+accel = gnss_rx_resolve_accel_options(cfg.accel_options);
 
 % 从元数据中读取目标 PRN 编号；无效时默认 PRN 1（向后兼容）。
 if isfield(meta, 'prn_id') && isnumeric(meta.prn_id) && meta.prn_id >= 1 && meta.prn_id <= 32
@@ -52,6 +53,7 @@ end
 
 % 截取用于搜索的样本段。
 search_samples = samples(1:(num_noncoherent_ms * samples_per_code));
+sample_matrix = reshape(search_samples, samples_per_code, num_noncoherent_ms);
 
 % 生成 Doppler 搜索频率网格。
 doppler_bins_hz = cfg.doppler_min_hz : cfg.doppler_step_hz : cfg.doppler_max_hz;
@@ -63,24 +65,8 @@ local_code_fft = fft(local_code);
 % 生成时间轴，用于构造去 Doppler 复指数。
 t = (0 : samples_per_code - 1)' ./ sample_rate_hz;
 
-% 初始化二维搜索图：行 = Doppler 格，列 = 码相位（采样点）。
-search_map = zeros(numel(doppler_bins_hz), samples_per_code);
-
-for doppler_idx = 1:numel(doppler_bins_hz)
-    fd = doppler_bins_hz(doppler_idx);
-    carrier = exp(-1j * 2 * pi * fd * t);
-    accumulated_power = zeros(1, samples_per_code);
-
-    for ms_idx = 1:num_noncoherent_ms
-        sample_offset = (ms_idx - 1) * samples_per_code;
-        segment = search_samples(sample_offset + 1 : sample_offset + samples_per_code);
-        mixed = segment .* carrier;
-        correlation = ifft(fft(mixed) .* conj(local_code_fft));
-        accumulated_power = accumulated_power + abs(correlation(:)).' .^ 2;
-    end
-
-    search_map(doppler_idx, :) = accumulated_power;
-end
+search_map = compute_search_map( ...
+    sample_matrix, local_code_fft, doppler_bins_hz, t, accel);
 
 % 找全局最大值（最佳 Doppler + 码相位）。
 [peak_value, peak_linear_idx] = max(search_map(:));
@@ -118,6 +104,8 @@ result.code_phase_samples      = 0 : (samples_per_code - 1);
 result.search_map              = search_map;
 result.num_noncoherent_ms      = num_noncoherent_ms;
 result.samples_per_code        = samples_per_code;
+result.accel_backend           = accel.resolved_backend;
+result.accel_precision         = accel.precision;
 end
 
 
@@ -137,6 +125,80 @@ end
 if ~isfield(cfg, 'detection_threshold') || isempty(cfg.detection_threshold)
     cfg.detection_threshold = 2.5;
 end
+if ~isfield(cfg, 'accel_options') || isempty(cfg.accel_options)
+    cfg.accel_options = struct();
+end
+end
+
+
+function search_map = compute_search_map(sample_matrix, local_code_fft, doppler_bins_hz, t, accel)
+    if accel.gpu_enabled
+        search_map = compute_search_map_gpu(sample_matrix, local_code_fft, doppler_bins_hz, t, accel);
+    elseif accel.parfor_enabled
+        search_map = compute_search_map_parfor(sample_matrix, local_code_fft, doppler_bins_hz, t, accel);
+    else
+        search_map = compute_search_map_cpu(sample_matrix, local_code_fft, doppler_bins_hz, t, accel);
+    end
+end
+
+
+function search_map = compute_search_map_cpu(sample_matrix, local_code_fft, doppler_bins_hz, t, accel)
+    sample_matrix = cast(sample_matrix, accel.precision_class);
+    local_code_fft = cast(local_code_fft, accel.precision_class);
+    doppler_bins_hz = cast(doppler_bins_hz(:).', accel.precision_class);
+    t = cast(t, accel.precision_class);
+
+    carriers = exp(-1j * 2 * pi * t .* doppler_bins_hz);
+    search_map = zeros(numel(doppler_bins_hz), size(sample_matrix, 1), accel.precision_class);
+
+    for doppler_idx = 1:numel(doppler_bins_hz)
+        carrier = carriers(:, doppler_idx);
+        mixed = sample_matrix .* carrier;
+        correlation = ifft(fft(mixed, [], 1) .* conj(local_code_fft), [], 1);
+        search_map(doppler_idx, :) = sum(abs(correlation) .^ 2, 2).';
+    end
+
+    search_map = double(search_map);
+end
+
+
+function search_map = compute_search_map_parfor(sample_matrix, local_code_fft, doppler_bins_hz, t, accel)
+    sample_matrix = cast(sample_matrix, accel.precision_class);
+    local_code_fft = cast(local_code_fft, accel.precision_class);
+    doppler_bins_hz = cast(doppler_bins_hz(:).', accel.precision_class);
+    t = cast(t, accel.precision_class);
+
+    carriers = exp(-1j * 2 * pi * t .* doppler_bins_hz);
+    search_map = zeros(numel(doppler_bins_hz), size(sample_matrix, 1), accel.precision_class);
+
+    parfor doppler_idx = 1:numel(doppler_bins_hz)
+        carrier = carriers(:, doppler_idx);
+        mixed = sample_matrix .* carrier;
+        correlation = ifft(fft(mixed, [], 1) .* conj(local_code_fft), [], 1);
+        search_map(doppler_idx, :) = sum(abs(correlation) .^ 2, 2).';
+    end
+
+    search_map = double(search_map);
+end
+
+
+function search_map = compute_search_map_gpu(sample_matrix, local_code_fft, doppler_bins_hz, t, accel)
+    precision_class = accel.precision_class;
+    sample_matrix = gpuArray(cast(sample_matrix, precision_class));
+    local_code_fft = gpuArray(cast(local_code_fft(:), precision_class));
+    doppler_bins_hz = gpuArray(cast(doppler_bins_hz(:).', precision_class));
+    t = gpuArray(cast(t, precision_class));
+
+    carriers = exp(-1j * 2 * pi * t .* doppler_bins_hz);
+    sample_pages = reshape(sample_matrix, size(sample_matrix, 1), size(sample_matrix, 2), 1);
+    mixed_pages = sample_pages .* reshape(carriers, size(sample_matrix, 1), 1, []);
+    correlation_pages = ifft( ...
+        fft(mixed_pages, [], 1) .* reshape(conj(local_code_fft), [], 1, 1), ...
+        [], 1);
+    accumulated_power = sum(abs(correlation_pages) .^ 2, 2);
+    search_map = gather(reshape(permute(accumulated_power, [3, 1, 2]), ...
+        numel(doppler_bins_hz), size(sample_matrix, 1)));
+    search_map = double(search_map);
 end
 
 

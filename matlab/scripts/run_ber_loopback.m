@@ -8,7 +8,7 @@
 %   - TX_TRUTH_PATH：TX 导出的 truth JSON，用作参考真值，不是 IQ 采集输入
 %   - BER_MODE：结果判决模式；默认 tracked_truth，但脚本仍会同时计算 open-loop 基线
 
-clearvars -except CAPTURE_PATH TX_TRUTH_PATH BER_MODE TRACKING_OPTIONS;
+clearvars -except CAPTURE_PATH TX_TRUTH_PATH BER_MODE TRACKING_OPTIONS ACCEL_OPTIONS;
 close all;
 addpath(fullfile(fileparts(mfilename('fullpath')), '..', 'functions'));
 
@@ -17,6 +17,9 @@ if ~exist('BER_MODE', 'var') || isempty(BER_MODE)
 end
 if ~exist('TRACKING_OPTIONS', 'var') || isempty(TRACKING_OPTIONS)
     TRACKING_OPTIONS = struct();
+end
+if ~exist('ACCEL_OPTIONS', 'var') || isempty(ACCEL_OPTIONS)
+    ACCEL_OPTIONS = struct();
 end
 
 %% ---- 用户配置区 -------------------------------------------------------
@@ -56,19 +59,38 @@ fprintf('本次分析文件：%s\n', char(string(CAPTURE_PATH)));
 
 DEFAULT_TX_PATTERN = [+1, -1, +1, +1, -1, -1, +1, -1];
 ACQ_DURATION_S = 0.1;
+accel_options = gnss_rx_resolve_accel_options(ACCEL_OPTIONS);
+stage_timings = struct();
+
+fprintf('加速配置：requested=%s, resolved=%s, precision=%s, batch_ms=%d, parfor=%d\n', ...
+    accel_options.requested_backend, accel_options.resolved_backend, ...
+    accel_options.precision, accel_options.batch_ms, accel_options.parfor_enabled);
+if accel_options.gpu_enabled
+    fprintf('GPU 设备：[%d] %s\n', accel_options.gpu_device_index, accel_options.gpu_device_name);
+elseif ~isempty(accel_options.fallback_reason)
+    fprintf('加速回退：%s\n', accel_options.fallback_reason);
+end
 %% -----------------------------------------------------------------------
 
 %% Step 1：加载采集数据
 fprintf('=== Step 1: 加载采集数据 ===\n');
-[samples, meta] = load_gnss_rx_capture(CAPTURE_PATH);
+step_timer = tic;
+[samples, meta] = load_gnss_rx_capture(CAPTURE_PATH, accel_options.precision);
+stage_timings.step1_load_s = toc(step_timer);
 total_s = length(samples) / meta.sample_rate_hz;
 fprintf('采集时长：%.1f 秒，样本数：%d\n', total_s, length(samples));
+fprintf('Step 1 用时：%.2f s\n', stage_timings.step1_load_s);
 
 %% Step 2：GPS L1 C/A 捕获
 fprintf('=== Step 2: GPS L1 C/A 捕获 ===\n');
+fprintf('Step 2 后端：%s（precision=%s）\n', ...
+    accel_options.resolved_backend, accel_options.precision);
+step_timer = tic;
 acq_len = round(ACQ_DURATION_S * meta.sample_rate_hz);
 acq_samples = samples(1:min(acq_len, length(samples)));
-acq_result = run_prn_acquisition(acq_samples, meta, struct());
+acq_cfg = struct('accel_options', accel_options);
+acq_result = run_prn_acquisition(acq_samples, meta, acq_cfg);
+stage_timings.step2_acquisition_s = toc(step_timer);
 
 if isfield(acq_result, 'detected')
     acq_detected = logical(acq_result.detected);
@@ -95,6 +117,7 @@ end
 fprintf('捕获成功！Doppler = %.1f Hz，码相位 = %d samples，次峰比 = %.2f\n', ...
         acq_result.best_doppler_hz, acq_result.best_code_phase_samples, ...
         acq_peak_ratio);
+fprintf('Step 2 用时：%.2f s\n', stage_timings.step2_acquisition_s);
 
 %% Step 2.5：加载 TX truth 契约
 truth_path = '';
@@ -117,22 +140,46 @@ end
 
 %% Step 3：open-loop truth 基线
 fprintf('=== Step 3: open-loop truth 基线 ===\n');
-[~, ~, open_loop_result] = recover_nav_bits(samples, meta, acq_result, truth);
-fprintf('open-loop 匹配率：%.1f%%，bit 偏移：%d ms，pattern 偏移：%d bit\n', ...
-    open_loop_result.match_rate * 100, ...
-    open_loop_result.bit_offset_ms, open_loop_result.pattern_offset);
+fprintf('Step 3 后端：%s（precision=%s, batch_ms=%d）\n', ...
+    accel_options.resolved_backend, accel_options.precision, accel_options.batch_ms);
+step_timer = tic;
+try
+    [~, ~, open_loop_result] = recover_nav_bits(samples, meta, acq_result, truth, accel_options);
+    fprintf('open-loop 匹配率：%.1f%%，bit 偏移：%d ms，pattern 偏移：%d bit\n', ...
+        open_loop_result.match_rate * 100, ...
+        open_loop_result.bit_offset_ms, open_loop_result.pattern_offset);
+catch ME
+    if is_out_of_memory_exception(ME)
+        warning(['open-loop truth 基线在当前长采集上触发内存不足，', ...
+                 '将跳过 Step 3 并继续执行 tracked BER 主链。原始错误：%s'], ...
+                ME.message);
+        open_loop_result = build_skipped_open_loop_result(truth, ME.message);
+    else
+        rethrow(ME);
+    end
+end
+stage_timings.step3_open_loop_s = toc(step_timer);
+fprintf('Step 3 用时：%.2f s\n', stage_timings.step3_open_loop_s);
 
 %% Step 4：tracked BER 主链
 fprintf('=== Step 4: tracked BER 主链 ===\n');
-tracked_result = track_nav_bits(samples, meta, acq_result, truth, TRACKING_OPTIONS);
+fprintf('Step 4 后端：cpu（tracking 主循环在 v1 保持 CPU）\n');
+step_timer = tic;
+tracked_result = track_nav_bits(samples, meta, acq_result, truth, TRACKING_OPTIONS, accel_options);
+stage_timings.step4_tracked_s = toc(step_timer);
 fprintf('tracked BER：%.2e，匹配率：%.1f%%，bit 偏移：%d ms，pattern 偏移：%d bit\n', ...
     tracked_result.ber, tracked_result.match_rate * 100, ...
     tracked_result.bit_offset_ms, tracked_result.pattern_offset);
+fprintf('Step 4 用时：%.2f s\n', stage_timings.step4_tracked_s);
 
 % 默认使用 tracked_truth 作为最终判决结果，但仍保留 open-loop_truth 作为诊断基线。
 selected_result = tracked_result;
 if strcmpi(BER_MODE, 'open_loop_truth')
-    selected_result = open_loop_result;
+    if isfield(open_loop_result, 'skipped') && open_loop_result.skipped
+        warning('BER_MODE=open_loop_truth，但 open-loop 基线已被跳过；当前将回退到 tracked_truth。');
+    else
+        selected_result = open_loop_result;
+    end
 elseif ~strcmpi(BER_MODE, 'tracked_truth')
     warning('未知 BER_MODE=%s，将回退到 tracked_truth。', BER_MODE);
 end
@@ -187,6 +234,8 @@ analysis_result.selected_result = selected_result;
 analysis_result.errors = errors;
 analysis_result.total_bits = total_bits;
 analysis_result.ber = ber;
+analysis_result.accel_options = accel_options;
+analysis_result.stage_timings = stage_timings;
 plot_ber_loopback(analysis_result);
 
 %% Step 8：保存结果
@@ -200,7 +249,8 @@ if strcmpi(strtrim(save_choice), 'y')
         sprintf('ber_loopback_%s.mat', datestr(now, 'yyyymmdd_HHMMSS')));
     save(result_path, 'truth', 'meta', 'acq_result', 'acq_peak_ratio', ...
          'open_loop_result', 'tracked_result', 'selected_result', ...
-         'analysis_result', 'errors', 'total_bits', 'ber', 'BER_MODE');
+         'analysis_result', 'errors', 'total_bits', 'ber', 'BER_MODE', ...
+         'accel_options', 'stage_timings');
     fprintf('结果已保存至：%s\n', result_path);
 else
     fprintf('已跳过保存。\n');
@@ -229,4 +279,30 @@ function truth_path = discover_tx_truth_json(capture_path)
             return;
         end
     end
+end
+
+function tf = is_out_of_memory_exception(ME)
+    message_text = lower(char(string(ME.message)));
+    identifier_text = lower(char(string(ME.identifier)));
+    tf = contains(message_text, 'out of memory') ...
+        || contains(message_text, '内存不足') ...
+        || contains(identifier_text, 'nomem') ...
+        || contains(identifier_text, 'outofmemory');
+end
+
+function result = build_skipped_open_loop_result(truth, reason)
+    result = struct();
+    result.mode = 'open_loop_truth';
+    result.truth_mode = truth.truth_mode;
+    result.rx_bits = zeros(0, 1);
+    result.ref_bits = zeros(0, 1);
+    result.bit_times_s = zeros(0, 1);
+    result.match_rate = NaN;
+    result.bit_offset_ms = NaN;
+    result.pattern_offset = NaN;
+    result.polarity = NaN;
+    result.ambiguity_flag = true;
+    result.skipped = true;
+    result.skip_reason = reason;
+    result.window_ber = struct('time_s', zeros(0, 1), 'ber', zeros(0, 1));
 end

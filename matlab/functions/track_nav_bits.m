@@ -1,4 +1,4 @@
-function tracked_result = track_nav_bits(samples, meta, acq_result, truth, options)
+function tracked_result = track_nav_bits(samples, meta, acq_result, truth, options, accel_options)
 % TRACK_NAV_BITS 基于 acquisition 的窄范围 tracking 导航比特恢复主链。
 %
 % 目标：
@@ -11,6 +11,9 @@ function tracked_result = track_nav_bits(samples, meta, acq_result, truth, optio
     if nargin < 5
         options = struct();
     end
+    if nargin < 6
+        accel_options = struct();
+    end
     options = ensure_track_defaults(options);
 
     fs = meta.sample_rate_hz;
@@ -22,23 +25,22 @@ function tracked_result = track_nav_bits(samples, meta, acq_result, truth, optio
             'track_nav_bits 需要 truth.nav_bits_pattern_pm1 作为 BER 参考真值。');
     end
 
-    samples = samples(:) - mean(samples);
-    n = (0:length(samples)-1)';
-    coarse_comp = exp(-1j * 2 * pi * acq_result.best_doppler_hz * n / fs);
-    samples_comp = samples .* coarse_comp;
+    samples = samples(:);
+    samples_mean = mean(samples);
 
     prn_chips = generate_ca_code(meta.prn_id);
     prn_samples = repelem(prn_chips, samples_per_chip);
     prn_one_ms = prn_samples(1:samples_per_ms)';
 
-    num_ms = floor((length(samples_comp) - acq_result.best_code_phase_samples) / samples_per_ms) - 1;
+    num_ms = floor((length(samples) - acq_result.best_code_phase_samples) / samples_per_ms) - 1;
     if num_ms < options.min_required_ms
         error('GNSS_RX:InsufficientTrackingData', ...
             '可用于 tracking 的 1 ms 块数不足，至少需要 %d ms。', options.min_required_ms);
     end
 
     [prompt_ms, early_ms, late_ms, code_phase_samples, code_track_events, lock_metric_ms] = track_code_phase_ms( ...
-        samples_comp, prn_one_ms, acq_result.best_code_phase_samples + 1, samples_per_ms, options);
+        samples, samples_mean, prn_one_ms, acq_result.best_code_phase_samples + 1, ...
+        samples_per_ms, acq_result.best_doppler_hz, fs, options);
 
     [prompt_fll, prompt_pll, carrier_history] = track_carrier_from_prompt(prompt_ms, options);
 
@@ -129,6 +131,12 @@ function tracked_result = track_nav_bits(samples, meta, acq_result, truth, optio
         'bit_corr_rot_phase_deg', rad2deg(angle(bit_corr_rot)), ...
         'initial_alignment', initial_alignment, ...
         'window_metrics', window_metrics);
+    if isstruct(accel_options) && isfield(accel_options, 'resolved_backend')
+        tracked_result.accel_requested_backend = accel_options.resolved_backend;
+    else
+        tracked_result.accel_requested_backend = 'cpu';
+    end
+    tracked_result.accel_backend = 'cpu';
 end
 
 function options = ensure_track_defaults(options)
@@ -159,9 +167,9 @@ function options = ensure_track_defaults(options)
 end
 
 function [prompt_ms, early_ms, late_ms, code_phase_samples, events, lock_metric_ms] = track_code_phase_ms( ...
-    samples_comp, prn_one_ms, start_sample, samples_per_ms, options)
+    samples, samples_mean, prn_one_ms, start_sample, samples_per_ms, doppler_hz, fs, options)
 
-    num_ms = floor((length(samples_comp) - start_sample + 1) / samples_per_ms);
+    num_ms = floor((length(samples) - start_sample + 1) / samples_per_ms);
     prompt_ms = complex(zeros(num_ms, 1));
     early_ms = complex(zeros(num_ms, 1));
     late_ms = complex(zeros(num_ms, 1));
@@ -172,13 +180,14 @@ function [prompt_ms, early_ms, late_ms, code_phase_samples, events, lock_metric_
     spacing = options.early_late_spacing_samples;
     early_code = circshift(prn_one_ms, -spacing);
     late_code = circshift(prn_one_ms, spacing);
+    carrier_one_ms = exp(-1j * 2 * pi * doppler_hz * (0:samples_per_ms-1)' / fs);
 
     cursor = double(start_sample);
     step = double(samples_per_ms);
 
     for ms_idx = 1:num_ms
         sample_start = round(cursor);
-        if sample_start < 1 || (sample_start + samples_per_ms - 1) > length(samples_comp)
+        if sample_start < 1 || (sample_start + samples_per_ms - 1) > length(samples)
             prompt_ms = prompt_ms(1:ms_idx-1);
             early_ms = early_ms(1:ms_idx-1);
             late_ms = late_ms(1:ms_idx-1);
@@ -186,7 +195,9 @@ function [prompt_ms, early_ms, late_ms, code_phase_samples, events, lock_metric_
             break;
         end
 
-        segment = samples_comp(sample_start : sample_start + samples_per_ms - 1);
+        segment = extract_compensated_segment( ...
+            samples, samples_mean, sample_start, samples_per_ms, ...
+            carrier_one_ms, doppler_hz, fs);
         prompt_ms(ms_idx) = sum(segment .* prn_one_ms);
         early_ms(ms_idx) = sum(segment .* early_code);
         late_ms(ms_idx) = sum(segment .* late_code);
@@ -201,7 +212,8 @@ function [prompt_ms, early_ms, late_ms, code_phase_samples, events, lock_metric_
         if should_search
             search_offsets = -options.code_search_half_span_samples : options.code_search_half_span_samples;
             [best_offset, best_metric] = search_local_code_offset( ...
-                samples_comp, prn_one_ms, sample_start + round(step), samples_per_ms, search_offsets);
+                samples, samples_mean, prn_one_ms, sample_start + round(step), ...
+                samples_per_ms, search_offsets, carrier_one_ms, doppler_hz, fs);
             if best_offset ~= 0
                 old_cursor = cursor;
                 cursor = cursor + best_offset;
@@ -214,6 +226,15 @@ function [prompt_ms, early_ms, late_ms, code_phase_samples, events, lock_metric_
             end
         end
     end
+end
+
+function segment = extract_compensated_segment( ...
+    samples, samples_mean, sample_start, samples_per_ms, carrier_one_ms, doppler_hz, fs)
+
+    sample_end = sample_start + samples_per_ms - 1;
+    segment = samples(sample_start:sample_end) - samples_mean;
+    phase_start = exp(-1j * 2 * pi * doppler_hz * double(sample_start - 1) / fs);
+    segment = segment .* (phase_start .* carrier_one_ms);
 end
 
 function next_adjust = choose_code_adjustment(prompt_corr, early_corr, late_corr, options)
@@ -230,15 +251,19 @@ function next_adjust = choose_code_adjustment(prompt_corr, early_corr, late_corr
     end
 end
 
-function [best_offset, best_metric] = search_local_code_offset(samples_comp, prn_one_ms, center_sample, samples_per_ms, search_offsets)
+function [best_offset, best_metric] = search_local_code_offset( ...
+    samples, samples_mean, prn_one_ms, center_sample, samples_per_ms, ...
+    search_offsets, carrier_one_ms, doppler_hz, fs)
     best_offset = 0;
     best_metric = -inf;
     for off = search_offsets
         sample_start = center_sample + off;
-        if sample_start < 1 || (sample_start + samples_per_ms - 1) > length(samples_comp)
+        if sample_start < 1 || (sample_start + samples_per_ms - 1) > length(samples)
             continue;
         end
-        segment = samples_comp(sample_start : sample_start + samples_per_ms - 1);
+        segment = extract_compensated_segment( ...
+            samples, samples_mean, sample_start, samples_per_ms, ...
+            carrier_one_ms, doppler_hz, fs);
         metric = abs(sum(segment .* prn_one_ms));
         if metric > best_metric
             best_metric = metric;

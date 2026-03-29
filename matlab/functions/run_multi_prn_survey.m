@@ -28,6 +28,7 @@ if nargin < 3
     cfg = struct();
 end
 cfg = ensure_survey_defaults(cfg);
+accel = gnss_rx_resolve_accel_options(cfg.accel_options);
 
 % 采样率与 1 ms 码周期验证（与 run_prn1_acquisition 逻辑相同）。
 sample_rate_hz   = double(meta.sample_rate_hz);
@@ -64,6 +65,11 @@ best_doppler_hz   = zeros(1, n_prn);
 fprintf('多星搜索：共 %d 个 PRN，每星 %d ms 非相干累加，%d 个 Doppler 分格\n', ...
     n_prn, num_noncoherent_ms, numel(doppler_bins_hz));
 
+if accel.gpu_enabled
+    survey = run_multi_prn_survey_via_acquisition(samples, meta, cfg, prn_list);
+    return;
+end
+
 % 预计算所有 Doppler 载波向量（所有 PRN 共用，避免重复运算）。
 % carriers 矩阵：第 di 列是 Doppler = doppler_bins_hz(di) 时的去载波复指数向量。
 carriers = zeros(samples_per_code, numel(doppler_bins_hz));
@@ -71,54 +77,24 @@ for di = 1:numel(doppler_bins_hz)
     carriers(:, di) = exp(-1j * 2 * pi * doppler_bins_hz(di) * t);
 end
 
-% 逐颗卫星进行捕获搜索。
-% 注意：循环变量使用 prn_idx 而不是 pi_idx，避免与 MATLAB 内置常量 pi 混淆。
-for prn_idx = 1:n_prn
-    prn_id = prn_list(prn_idx);
-
-    % 生成当前 PRN 的 C/A 码并做 FFT，用于后续频域循环相关。
-    local_code     = build_sampled_ca_code(prn_id, samples_per_code, sample_rate_hz);
-    local_code_fft = fft(local_code);
-
-    % 初始化当前 PRN 的二维搜索图（Doppler × 码相位）。
-    search_map = zeros(numel(doppler_bins_hz), samples_per_code);
-
-    for di = 1:numel(doppler_bins_hz)
-        accumulated_power = zeros(1, samples_per_code);
-        for ms_idx = 1:num_noncoherent_ms
-            offset = (ms_idx - 1) * samples_per_code;
-            seg    = search_samples(offset + 1 : offset + samples_per_code);
-            % 去 Doppler → FFT 循环相关 → 非相干功率累加。
-            mixed = seg .* carriers(:, di);
-            corr  = ifft(fft(mixed) .* conj(local_code_fft));
-            accumulated_power = accumulated_power + abs(corr(:)).' .^ 2;
-        end
-        search_map(di, :) = accumulated_power;
+if accel.parfor_enabled
+    parfor prn_idx = 1:n_prn
+        local_result = run_single_prn_search(prn_list(prn_idx), search_samples, carriers, ...
+            doppler_bins_hz, sample_rate_hz, samples_per_code, cfg);
+        peak_metric(prn_idx) = local_result.peak_metric;
+        second_peak_ratio(prn_idx) = local_result.second_peak_ratio;
+        detected(prn_idx) = local_result.detected;
+        best_doppler_hz(prn_idx) = local_result.best_doppler_hz;
     end
-
-    % 找二维搜索图的全局最大值（最佳 Doppler + 码相位组合）。
-    [peak_val, peak_idx]      = max(search_map(:));
-    [best_di,  best_ci]       = ind2sub(size(search_map), peak_idx);
-    best_doppler_hz(prn_idx)  = doppler_bins_hz(best_di);
-
-    % 次峰比：挖掉主峰附近一个码片宽度的排除窗口，在剩余位置找次大值。
-    chip_excl = max(1, round(samples_per_code / 1023));
-    excl_idx  = mod((best_ci - 1 - chip_excl) : (best_ci - 1 + chip_excl), samples_per_code) + 1;
-    masked    = search_map;
-    masked(:, excl_idx) = 0;
-    second_peak = max(masked(:));
-
-    % 峰值指标（主峰 / 均值）。
-    mean_floor             = mean(search_map(:));
-    peak_metric(prn_idx)   = peak_val / max(mean_floor, eps);
-
-    % 次峰比与捕获判决。
-    if isempty(second_peak) || second_peak <= 0
-        second_peak_ratio(prn_idx) = inf;
-    else
-        second_peak_ratio(prn_idx) = peak_val / second_peak;
+else
+    for prn_idx = 1:n_prn
+        local_result = run_single_prn_search(prn_list(prn_idx), search_samples, carriers, ...
+            doppler_bins_hz, sample_rate_hz, samples_per_code, cfg);
+        peak_metric(prn_idx) = local_result.peak_metric;
+        second_peak_ratio(prn_idx) = local_result.second_peak_ratio;
+        detected(prn_idx) = local_result.detected;
+        best_doppler_hz(prn_idx) = local_result.best_doppler_hz;
     end
-    detected(prn_idx) = second_peak_ratio(prn_idx) >= cfg.detection_threshold;
 end
 
 % 打包结果到输出结构体。
@@ -130,6 +106,7 @@ survey.detected            = detected;
 survey.best_doppler_hz     = best_doppler_hz;
 survey.detection_threshold = cfg.detection_threshold;
 survey.num_noncoherent_ms  = num_noncoherent_ms;
+survey.accel_backend       = accel.resolved_backend;
 end
 
 
@@ -154,6 +131,85 @@ end
 if ~isfield(cfg, 'detection_threshold') || isempty(cfg.detection_threshold)
     cfg.detection_threshold = 2.5;  % 次峰比判决门限
 end
+if ~isfield(cfg, 'accel_options') || isempty(cfg.accel_options)
+    cfg.accel_options = struct();
+end
+end
+
+
+function local_result = run_single_prn_search(prn_id, search_samples, carriers, doppler_bins_hz, sample_rate_hz, samples_per_code, cfg)
+    num_noncoherent_ms = floor(numel(search_samples) / samples_per_code);
+    local_code     = build_sampled_ca_code(prn_id, samples_per_code, sample_rate_hz);
+    local_code_fft = fft(local_code);
+    search_map = zeros(numel(doppler_bins_hz), samples_per_code);
+
+    for di = 1:numel(doppler_bins_hz)
+        accumulated_power = zeros(1, samples_per_code);
+        for ms_idx = 1:num_noncoherent_ms
+            offset = (ms_idx - 1) * samples_per_code;
+            seg    = search_samples(offset + 1 : offset + samples_per_code);
+            mixed = seg .* carriers(:, di);
+            corr  = ifft(fft(mixed) .* conj(local_code_fft));
+            accumulated_power = accumulated_power + abs(corr(:)).' .^ 2;
+        end
+        search_map(di, :) = accumulated_power;
+    end
+
+    [peak_val, peak_idx] = max(search_map(:));
+    [best_di, best_ci] = ind2sub(size(search_map), peak_idx);
+    chip_excl = max(1, round(samples_per_code / 1023));
+    excl_idx  = mod((best_ci - 1 - chip_excl) : (best_ci - 1 + chip_excl), samples_per_code) + 1;
+    masked    = search_map;
+    masked(:, excl_idx) = 0;
+    second_peak = max(masked(:));
+    mean_floor = mean(search_map(:));
+
+    local_result = struct();
+    local_result.peak_metric = peak_val / max(mean_floor, eps);
+    if isempty(second_peak) || second_peak <= 0
+        local_result.second_peak_ratio = inf;
+    else
+        local_result.second_peak_ratio = peak_val / second_peak;
+    end
+    local_result.detected = local_result.second_peak_ratio >= cfg.detection_threshold;
+    local_result.best_doppler_hz = doppler_bins_hz(best_di);
+end
+
+
+function survey = run_multi_prn_survey_via_acquisition(samples, meta, cfg, prn_list)
+    n_prn = numel(prn_list);
+    peak_metric = zeros(1, n_prn);
+    second_peak_ratio = zeros(1, n_prn);
+    detected = false(1, n_prn);
+    best_doppler_hz = zeros(1, n_prn);
+
+    base_cfg = struct( ...
+        'noncoherent_ms', cfg.noncoherent_ms, ...
+        'doppler_min_hz', cfg.doppler_min_hz, ...
+        'doppler_max_hz', cfg.doppler_max_hz, ...
+        'doppler_step_hz', cfg.doppler_step_hz, ...
+        'detection_threshold', cfg.detection_threshold, ...
+        'accel_options', cfg.accel_options);
+
+    for prn_idx = 1:n_prn
+        local_meta = meta;
+        local_meta.prn_id = prn_list(prn_idx);
+        acq_result = run_prn_acquisition(samples, local_meta, base_cfg);
+        peak_metric(prn_idx) = acq_result.peak_metric;
+        second_peak_ratio(prn_idx) = acq_result.second_peak_ratio;
+        detected(prn_idx) = acq_result.detected;
+        best_doppler_hz(prn_idx) = acq_result.best_doppler_hz;
+    end
+
+    survey = struct();
+    survey.prn_list = prn_list(:)';
+    survey.peak_metric = peak_metric;
+    survey.second_peak_ratio = second_peak_ratio;
+    survey.detected = detected;
+    survey.best_doppler_hz = best_doppler_hz;
+    survey.detection_threshold = cfg.detection_threshold;
+    survey.num_noncoherent_ms = min(cfg.noncoherent_ms, floor(numel(samples) / round(double(meta.sample_rate_hz) / 1000)));
+    survey.accel_backend = 'gpu';
 end
 
 

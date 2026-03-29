@@ -87,6 +87,35 @@ result = run_capture_analysis( ...
   '/mnt/hgfs/GongXiangDocument/GNSS_RX_Data/2026/2026_03_26/<stem>/<stem>');
 ```
 
+### 4. 启用 MATLAB 离线分析加速
+
+BER 主链可通过 `ACCEL_OPTIONS` 启用 GPU / CPU 并行加速：
+
+```matlab
+ACCEL_OPTIONS = struct( ...
+    'backend', 'gpu', ...
+    'precision', 'single', ...
+    'batch_ms', 2000, ...
+    'use_parfor', false, ...
+    'device_index', []);
+ber
+```
+
+自动回退模式：
+
+```matlab
+ACCEL_OPTIONS = struct('backend', 'auto', 'precision', 'single');
+ber
+```
+
+说明：
+
+- `backend='gpu'`：必须检测到可用 NVIDIA GPU，否则直接报错
+- `backend='auto'`：若无可用 GPU，自动回退到 CPU
+- `precision='single'`：优先降低长采集内存压力，推荐用于 `250 s / 1 h`
+- `use_parfor=true`：仅在 CPU 路径下用于天然可并行的批量扫描场景
+- `track_nav_bits` 的 tracking 主循环在当前版本仍保持 CPU 执行
+
 ---
 
 ## 分析流程说明

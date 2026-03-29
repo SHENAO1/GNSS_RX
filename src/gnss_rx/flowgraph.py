@@ -8,9 +8,9 @@ GNU Radio 流图简介：
   由若干"块"（Block）通过"连接"（connect）组成。数据像水流一样从源头（Source）
   流向终点（Sink）：
 
-      USRP Source ──→ Head Block ──→ Sc16CaptureSink
-         ↑                ↑                ↑
-     硬件采样        限制采样总数       写入文件
+      USRP Source ──→ Head Block ──→ complex_to_interleaved_short ──→ file_sink
+         ↑                ↑                         ↑                         ↑
+     硬件采样        限制采样总数             SC16 量化                 原生写文件
 
   本模块实现的是最简单的单路径流图，后续可以在同一 Source 后面
   分叉出多路（如预览分支、去直流分支）而不影响主路录制。
@@ -22,11 +22,13 @@ UHD（USRP Hardware Driver）：
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 import subprocess  # 用于调用系统命令 uhd_find_devices
+from typing import Callable
 
 from gnss_rx.runtime import RxRuntimeConfig   # 采集参数配置
-from gnss_rx.writer import Sc16CaptureSink    # SC16 格式文件写入 Sink 块
+from gnss_rx.writer import SC16_SCALE    # SC16 量化比例因子
 
 # ── 可选依赖：GNU Radio 在部分开发环境中不安装 ─────────────────
 try:
@@ -44,6 +46,27 @@ HAVE_UHD = HAVE_GNURADIO and uhd is not None  # True：UHD 模块也可用
 #   - 有 GNU Radio：继承自 gr.top_block（真正的流图顶层块）
 #   - 没有 GNU Radio：继承自 object（用于单元测试，无需硬件）
 _TopBlockBase = gr.top_block if HAVE_GNURADIO else object
+
+
+@dataclass
+class CaptureSinkHandle:
+    """对外暴露统一的采集 Sink 句柄。
+
+    正常运行时，采集链使用 GNU Radio 原生 `file_sink` 写盘；
+    单元测试或特殊注入场景下，仍可使用自定义 Python writer sink。
+    这个轻量包装把两种路径统一成相同的 `close()` / `samples_written`
+    接口，避免上层调用者感知内部实现差异。
+    """
+
+    close_fn: Callable[[], None]
+    samples_written_fn: Callable[[], int]
+
+    def close(self) -> None:
+        self.close_fn()
+
+    @property
+    def samples_written(self) -> int:
+        return int(self.samples_written_fn())
 
 
 # ──────────────────────────────────────────────────────────────
@@ -137,6 +160,8 @@ def create_usrp_source(config: RxRuntimeConfig):
             "recv_frame_size=4104",
             "num_recv_frames=512",
             "recv_buff_size=33554432",
+            # 注意：B200 是 USB 设备，recv_buff_size/num_recv_frames 影响 USB DMA 内存分配。
+            # recv_buff_size 经验安全上限约 32 MB；num_recv_frames 超过 512 未经验证。
         ] if part
     )
     source = uhd.usrp_source(
@@ -184,12 +209,17 @@ class ZeroIfCaptureTopBlock(_TopBlockBase):
 
     这是整个采集系统的"大脑"，管理从硬件采样到文件写入的完整数据流。
 
-    流图结构：
+    默认流图结构：
         source（USRP Source）
             ↓  fc32 复数样本
         head（blocks.head）      ← 采集满 capture_samples 个样本后停止
             ↓  fc32 复数样本
-        writer_sink（Sc16CaptureSink）  ← 转换格式并写入 .sc16 文件
+        complex_to_interleaved_short
+            ↓  int16 交错 IQ
+        file_sink                ← GNU Radio 原生写盘
+
+    测试注入 writer_sink 时：
+        source → head → writer_sink
 
     使用方式：
         tb = ZeroIfCaptureTopBlock(config=cfg, output_path="capture.sc16")
@@ -201,7 +231,8 @@ class ZeroIfCaptureTopBlock(_TopBlockBase):
         config:       采集参数配置。
         output_path:  输出 .sc16 文件路径。
         source_block: 可选的自定义 Source 块（测试时用假 Source 替代真实硬件）。
-        writer_sink:  可选的自定义 Sink 块（测试时使用）。
+        writer_sink:  可选的自定义 Sink 块（测试时使用）；正常运行时留空，
+                      走 GNU Radio 原生 SC16 写盘路径，减少 Python work() 负载。
     """
 
     def __init__(
@@ -210,7 +241,7 @@ class ZeroIfCaptureTopBlock(_TopBlockBase):
         config: RxRuntimeConfig,
         output_path: str | Path,
         source_block=None,   # None → 自动创建 USRP Source
-        writer_sink=None,    # None → 自动创建 Sc16CaptureSink
+        writer_sink=None,    # None → 使用 GNU Radio 原生 SC16 写盘路径
     ) -> None:
         if not HAVE_GNURADIO:
             raise RuntimeError("当前 Python 环境中无法使用 GNU Radio。")
@@ -219,6 +250,8 @@ class ZeroIfCaptureTopBlock(_TopBlockBase):
         super().__init__("gnss_rx_zero_if_capture")
 
         self.config = config
+        self.output_path = Path(output_path)
+        self.output_path.parent.mkdir(parents=True, exist_ok=True)
 
         # Source 块：如果调用者没有传入自定义 Source（如用于测试的模拟源），
         # 则自动创建真实的 USRP Source
@@ -229,15 +262,24 @@ class ZeroIfCaptureTopBlock(_TopBlockBase):
         # gr.sizeof_gr_complex = 8（每个 complex64 样本占 8 字节）
         self.head = blocks.head(gr.sizeof_gr_complex, config.capture_samples)
 
-        # Sink 块：将样本转换为 SC16 格式并写入文件
-        # 保持主分支原始不变，便于离线分析结果可复现。未来若增加预览、
-        # 去直流、抽 decimation 或实时捕获分支，应从同一信源分叉，
-        # 而不是直接修改 v1 的录制路径。
-        self.writer_sink = writer_sink if writer_sink is not None else Sc16CaptureSink(output_path)
-
-        # 将三个块串联起来：source → head → writer_sink
-        # GNU Radio 中 connect() 建立数据流连接
-        self.connect(self.source, self.head, self.writer_sink)
+        # 正常采集路径改用 GNU Radio 原生块完成 fc32 → SC16 转换与写盘，
+        # 避免 Python sync_block 在 4.092 Msps 长时采集下成为 host-side overflow 瓶颈。
+        # 若测试显式注入 writer_sink，则继续保留原有 source → head → writer_sink 结构。
+        if writer_sink is None:
+            self.sc16_interleaver = blocks.complex_to_interleaved_short(False, SC16_SCALE)
+            self.file_sink = blocks.file_sink(gr.sizeof_short, str(self.output_path), False)
+            self.capture_sink = CaptureSinkHandle(
+                close_fn=self.file_sink.close,
+                samples_written_fn=lambda: self.head.nitems_written(0),
+            )
+            self.writer_sink = self.capture_sink
+            self.connect(self.source, self.head, self.sc16_interleaver, self.file_sink)
+        else:
+            self.sc16_interleaver = None
+            self.file_sink = None
+            self.capture_sink = writer_sink
+            self.writer_sink = writer_sink
+            self.connect(self.source, self.head, self.writer_sink)
 
 
 # ──────────────────────────────────────────────────────────────
@@ -258,7 +300,7 @@ def build_capture_top_block(*, config: RxRuntimeConfig, output_path: str | Path,
     返回：
         (tb, sink) 元组：
             tb:   ZeroIfCaptureTopBlock 实例，可调用 tb.start() / tb.wait()。
-            sink: Sc16CaptureSink 实例，采集结束后读取 sink.samples_written。
+            sink: 统一的采集 Sink 句柄，采集结束后读取 sink.samples_written。
 
     示例：
         tb, sink = build_capture_top_block(config=cfg, output_path="capture.sc16")
@@ -267,14 +309,12 @@ def build_capture_top_block(*, config: RxRuntimeConfig, output_path: str | Path,
         sink.close()
         print(f"共采集 {sink.samples_written} 个样本")
     """
-    sink = Sc16CaptureSink(output_path)
     tb = ZeroIfCaptureTopBlock(
         config=config,
         output_path=output_path,
         source_block=source_block,
-        writer_sink=sink,
     )
-    return tb, sink
+    return tb, tb.capture_sink
 
 
 __all__ = [

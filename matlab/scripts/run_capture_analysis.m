@@ -32,6 +32,10 @@ end
 if nargin < 2 || isempty(cfg)
     cfg = build_default_cfg();
 end
+if ~isfield(cfg, 'accel_options') || isempty(cfg.accel_options)
+    cfg.accel_options = struct();
+end
+cfg.accel_options = gnss_rx_resolve_accel_options(cfg.accel_options);
 
 % 如果配置中没有指定数据根目录，就自动解析默认路径。
 if ~isfield(cfg, 'capture_root_dir') || isempty(cfg.capture_root_dir)
@@ -46,7 +50,7 @@ end
 fprintf('【GNSS_RX】分析目标文件：\n  %s\n', char(string(stem_or_json_path)));
 
 % 步骤 1：加载 IQ 数据和元数据。
-[samples, meta, paths] = load_gnss_rx_capture(stem_or_json_path);
+[samples, meta, paths] = load_gnss_rx_capture(stem_or_json_path, cfg.accel_options.precision);
 
 % 步骤 2：绘制时域、频谱、IQ 散点总览图。
 figures = plot_capture_overview(samples, meta, paths, cfg);
@@ -122,4 +126,5 @@ cfg.figure_visibility    = 'on';        % 图窗显示（'off' 用于无头批�
 cfg.save_png             = true;        % 是否保存 PNG 图片
 cfg.save_json_summary    = true;        % 是否保存 JSON 摘要
 cfg.save_mat_summary     = true;        % 是否保存 MAT 摘要
+cfg.accel_options        = struct();    % 可选：统一离线分析加速配置
 end
