@@ -1,0 +1,5 @@
+Metadata-Version: 2.4
+Name: gnss-rx
+Version: 0.1.0
+Summary: Single-channel GNSS receive capture project for offline PRN1 acquisition
+Requires-Python: >=3.10

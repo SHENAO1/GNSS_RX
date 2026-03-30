@@ -1,26 +1,24 @@
-# 裸机 Ubuntu 环境线缆回环 RX 配置
+# 裸机 Ubuntu 线缆回环测试 RX 配置
 #
-# 与 rx_cable_loopback.yaml 的唯一区别：
-#   output_base_dir 指向本地目录（不依赖 VMware 共享文件夹）
+# 设计目标：
+#   - 与 rx_cable_loopback.yaml 保持同一套射频参数与 BER 采集时长
+#   - 仅将输出目录切换到裸机本地磁盘，避免继续写入 VMware 共享目录
+#   - 默认路径使用当前实验机用户目录；若换机器或换用户名，可通过
+#     `scripts/record_rx.py --output-base-dir <path>` 临时覆盖
 #
-# 使用场景：
-#   - 在裸机 Ubuntu 笔记本上运行，规避 VMware vCPU 抢占导致的 overflow
-#   - 数据落盘到本地后，通过移动硬盘手动转移至主力机 MATLAB 分析
-#
-# 若笔记本用户名不是 shen，通过 CLI 覆盖：
-#   PYTHONPATH=src python3 scripts/record_rx.py \
-#       --config configs/rx_baremetal.yaml \
-#       --output-base-dir /home/<your_user>/GNSS_RX_Data
-#
-# 其余所有参数与 rx_cable_loopback.yaml 保持一致，不改动任何信号基线。
+# 使用前提：
+#   - 对应 TX 配置：gnss_tx/configs/tx_b210_cable_loopback.yaml
+#   - 线路中必须串接固定衰减器（推荐 30 dB，最低 20 dB）
+#   - 接线顺序：B210_TX(TX/RX) → [衰减器] → [同轴线缆] → B210_RX(RX2)
 usrp_addr: "serial=8003272"
 center_freq_hz: 100000000.0
+# center_freq_hz: 1575420000.0     # GPS L1（与 TX 同步修改）
 sample_rate_hz: 4092000.0
 rx_gain_db: 20.0
 bandwidth_hz: 4092000.0
 antenna: "RX2"
 duration_s: 300.0
-output_base_dir: "/home/shen/GNSS_RX_Data"
+output_base_dir: "/home/shenao/GNSS_RX_Data"
 use_timestamped_stem: true
 clock_source: "internal"
 time_source: "internal"

@@ -1,5 +1,6 @@
 __pycache__/
 *.pyc
+.venv/
 results/captures/*.sc16
 results/captures/*.json
 

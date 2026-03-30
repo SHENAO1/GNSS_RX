@@ -75,12 +75,32 @@ GNSS_RX/
 ## 环境依赖
 
 ```bash
-# 必须
-pip install numpy pyyaml
-
-# 采集硬件时必须（合成数据无需）
+# 系统依赖：真实 USRP 采集必须安装 GNU Radio / UHD
 sudo apt install -y gnuradio python3-gnuradio uhd-host libuhd-dev
 sudo uhd_images_downloader
+uhd_find_devices
+```
+
+### Python 虚拟环境
+
+```bash
+cd ~/projects/GNSS_RX
+bash env/ubuntu/setup.sh     # 推荐：使用安装脚本（会创建能看到 GNU Radio/UHD 的 .venv）
+# 或手动：python3 -m venv --system-site-packages .venv && source .venv/bin/activate && pip install -r env/ubuntu/requirements.txt && pip install -e .
+```
+
+激活虚拟环境（每次新终端）：
+
+```bash
+source ~/projects/GNSS_RX/.venv/bin/activate
+```
+
+### 验证安装
+
+```bash
+cd ~/projects/GNSS_RX
+python3 -c "from gnuradio import uhd; print(uhd.__file__)"
+PYTHONPATH=src python3 scripts/quick_check.py
 uhd_find_devices
 ```
 
@@ -100,6 +120,7 @@ projects/
 
 ```bash
 cd /home/shen/projects/GNSS_RX
+source .venv/bin/activate
 
 # 干运行（验证配置，不启动采集）
 PYTHONPATH=src python3 scripts/record_rx.py --dry-run
