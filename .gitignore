@@ -5,3 +5,6 @@ results/captures/*.json
 
 # 用户本地 MATLAB 路径配置（由 gnss_rx_user_paths.m.example 派生，不纳入 git）
 matlab/gnss_rx_user_paths.m
+
+# 本地运行日志
+rx_run.log

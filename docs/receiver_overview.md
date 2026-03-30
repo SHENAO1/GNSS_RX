@@ -51,6 +51,15 @@ USRP source -> zero-IF complex samples -> SC16 writer -> JSON sidecar
 
 **`load_rx_runtime_config(path)`**：读取 YAML，若 YAML 未显式给出 `bandwidth_hz` 则自动设为 `sample_rate_hz`，再调用 `validate()`。
 
+> [!NOTE]
+> 设计说明：为什么缺省将 `bandwidth_hz` 设为 `sample_rate_hz`（而不是默认调大）
+>
+> - 这是一个“可运行且可预测”的安全默认值。若不显式设置带宽，不同 UHD/驱动版本的默认行为可能不一致。
+> - 对当前零中频采集链路，数字可观测频带受采样率限制；把模拟前端带宽无条件调大，通常不会带来同等信息增益。
+> - 噪声功率近似随带宽线性增长（`P_n = kTB`），默认调大带宽会抬升噪声底，可能降低后续捕获稳健性。
+> - 更宽的前端带宽更容易引入邻道干扰与杂散，增加 acquisition 伪峰或次峰比恶化风险。
+> - 因此 v1 默认采用“`bandwidth_hz ~= sample_rate_hz`”作为基线；需要做抗干扰/滤波优化时，再通过 YAML 或 CLI 显式覆盖。
+
 **`apply_overrides(config, **overrides)`**：命令行参数覆盖 YAML 值，仅非 `None` 的字段生效，同步更新 `bandwidth_hz` 联动。
 
 **文件 stem 生成 — `build_timestamped_capture_stem(config, when)`**：
@@ -99,6 +108,8 @@ stem 在路径中出现两次（目录名 + 文件 stem），这是设计约定�
 **设备检测辅助函数**：
 
 - `uhd_find_devices_output()`: 运行 `uhd_find_devices` 子进程，返回 stdout + stderr 合并字符串。
+> [!TIP]
+> `stdout`（standard output）是标准输出，通常承载正常结果；`stderr`（standard error）是标准错误输出，通常承载告警与错误信息。
 - `is_uhd_device_available()`: 解析上述输出，判断是否有可用设备（过滤 `"no uhd devices found"` 字样）。
 
 **`create_usrp_source(config)`**：

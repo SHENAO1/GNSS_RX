@@ -8,6 +8,8 @@
   - 已验证事实、问题定位记录、阶段性归档。
 - `plans/YYYY-MM-DD/<topic>/`
   - 研究计划、里程碑计划、跨项目协作路线图。
+- `special/<topic>/`
+  - 跨日期的专项分析、长期维护的判读口径、源码级专题研究。
 
 ## 当前目录索引
 
@@ -20,6 +22,8 @@
 | `plans/2026-03-27/freq_offset_acquisition_stability/2026-03-27_freq_offset_acquisition_stability.md` | plan | 人为频偏对捕获稳定性的影响研究 |
 | `plans/2026-03-27/lo_leakage_acquisition_study/2026-03-27_lo_leakage_acquisition_study.md` | plan | 本振泄露对单星捕获影响研究 |
 | `plans/2026-03-27/correlation_length_accumulation_study/2026-03-27_correlation_length_accumulation_study.md` | plan | 相关长度与积累策略研究 |
+| `special/README.md` | special-index | 专项实验目录索引 |
+| `special/rx_ber_judgement_logic/README.md` | special-study | 接收端 BER 判断逻辑专项分析 |
 | `plans/INDEX.md` | index | 所有计划文件的汇总索引与跨项目入口 |
 
 ## 推荐实验流程
@@ -30,6 +34,7 @@
 4. 实验结束后回填：
    - 已验证事实写入 `records/`
    - 待执行与路线图写入 `plans/`
+   - 跨多日复用的专题分析写入 `special/`
 
 ## Ubuntu 命令行快速入口
 

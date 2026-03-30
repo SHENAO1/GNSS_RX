@@ -1,0 +1,392 @@
+<mxfile host="65bd71144e">
+    <diagram id="overview-page" name="Overview">
+        <mxGraphModel dx="3897" dy="1437" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2600" pageHeight="1400" math="0" shadow="0" adaptiveColors="auto">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="ov_title" value="GNSS TX/RX End-to-End Signal Chain (Input Numbers -&gt; Spread -&gt; Upconvert -&gt; IQ TX -&gt; IQ RX -&gt; Acquisition/BER)" style="text;html=1;fontStyle=1;fontSize=18;align=center;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="350" y="20" width="1900" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_lane_cfg" value="Config and Input" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontStyle=1;fontSize=13;" parent="1" vertex="1">
+                    <mxGeometry x="20" y="80" width="320" height="1160" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_lane_tx" value="TX Software Chain (gnss_tx)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontStyle=1;fontSize=13;" parent="1" vertex="1">
+                    <mxGeometry x="360" y="80" width="620" height="1160" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_lane_hw" value="UHD and RF Hardware" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE5CD;strokeColor=#D79B00;fontStyle=1;fontSize=13;" parent="1" vertex="1">
+                    <mxGeometry x="1000" y="80" width="360" height="1160" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_lane_rx" value="RX Software Chain (GNSS_RX)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontStyle=1;fontSize=13;" parent="1" vertex="1">
+                    <mxGeometry x="1380" y="80" width="620" height="1160" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_lane_offline" value="Offline MATLAB Analysis and BER" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontStyle=1;fontSize=13;" parent="1" vertex="1">
+                    <mxGeometry x="2020" y="80" width="520" height="1160" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_cfg_tx_yaml" value="TX YAML&#xa;configs/tx_*.yaml&#xa;signal_mode, prn_id/prn_ids&#xa;sample_rate, center_freq" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;" parent="1" vertex="1">
+                    <mxGeometry x="50" y="150" width="260" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_cfg_rx_yaml" value="RX YAML&#xa;configs/rx_*.yaml&#xa;sample_rate_hz, center_freq_hz&#xa;rx_gain_db, duration_s" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;" parent="1" vertex="1">
+                    <mxGeometry x="50" y="300" width="260" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_cfg_numbers" value="Input Numbers&#xa;nav bits pattern&#xa;PRN id/subset&#xa;runtime overrides (CLI)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;" parent="1" vertex="1">
+                    <mxGeometry x="50" y="450" width="260" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_tx_entry" value="scripts/run_tx.py&#xa;load_tx_runtime_config()&#xa;apply_overrides()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;" parent="1" vertex="1">
+                    <mxGeometry x="420" y="140" width="500" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_tx_spread" value="Spreading and Baseband&#xa;prn_generator.generate_ca_code()&#xa;nav_bits.normalize_nav_bits()&#xa;GpsL1CaBpskGenerator -&gt; complex64(fc32)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;" parent="1" vertex="1">
+                    <mxGeometry x="420" y="270" width="500" height="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_tx_buffer" value="Replay Buffer&#xa;build_replay_samples() or&#xa;build_multi_sat_replay_samples()&#xa;I/O: int8(+/-1) -&gt; complex64 IQ" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;" parent="1" vertex="1">
+                    <mxGeometry x="420" y="430" width="500" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_tx_gr" value="GNU Radio TX Top Block&#xa;vector_source_c -&gt; usrp_sink&#xa;cpu_format=fc32, otw_format=sc16" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;" parent="1" vertex="1">
+                    <mxGeometry x="420" y="580" width="500" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_tx_truth" value="Optional TX Truth Export&#xa;tx_truth.json&#xa;for RX BER alignment" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;dashed=1;" parent="1" vertex="1">
+                    <mxGeometry x="420" y="720" width="500" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_hw_tx" value="UHD TX Driver (B210)&#xa;set_samp_rate&#xa;set_center_freq&#xa;set_gain/set_bandwidth" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE5CD;strokeColor=#D79B00;" parent="1" vertex="1">
+                    <mxGeometry x="1040" y="290" width="280" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_hw_rf" value="RF/Antenna or Cable Path&#xa;100 MHz lab IF or configured RF&#xa;USRP DAC/ADC and analog front-end" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE5CD;strokeColor=#D79B00;" parent="1" vertex="1">
+                    <mxGeometry x="1040" y="470" width="280" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_hw_rx" value="UHD RX Driver (B210)&#xa;set_samp_rate, set_center_freq&#xa;set_gain, set_bandwidth&#xa;set_clock_source/set_time_source" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE5CD;strokeColor=#D79B00;" parent="1" vertex="1">
+                    <mxGeometry x="1040" y="650" width="280" height="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_rx_entry" value="scripts/record_rx.py&#xa;load_rx_runtime_config()&#xa;apply_overrides()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;" parent="1" vertex="1">
+                    <mxGeometry x="1440" y="140" width="500" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_rx_flow" value="GNU Radio Capture Flowgraph&#xa;create_usrp_source() -&gt; head -&gt; Sc16CaptureSink&#xa;I/O: fc32 stream -&gt; sc16 file" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;" parent="1" vertex="1">
+                    <mxGeometry x="1440" y="290" width="500" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_rx_out" value="Capture Outputs&#xa;.sc16 IQ (iq_int16_interleaved_le)&#xa;.json metadata" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;" parent="1" vertex="1">
+                    <mxGeometry x="1440" y="450" width="500" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_rx_synth" value="Alternative Path (no hardware)&#xa;scripts/gen_synthetic_capture.py&#xa;calls gnss_tx generator + AWGN" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;dashed=1;" parent="1" vertex="1">
+                    <mxGeometry x="1440" y="580" width="500" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_offline_load" value="load_gnss_rx_capture()&#xa;decode .sc16 + .json&#xa;complex samples + meta" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;" parent="1" vertex="1">
+                    <mxGeometry x="2080" y="180" width="400" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_offline_acq" value="Acquisition and Survey&#xa;run_prn_acquisition()&#xa;run_multi_prn_survey()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;" parent="1" vertex="1">
+                    <mxGeometry x="2080" y="320" width="400" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_offline_ber" value="BER Loopback&#xa;run_ber_loopback.m&#xa;recover_nav_bits() / track_nav_bits()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;" parent="1" vertex="1">
+                    <mxGeometry x="2080" y="460" width="400" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_offline_art" value="Artifacts&#xa;overview png, spectrum png&#xa;analysis_summary.json/.mat&#xa;BER plots and metrics" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;" parent="1" vertex="1">
+                    <mxGeometry x="2080" y="620" width="400" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_legend" value="Legend: Blue=TX software, Orange=UHD/hardware, Green=RX software, Purple=MATLAB offline, dashed=optional path" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;fontSize=12;" parent="1" vertex="1">
+                    <mxGeometry x="420" y="980" width="2060" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_cn_flow" value="中文信号流说明：1) 发端读取配置与输入数字（PRN/nav bits）。2) 生成 C/A 码并做扩频，形成基带复数 IQ。3) GNU Radio 通过 UHD 配置 USRP 发射参数并送出 RF。4) 收端通过 UHD 采集回到数字域。5) RX 落盘 .sc16 与 .json 元数据。6) MATLAB 做捕获、多星扫描、BER 分析。" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=12;align=left;verticalAlign=top;" parent="1" vertex="1">
+                    <mxGeometry x="420" y="1065" width="2060" height="75" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_cn_types" value="中文数据类型对照：PRN/nav bits=int8(±1)；TX 回放缓冲=complex64(fc32)；UHD 线上格式=sc16；RX 落盘=.sc16(iq_int16_interleaved_le)；元数据=.json；TX 真值=tx_truth.json；离线结果=.png + .json/.mat。" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=12;align=left;verticalAlign=top;" parent="1" vertex="1">
+                    <mxGeometry x="420" y="1150" width="2060" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" parent="1" source="ov_cfg_tx_yaml" target="ov_tx_entry" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_e2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" parent="1" source="ov_cfg_numbers" target="ov_tx_spread" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_e3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" parent="1" source="ov_tx_entry" target="ov_tx_spread" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_e4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" parent="1" source="ov_tx_spread" target="ov_tx_buffer" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_e5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=2;" parent="1" source="ov_tx_buffer" target="ov_tx_gr" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_e6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#D79B00;strokeWidth=2;" parent="1" source="ov_tx_gr" target="ov_hw_tx" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_e7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#D79B00;strokeWidth=2;" parent="1" source="ov_hw_tx" target="ov_hw_rf" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_e8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#D79B00;strokeWidth=2;" parent="1" source="ov_hw_rf" target="ov_hw_rx" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_e9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=2;strokeColor=#82B366;" parent="1" source="ov_hw_rx" target="ov_rx_flow" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_e10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" parent="1" source="ov_cfg_rx_yaml" target="ov_rx_entry" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_e11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" parent="1" source="ov_rx_entry" target="ov_rx_flow" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_e12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" parent="1" source="ov_rx_flow" target="ov_rx_out" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_e13" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#9673A6;strokeWidth=2;" parent="1" source="ov_rx_out" target="ov_offline_load" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_e14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#9673A6;" parent="1" source="ov_offline_load" target="ov_offline_acq" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_e15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#9673A6;" parent="1" source="ov_offline_acq" target="ov_offline_ber" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_e16" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#9673A6;" parent="1" source="ov_offline_ber" target="ov_offline_art" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_e17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;strokeColor=#9673A6;" parent="1" source="ov_tx_truth" target="ov_offline_ber" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="ov_e18" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;" parent="1" source="ov_rx_synth" target="ov_offline_load" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+    <diagram id="tx-detail-page" name="TX Detail">
+        <mxGraphModel dx="3897" dy="1437" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2200" pageHeight="1400" math="0" shadow="0" adaptiveColors="auto">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="tx_title" value="TX Detail: Given Numbers -&gt; PRN Spreading -&gt; Baseband IQ -&gt; UHD Sink" style="text;html=1;fontStyle=1;fontSize=18;align=center;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="320" y="20" width="1560" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_lane_cfg" value="Input and Config" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontStyle=1;arcSize=24;" parent="1" vertex="1">
+                    <mxGeometry x="30" y="80" width="330" height="1180" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_lane_alg" value="Algorithm and Buffer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontStyle=1;" parent="1" vertex="1">
+                    <mxGeometry x="380" y="80" width="760" height="1180" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_lane_gr" value="GNU Radio and UHD" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE5CD;strokeColor=#D79B00;fontStyle=1;" parent="1" vertex="1">
+                    <mxGeometry x="1160" y="80" width="470" height="1180" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_lane_io" value="Output and Validation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontStyle=1;" parent="1" vertex="1">
+                    <mxGeometry x="1650" y="80" width="500" height="1180" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_cfg_yaml" value="configs/tx_*.yaml" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;" parent="1" vertex="1">
+                    <mxGeometry x="60" y="240" width="270" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_cfg_cli" value="scripts/run_tx.py&#xa;CLI overrides" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;" parent="1" vertex="1">
+                    <mxGeometry x="60" y="540" width="270" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_cfg_validate" value="tx_controller.py&#xa;load_tx_runtime_config()&#xa;TxRuntimeConfig.validate()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;" parent="1" vertex="1">
+                    <mxGeometry x="60" y="370" width="270" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_cfg_num" value="Input numbers&#xa;nav_pattern -&gt; {-1,+1}&#xa;prn_id / prn_ids" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;" parent="1" vertex="1">
+                    <mxGeometry x="60" y="130" width="270" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_alg_prn" value="prn_generator.py&#xa;generate_ca_code(prn_id)&#xa;1023 chips/ms" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;" parent="1" vertex="1">
+                    <mxGeometry x="430" y="150" width="300" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_alg_nav" value="nav_bits.py&#xa;normalize_nav_bits()&#xa;50 bps cyclic nav bits" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;" parent="1" vertex="1">
+                    <mxGeometry x="790" y="150" width="300" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_alg_spread" value="spreader.py&#xa;GpsL1CaBpskGenerator&#xa;d[k] * c[k] -&gt; complex64 baseband" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;" parent="1" vertex="1">
+                    <mxGeometry x="430" y="290" width="660" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_alg_multi" value="multi_sat_combiner.py&#xa;build_multi_sat_replay_samples()&#xa;sum and normalize by sqrt(N)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;" parent="1" vertex="1">
+                    <mxGeometry x="430" y="510" width="660" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_alg_buf" value="top_block.py&#xa;build_replay_samples()&#xa;output replay IQ buffer (complex64)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;" parent="1" vertex="1">
+                    <mxGeometry x="430" y="880" width="660" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_gr_top" value="GpsL1CaTxTopBlock&#xa;vector_source_c (repeat)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE5CD;strokeColor=#D79B00;" parent="1" vertex="1">
+                    <mxGeometry x="1210" y="210" width="370" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_gr_sink" value="b210_sink.py create_b210_sink()&#xa;usrp_sink(cpu=fc32, otw=sc16, ch0)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE5CD;strokeColor=#D79B00;" parent="1" vertex="1">
+                    <mxGeometry x="1210" y="330" width="370" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_gr_params" value="UHD set_* params&#xa;set_samp_rate(sample_rate)&#xa;set_center_freq(center_freq)&#xa;set_gain(tx_gain)&#xa;set_bandwidth(bandwidth)&#xa;set_antenna(antenna)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE5CD;strokeColor=#D79B00;" parent="1" vertex="1">
+                    <mxGeometry x="1210" y="460" width="370" height="140" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_gr_probe" value="uhd_find_devices + sample rate report&#xa;device availability and actual rate check" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE5CD;strokeColor=#D79B00;" parent="1" vertex="1">
+                    <mxGeometry x="1190" y="840" width="370" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_io_rf" value="TX RF output&#xa;to cable loopback or OTA" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;" parent="1" vertex="1">
+                    <mxGeometry x="1700" y="280" width="400" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_io_truth" value="tx_truth.json (optional)&#xa;nav bits pattern, code phase, epochs_per_bit, sample_rate" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;dashed=1;" parent="1" vertex="1">
+                    <mxGeometry x="1700" y="410" width="400" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_io_logs" value="run report/logs&#xa;configuration summary and hardware report" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;" parent="1" vertex="1">
+                    <mxGeometry x="1700" y="540" width="400" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_note_fmt" value="Data formats: PRN/nav bits=int8 +/-1, replay buffer=complex64 (fc32), USRP wire format=sc16" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;fontSize=12;" parent="1" vertex="1">
+                    <mxGeometry x="430" y="990" width="1670" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" parent="1" source="tx_cfg_yaml" target="tx_cfg_validate" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_e2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" parent="1" source="tx_cfg_cli" target="tx_cfg_validate" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_e3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" parent="1" source="tx_cfg_validate" target="tx_alg_prn" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_e4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" parent="1" source="tx_cfg_num" target="tx_alg_nav" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_e5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=2;" parent="1" source="tx_alg_prn" target="tx_alg_spread" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_e6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=2;" parent="1" source="tx_alg_nav" target="tx_alg_spread" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_e7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" parent="1" source="tx_alg_spread" target="tx_alg_multi" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_e8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" parent="1" source="tx_alg_multi" target="tx_alg_buf" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_e9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#D79B00;strokeWidth=2;" parent="1" source="tx_alg_buf" target="tx_gr_top" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_e10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#D79B00;strokeWidth=2;" parent="1" source="tx_gr_top" target="tx_gr_sink" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_e11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" parent="1" source="tx_gr_sink" target="tx_gr_params" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_e12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" parent="1" source="tx_gr_params" target="tx_io_rf" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_e13" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;" parent="1" source="tx_cfg_validate" target="tx_io_truth" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_e14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" parent="1" source="tx_gr_probe" target="tx_io_logs" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+    <diagram id="rx-detail-page" name="RX Detail and Analysis">
+        <mxGraphModel dx="2338" dy="862" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2600" pageHeight="1400" math="0" shadow="0" adaptiveColors="auto">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="rx_title" value="RX Detail: RF/IQ Capture -&gt; SC16 Metadata -&gt; MATLAB Acquisition/Tracking/BER" style="text;html=1;fontStyle=1;fontSize=18;align=center;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="380" y="20" width="1840" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_lane_input" value="RF Input and Runtime Config" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontStyle=1;" parent="1" vertex="1">
+                    <mxGeometry x="20" y="80" width="360" height="1180" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_lane_cap" value="GNU Radio Capture and UHD" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE5CD;strokeColor=#D79B00;fontStyle=1;" parent="1" vertex="1">
+                    <mxGeometry x="400" y="80" width="700" height="1180" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_lane_files" value="Capture Files and Metadata" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontStyle=1;" parent="1" vertex="1">
+                    <mxGeometry x="1120" y="80" width="520" height="1180" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_lane_mat" value="MATLAB Analysis and BER" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontStyle=1;" parent="1" vertex="1">
+                    <mxGeometry x="1660" y="80" width="900" height="1180" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_in_rf" value="RF or cable loopback input&#xa;from TX USRP output" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;" parent="1" vertex="1">
+                    <mxGeometry x="60" y="150" width="280" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_in_yaml" value="configs/rx_*.yaml" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;" parent="1" vertex="1">
+                    <mxGeometry x="60" y="270" width="280" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_in_cli" value="scripts/record_rx.py&#xa;duration, gain, center freq overrides" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;" parent="1" vertex="1">
+                    <mxGeometry x="60" y="380" width="280" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_in_runtime" value="runtime.py&#xa;load/apply/validate config&#xa;resolve stem and output paths" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;" parent="1" vertex="1">
+                    <mxGeometry x="60" y="510" width="280" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_cap_detect" value="flowgraph.py&#xa;uhd_find_devices_output()&#xa;is_uhd_device_available()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE5CD;strokeColor=#D79B00;" parent="1" vertex="1">
+                    <mxGeometry x="460" y="150" width="580" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_cap_source" value="create_usrp_source(config)&#xa;usrp_source(cpu=fc32, otw=sc16)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE5CD;strokeColor=#D79B00;" parent="1" vertex="1">
+                    <mxGeometry x="460" y="280" width="580" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_cap_params" value="UHD set_* params&#xa;set_samp_rate(sample_rate_hz)&#xa;set_center_freq(center_freq_hz)&#xa;set_gain(rx_gain_db), set_bandwidth()&#xa;set_antenna(), set_clock_source(), set_time_source()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE5CD;strokeColor=#D79B00;" parent="1" vertex="1">
+                    <mxGeometry x="460" y="400" width="580" height="140" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_cap_top" value="ZeroIfCaptureTopBlock&#xa;usrp_source -&gt; head(sample limit) -&gt; Sc16CaptureSink" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE5CD;strokeColor=#D79B00;" parent="1" vertex="1">
+                    <mxGeometry x="460" y="580" width="580" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_cap_writer" value="writer.py&#xa;fc32 -&gt; int16 quantization -&gt; interleaved IQ&#xa;write_sc16_file()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE5CD;strokeColor=#D79B00;" parent="1" vertex="1">
+                    <mxGeometry x="460" y="710" width="580" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_file_sc16" value="Capture .sc16&#xa;iq_int16_interleaved_le" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;" parent="1" vertex="1">
+                    <mxGeometry x="1180" y="240" width="400" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_file_meta" value="metadata.py -&gt; .json&#xa;sample_rate_hz, center_freq_hz&#xa;prn_id/prn_ids/all_prns&#xa;chunk_count/chunk_index" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;" parent="1" vertex="1">
+                    <mxGeometry x="1180" y="360" width="400" height="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_file_paths" value="Output paths&#xa;&lt;YYYY&gt;/&lt;YYYY_MM_DD&gt;/&lt;stem&gt;/&#xa;plus analysis/&lt;stem&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;" parent="1" vertex="1">
+                    <mxGeometry x="1180" y="530" width="400" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_file_synth" value="Synthetic bypass path&#xa;scripts/gen_synthetic_capture.py&#xa;generates same .sc16/.json shape" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;dashed=1;" parent="1" vertex="1">
+                    <mxGeometry x="1180" y="660" width="400" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_mat_load" value="load_gnss_rx_capture.m&#xa;deserialize sc16+json -&gt; complex samples, meta" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;" parent="1" vertex="1">
+                    <mxGeometry x="1720" y="160" width="780" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_mat_analysis" value="run_capture_analysis.m&#xa;plot_capture_overview() -&gt; run_prn_acquisition() -&gt; run_multi_prn_survey() -&gt; save_analysis_artifacts()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;" parent="1" vertex="1">
+                    <mxGeometry x="1720" y="280" width="780" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_mat_ber" value="run_ber_loopback.m&#xa;load_tx_truth_json() or fallback truth&#xa;recover_nav_bits() and track_nav_bits()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;" parent="1" vertex="1">
+                    <mxGeometry x="1720" y="430" width="780" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_mat_out" value="Analysis outputs&#xa;overview/spectrum/acquisition/survey images&#xa;analysis_summary.json/.mat + BER metrics" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;" parent="1" vertex="1">
+                    <mxGeometry x="1720" y="580" width="780" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_mat_note" value="Key contract: TX tx_truth.json fields must match RX MATLAB expectations for BER alignment" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;" parent="1" vertex="1">
+                    <mxGeometry x="1720" y="720" width="780" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" parent="1" source="rx_in_yaml" target="rx_in_runtime" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_e2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" parent="1" source="rx_in_cli" target="rx_in_runtime" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_e3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" parent="1" source="rx_in_runtime" target="rx_cap_detect" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_e4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" parent="1" source="rx_in_rf" target="rx_cap_source" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_e5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" parent="1" source="rx_cap_detect" target="rx_cap_source" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_e6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" parent="1" source="rx_cap_source" target="rx_cap_params" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_e7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=2;" parent="1" source="rx_cap_params" target="rx_cap_top" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_e8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" parent="1" source="rx_cap_top" target="rx_cap_writer" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_e9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#82B366;" parent="1" source="rx_cap_writer" target="rx_file_sc16" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_e10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#82B366;" parent="1" source="rx_in_runtime" target="rx_file_meta" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_e11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" parent="1" source="rx_in_runtime" target="rx_file_paths" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_e12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#9673A6;strokeWidth=2;" parent="1" source="rx_file_sc16" target="rx_mat_load" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_e13" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#9673A6;strokeWidth=2;" parent="1" source="rx_file_meta" target="rx_mat_load" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_e14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#9673A6;" parent="1" source="rx_mat_load" target="rx_mat_analysis" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_e15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#9673A6;" parent="1" source="rx_mat_analysis" target="rx_mat_ber" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_e16" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#9673A6;" parent="1" source="rx_mat_ber" target="rx_mat_out" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_e17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;" parent="1" source="rx_file_synth" target="rx_mat_load" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>
