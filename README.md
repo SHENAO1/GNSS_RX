@@ -156,9 +156,16 @@ run_capture_analysis
 
 ### stem 命名格式
 
-单星：`<时间戳>_rawiq_sc16_zeroif_prn<id>_spread_sr<rate>_cf<freq>_dur<dur>s`
+单星：`<时间戳>_iq_sc16_zi_prn<id>_spread_sr<eng>_cf<eng>_d<dur>s`
 
-多星：`<时间戳>_rawiq_sc16_zeroif_prn_all32_spread_sr<rate>_cf<freq>_dur<dur>s`
+多星：`<时间戳>_iq_sc16_zi_prnall32_spread_sr<eng>_cf<eng>_d<dur>s`
+
+示例：`20260331_190530_iq_sc16_zi_prn1_spread_sr4p092e6_cf100e6_d250s`
+
+说明：
+
+- `sr<eng>` / `cf<eng>` 使用文件名安全的工程计数法，例如 `4p092e6`、`100e6`
+- 文件名只保留“快速识别”所需摘要，精确开始时间请以 `.json` 中的 `capture_started_at_iso` 为准
 
 ### `.json` sidecar 字段
 
@@ -169,6 +176,7 @@ run_capture_analysis
 | `sample_rate_hz` | 采样率（Hz） |
 | `center_freq_hz` | 中心频率（Hz） |
 | `duration_s` | 配置的采集时长（秒） |
+| `capture_started_at_iso` | 采集开始时间（ISO 8601，带时区偏移） |
 | `samples_captured` | 实际写入磁盘的样本数 |
 | `rx_gain_db` | 接收增益（dB） |
 | `bandwidth_hz` | RF 滤波器带宽（Hz），未指定时为 `null` |

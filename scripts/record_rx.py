@@ -2,6 +2,7 @@ from __future__ import annotations
 
 # argparse：Python 内置的命令行参数解析库，让脚本能接受 --xxx 形式的参数
 import argparse
+from datetime import datetime
 # Path：比字符串更安全的文件路径工具，自动处理 / 和 \ 的差异
 from pathlib import Path
 # sys：访问 Python 解释器底层功能，这里用来修改模块搜索路径和退出程序
@@ -26,8 +27,10 @@ from gnss_rx.runtime import (
     format_capture_report,
     format_matlab_handoff,
     load_rx_runtime_config,
+    normalize_capture_time,
     resolve_chunk_capture_paths,
     resolve_capture_paths,
+    resolve_live_chunk_capture_paths,
 )
 
 
@@ -97,7 +100,8 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     # ── 第三步：确定输出文件路径，并打印采集计划 ────────────────────────────────
-    chunk_specs = resolve_chunk_capture_paths(PROJECT_ROOT, config)
+    preview_time = normalize_capture_time()
+    chunk_specs = resolve_chunk_capture_paths(PROJECT_ROOT, config, when=preview_time)
     data_path, metadata_path, first_chunk_duration_s, _, _, group_id = chunk_specs[0]
     print(format_capture_report(config, data_path=data_path, metadata_path=metadata_path))
     print("")
@@ -135,17 +139,43 @@ def main(argv: list[str] | None = None) -> int:
     print("[信息] 开始零中频采集。请在整个录制窗口内保持接收机设置不变。")
 
     if config.capture_mode == "single":
-        run_single_capture(config, data_path, metadata_path)
+        capture_started_at = preview_time
+        run_single_capture(
+            config,
+            data_path,
+            metadata_path,
+            capture_started_at=capture_started_at,
+        )
         print(f"[成功] 采集已正常结束：{data_path}")
         print(f"[成功] 元数据已写入：{metadata_path}")
     else:
         total_samples_written = 0
-        for chunk_data_path, chunk_metadata_path, chunk_duration_s, chunk_index, chunk_count, capture_group_id in chunk_specs:
-            print(f"[信息] chunk {chunk_index}/{chunk_count}：duration={chunk_duration_s:.1f}s")
-            chunk_config = apply_overrides(
-                config,
-                duration_s=chunk_duration_s,
-                output_stem=str(chunk_data_path.with_suffix("")),
+        session_started_at = preview_time
+        for _, _, chunk_duration_s, chunk_index, chunk_count, capture_group_id in chunk_specs:
+            chunk_started_at = normalize_capture_time()
+            if config.output_stem is None:
+                chunk_config = apply_overrides(config, duration_s=chunk_duration_s)
+                chunk_data_path, chunk_metadata_path, capture_group_id = resolve_live_chunk_capture_paths(
+                    PROJECT_ROOT,
+                    chunk_config,
+                    session_when=session_started_at,
+                    chunk_when=chunk_started_at,
+                    chunk_index=chunk_index,
+                    chunk_count=chunk_count,
+                )
+            else:
+                # 手动 output_stem 仍保持兼容：沿用用户显式给定的基础 stem，
+                # 不强行改写目录名或文件名，只把每段真实开始时间写入 JSON。
+                chunk_data_path, chunk_metadata_path, _, _, _, capture_group_id = chunk_specs[chunk_index - 1]
+                chunk_config = apply_overrides(
+                    config,
+                    duration_s=chunk_duration_s,
+                    output_stem=str(chunk_data_path.with_suffix("")),
+                )
+
+            print(
+                f"[信息] chunk {chunk_index}/{chunk_count}："
+                f"duration={chunk_duration_s:.1f}s path={chunk_data_path}"
             )
             chunk_samples_written = run_single_capture(
                 chunk_config,
@@ -156,6 +186,7 @@ def main(argv: list[str] | None = None) -> int:
                 chunk_count=chunk_count,
                 chunk_duration_s=chunk_duration_s,
                 capture_group_id=capture_group_id,
+                capture_started_at=chunk_started_at,
             )
             total_samples_written += chunk_samples_written
 
@@ -173,6 +204,7 @@ def run_single_capture(
     chunk_count: int | None = None,
     chunk_duration_s: float | None = None,
     capture_group_id: str | None = None,
+    capture_started_at: datetime | None = None,
 ) -> int:
     data_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -189,6 +221,7 @@ def run_single_capture(
         chunk_count=chunk_count,
         chunk_duration_s=chunk_duration_s,
         capture_group_id=capture_group_id,
+        capture_started_at=capture_started_at,
     )
     write_metadata_json(metadata_path, metadata)
     return sink.samples_written

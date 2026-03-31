@@ -36,12 +36,14 @@
 
 文件 stem 不再建议手工命名，而是由程序自动生成，默认格式为：
 
-`<YYYYMMDD_HHMMSS>_rawiq_sc16_zeroif_prn<id>_<signal_mode>_sr<sample_rate_hz>_cf<center_freq_hz>_dur<duration_s>s`
+`<YYYYMMDD_HHMMSS>_iq_sc16_zi_prn<id>_<signal_mode>_sr<eng>_cf<eng>_d<duration_s>s`
 
 例如：
 
-- `20260323_190530_rawiq_sc16_zeroif_prn7_spread_sr4092000_cf100000000_dur2p0s`
-- `20260323_191200_rawiq_sc16_zeroif_prn1_tone_sr4092000_cf100000000_dur2p0s`
+- `20260323_190530_iq_sc16_zi_prn7_spread_sr4p092e6_cf100e6_d2s`
+- `20260323_191200_iq_sc16_zi_prn1_tone_sr4p092e6_cf100e6_d2s`
+
+其中 `sr` / `cf` 使用文件名安全的工程计数法，精确开始时间记录在对应 `.json` 的 `capture_started_at_iso` 字段中。
 
 同一次采集生成的 `.sc16` 和 `.json` 会自动共享同一个 stem，因此 MATLAB 端应始终成对读取共享目录中的同名文件。
 

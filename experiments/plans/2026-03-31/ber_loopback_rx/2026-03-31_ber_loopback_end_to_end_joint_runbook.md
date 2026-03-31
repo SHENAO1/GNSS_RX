@@ -482,7 +482,8 @@ truth JSON 不是采集文件，也不是 BER 结果文件，它是 TX 发射前
 下面给出 `250 s` 的标准模板；`30 s`、`100 s`、`1 h` 只需要替换 `CAPTURE_NAME` 与时长：
 
 ```bash
-CAPTURE_NAME=20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur250p0s
+RUN_TS=$(date +%Y%m%d_%H%M%S)
+CAPTURE_NAME=${RUN_TS}_ber250s_prn1_spread_sr4p092e6_cf100e6_d250s
 CAPTURE_DIR=/home/$USER/GNSS_RX_Data_local/2026/2026_03_31/$CAPTURE_NAME
 LOCAL_STEM=$CAPTURE_DIR/$CAPTURE_NAME
 TRUTH_PATH=$CAPTURE_DIR/${CAPTURE_NAME}_tx_truth.json
@@ -496,12 +497,13 @@ printf 'TRUTH_PATH=<%s>\n' "$TRUTH_PATH"
 本轮在 `shenao` 账户下已实测展开为：
 
 ```text
-CAPTURE_DIR=</home/shenao/GNSS_RX_Data_local/2026/2026_03_31/20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur250p0s>
-LOCAL_STEM=</home/shenao/GNSS_RX_Data_local/2026/2026_03_31/20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur250p0s/20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur250p0s>
-TRUTH_PATH=</home/shenao/GNSS_RX_Data_local/2026/2026_03_31/20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur250p0s/20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur250p0s_tx_truth.json>
+CAPTURE_DIR=</home/shenao/GNSS_RX_Data_local/2026/2026_03_31/20260331_190530_ber250s_prn1_spread_sr4p092e6_cf100e6_d250s>
+LOCAL_STEM=</home/shenao/GNSS_RX_Data_local/2026/2026_03_31/20260331_190530_ber250s_prn1_spread_sr4p092e6_cf100e6_d250s/20260331_190530_ber250s_prn1_spread_sr4p092e6_cf100e6_d250s>
+TRUTH_PATH=</home/shenao/GNSS_RX_Data_local/2026/2026_03_31/20260331_190530_ber250s_prn1_spread_sr4p092e6_cf100e6_d250s/20260331_190530_ber250s_prn1_spread_sr4p092e6_cf100e6_d250s_tx_truth.json>
 ```
 
 这说明 `mkdir -p "$CAPTURE_DIR"` 已成功，后续 TX dry-run 导出 truth 与 RX 正式采集都可以直接沿用这三个变量。
+新规则里 `RUN_TS` 负责秒级文件名时间戳；更精确的开始时间会写入 `.json` 的 `capture_started_at_iso`。
 
 推荐先在 TX 侧做一次 dry-run，把 sidecar truth 直接导出到本轮采集目录：
 
@@ -758,7 +760,8 @@ TX 启动稳定后约 5 秒，再开 RX：
 cd ~/projects/GNSS_RX
 source .venv/bin/activate
 
-CAPTURE_NAME=20260331_ber30s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur30p0s
+RUN_TS=$(date +%Y%m%d_%H%M%S)
+CAPTURE_NAME=${RUN_TS}_ber30s_prn1_spread_sr4p092e6_cf100e6_d30s
 CAPTURE_DIR=/home/$USER/GNSS_RX_Data_local/2026/2026_03_31/$CAPTURE_NAME
 LOCAL_STEM=$CAPTURE_DIR/$CAPTURE_NAME
 TRUTH_PATH=$CAPTURE_DIR/${CAPTURE_NAME}_tx_truth.json
@@ -825,7 +828,8 @@ PYTHONPATH=src python3 scripts/run_tx.py \
 cd ~/projects/GNSS_RX
 source .venv/bin/activate
 
-CAPTURE_NAME=20260331_ber100s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur100p0s
+RUN_TS=$(date +%Y%m%d_%H%M%S)
+CAPTURE_NAME=${RUN_TS}_ber100s_prn1_spread_sr4p092e6_cf100e6_d100s
 CAPTURE_DIR=/home/$USER/GNSS_RX_Data_local/2026/2026_03_31/$CAPTURE_NAME
 LOCAL_STEM=$CAPTURE_DIR/$CAPTURE_NAME
 TRUTH_PATH=$CAPTURE_DIR/${CAPTURE_NAME}_tx_truth.json
@@ -914,7 +918,8 @@ sudo chrt -f 50 env PYTHONPATH=src python3 scripts/run_tx.py \
 cd ~/projects/GNSS_RX
 source .venv/bin/activate
 
-CAPTURE_NAME=20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur250p0s
+RUN_TS=$(date +%Y%m%d_%H%M%S)
+CAPTURE_NAME=${RUN_TS}_ber250s_prn1_spread_sr4p092e6_cf100e6_d250s
 CAPTURE_DIR=/home/$USER/GNSS_RX_Data_local/2026/2026_03_31/$CAPTURE_NAME
 LOCAL_STEM=$CAPTURE_DIR/$CAPTURE_NAME
 TRUTH_PATH=$CAPTURE_DIR/${CAPTURE_NAME}_tx_truth.json
@@ -957,7 +962,8 @@ ls -lh "$CAPTURE_DIR"
 cd ~/projects/gnss_tx
 source .venv/bin/activate
 
-CAPTURE_NAME=20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur250p0s
+RUN_TS=<沿用采集开始前打印出来的 RUN_TS>
+CAPTURE_NAME=${RUN_TS}_ber250s_prn1_spread_sr4p092e6_cf100e6_d250s
 CAPTURE_DIR=/home/$USER/GNSS_RX_Data_local/2026/2026_03_31/$CAPTURE_NAME
 TRUTH_PATH=$CAPTURE_DIR/${CAPTURE_NAME}_tx_truth.json
 
@@ -1098,11 +1104,10 @@ system('powershell -NoProfile -Command "Get-Volume | Select DriveLetter, FileSys
 
 ```matlab
 CAPTURE_DIR = ['F:\GNSS_RX_Data_local\2026\2026_03_31\' ...
-    '20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_' ...
-    'cf100000000_dur250p0s'];
+    '20260331_190530_ber250s_prn1_spread_sr4p092e6_cf100e6_d250s'];
 
 CAPTURE_STEM = fullfile(CAPTURE_DIR, ...
-    '20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur250p0s');
+    '20260331_190530_ber250s_prn1_spread_sr4p092e6_cf100e6_d250s');
 
 dir(CAPTURE_DIR)
 exist([CAPTURE_STEM '.sc16'], 'file')
@@ -1217,9 +1222,8 @@ ACCEL_OPTIONS = struct( ...
 
 DRIVE = 'F:';  % 按当前移动硬盘实际盘符替换
 CAPTURE_STEM = [DRIVE '\GNSS_RX_Data_local\2026\2026_03_31\' ...
-    '20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_' ...
-    'cf100000000_dur250p0s\20260331_ber250s_localdisk_rawiq_sc16_zeroif_' ...
-    'prn1_spread_sr4092000_cf100000000_dur250p0s'];
+    '20260331_190530_ber250s_prn1_spread_sr4p092e6_cf100e6_d250s\' ...
+    '20260331_190530_ber250s_prn1_spread_sr4p092e6_cf100e6_d250s'];
 
 CAPTURE_PATH = CAPTURE_STEM;
 BER_MODE = 'tracked_truth';
@@ -1446,6 +1450,16 @@ sudo chrt -f 50 env PYTHONPATH=src python3 scripts/record_rx.py \
 2. 先抽查前、中、后几个 chunk 做 `ber`
 3. 若抽查稳定，再决定是否做更大范围离线汇总
 
+若本轮希望**不走移动硬盘**，而是改为“Ubuntu 本地落盘 → 局域网回传到 Windows 本地 SSD → 本地 MATLAB 分析”，请直接执行独立主手册：
+
+- [2026-03-31_ber_loopback_1h_long_run_network_runbook.md](./2026-03-31_ber_loopback_1h_long_run_network_runbook.md)
+
+说明：
+
+- 上述独立手册是 `1 h` 阶段当前唯一主执行真相源
+- 本章只保留 `1 h` 的策略摘要，不再重复维护完整网络回传步骤
+- 另外，若当前 `df -h` 显示 `output_base_dir` 所在分区可用空间只有约 `44G`，则本轮 `1 h` 不能直接启动，因为总落盘量约 `58.9 GB`
+
 ---
 
 ## 十八、移动硬盘转移流程
@@ -1455,10 +1469,16 @@ sudo chrt -f 50 env PYTHONPATH=src python3 scripts/record_rx.py \
 - 从裸机 Ubuntu 把采集数据带回主力机
 - 或把数据临时放到可移动介质再分析
 
-本轮默认口径：
+本节当前定位是：
+
+- `30 s / 100 s / 250 s` 阶段的常规转移方案
+- `1 h` 阶段在局域网回传不可用时的 fallback 方案
+
+本轮默认口径已调整为：
 
 - 采集时先把数据写到 Ubuntu 本地目录 `~/GNSS_RX_Data_local/`
-- 采集完成后，再把目标轮次目录复制到移动硬盘
+- `1 h` 阶段优先参考独立主手册，走“局域网挂载 + Windows 本地 SSD 镜像”
+- 只有在网络链路不可用时，才退回到采后复制到移动硬盘
 - 不要求在 TX/RX 正在运行时同时挂着移动硬盘
 
 ### 18.1 找到移动硬盘挂载点
@@ -1473,7 +1493,7 @@ ls /media/$USER/
 假设本轮目录是：
 
 ```bash
-CAPTURE_NAME=20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur250p0s
+CAPTURE_NAME=20260331_190530_ber250s_prn1_spread_sr4p092e6_cf100e6_d250s
 CAPTURE_DIR=/home/$USER/GNSS_RX_Data_local/2026/2026_03_31/$CAPTURE_NAME
 ```
 
@@ -1543,9 +1563,8 @@ clear functions
 rehash
 
 CAPTURE_PATH = ['C:\VMwareVirtualMachines\GongXiangDocument\GNSS_RX_Data_baremetal\2026\' ...
-    '2026_03_31\20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_' ...
-    'sr4092000_cf100000000_dur250p0s\20260331_ber250s_localdisk_rawiq_' ...
-    'sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur250p0s'];
+    '2026_03_31\20260331_190530_ber250s_prn1_spread_sr4p092e6_cf100e6_d250s\' ...
+    '20260331_190530_ber250s_prn1_spread_sr4p092e6_cf100e6_d250s'];
 BER_MODE = 'tracked_truth';
 
 ber
@@ -1575,9 +1594,8 @@ clear functions
 rehash
 
 CAPTURE_PATH = ['F:\GNSS_RX_Data_baremetal\2026\2026_03_31\' ...
-    '20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_' ...
-    'cf100000000_dur250p0s\20260331_ber250s_localdisk_rawiq_sc16_zeroif_' ...
-    'prn1_spread_sr4092000_cf100000000_dur250p0s'];
+    '20260331_190530_ber250s_prn1_spread_sr4p092e6_cf100e6_d250s\' ...
+    '20260331_190530_ber250s_prn1_spread_sr4p092e6_cf100e6_d250s'];
 BER_MODE = 'tracked_truth';
 
 ber
@@ -1647,9 +1665,8 @@ clear functions
 rehash
 
 CAPTURE_PATH = ['/home/shenao/GNSS_RX_Data_baremetal/2026/2026_03_31/' ...
-    '20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_' ...
-    'cf100000000_dur250p0s/20260331_ber250s_localdisk_rawiq_sc16_zeroif_' ...
-    'prn1_spread_sr4092000_cf100000000_dur250p0s'];
+    '20260331_190530_ber250s_prn1_spread_sr4p092e6_cf100e6_d250s/' ...
+    '20260331_190530_ber250s_prn1_spread_sr4p092e6_cf100e6_d250s'];
 BER_MODE = 'tracked_truth';
 
 run('scripts/run_ber_loopback.m')
@@ -1972,17 +1989,16 @@ disp(g.ComputeCapability)
 
 ```matlab
 dir('F:\GNSS_RX_Data_local\2026\2026_03_31')
-dir('F:\GNSS_RX_Data_local\2026\2026_03_31\20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur250p0s')
+dir('F:\GNSS_RX_Data_local\2026\2026_03_31\20260331_190530_ber250s_prn1_spread_sr4p092e6_cf100e6_d250s')
 ```
 
 ```matlab
 % ── CPU 基准 ──────────────────────────────────────────
 DRIVE = 'F:';
 CAPTURE_DIR = [DRIVE '\GNSS_RX_Data_local\2026\2026_03_31\' ...
-    '20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_' ...
-    'cf100000000_dur250p0s'];
+    '20260331_190530_ber250s_prn1_spread_sr4p092e6_cf100e6_d250s'];
 CAPTURE_PATH = fullfile(CAPTURE_DIR, ...
-    '20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur250p0s');
+    '20260331_190530_ber250s_prn1_spread_sr4p092e6_cf100e6_d250s');
 
 BER_MODE = 'tracked_truth';
 ACCEL_OPTIONS = struct('backend', 'cpu', 'precision', 'double');
@@ -1998,7 +2014,7 @@ run('scripts/run_ber_loopback.m')
 
 本轮 CPU 基准实测结果（`2026-03-31`，`250 s` 样本）：
 
-- `disp(CAPTURE_PATH)` 正确打印为 `F:\GNSS_RX_Data_local\2026\2026_03_31\20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur250p0s\20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur250p0s`
+- `disp(CAPTURE_PATH)` 正确打印为 `F:\GNSS_RX_Data_local\2026\2026_03_31\20260331_190530_ber250s_prn1_spread_sr4p092e6_cf100e6_d250s\20260331_190530_ber250s_prn1_spread_sr4p092e6_cf100e6_d250s`
 - `exist([CAPTURE_PATH '.json'], 'file') == 2`
 - `exist([CAPTURE_PATH '.sc16'], 'file') == 2`
 - `exist([CAPTURE_PATH '_tx_truth.json'], 'file') == 2`
@@ -2167,9 +2183,8 @@ run('scripts/run_ber_loopback.m')
 % - Step 4 仍主要走 CPU，因此数值最稳定
 % - 适合产出正式 BER 结论，不以 Step 4 极限加速为目标
 CAPTURE_PATH = ['F:\GNSS_RX_Data_local\2026\2026_03_31\' ...
-    '20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_' ...
-    'cf100000000_dur250p0s\20260331_ber250s_localdisk_rawiq_sc16_zeroif_' ...
-    'prn1_spread_sr4092000_cf100000000_dur250p0s'];
+    '20260331_190530_ber250s_prn1_spread_sr4p092e6_cf100e6_d250s\' ...
+    '20260331_190530_ber250s_prn1_spread_sr4p092e6_cf100e6_d250s'];
 BER_MODE = 'tracked_truth';
 
 clc
@@ -2191,9 +2206,8 @@ run('scripts/run_ber_loopback.m')
 % - 目标是让 Step 4 进入 gpu_hybrid 路径，观察 tracking 主链能否进一步加速
 % - 这是性能实验命令，不是当前正式 BER 结论命令；若 BER 恶化，则不能用于正式结果
 CAPTURE_PATH = ['F:\GNSS_RX_Data_local\2026\2026_03_31\' ...
-    '20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_' ...
-    'cf100000000_dur250p0s\20260331_ber250s_localdisk_rawiq_sc16_zeroif_' ...
-    'prn1_spread_sr4092000_cf100000000_dur250p0s'];
+    '20260331_190530_ber250s_prn1_spread_sr4p092e6_cf100e6_d250s\' ...
+    '20260331_190530_ber250s_prn1_spread_sr4p092e6_cf100e6_d250s'];
 BER_MODE = 'tracked_truth';
 
 clc
@@ -2246,9 +2260,8 @@ run('scripts/run_ber_loopback.m')
 
 ```matlab
 CAPTURE_PATH = ['F:\GNSS_RX_Data_local\2026\2026_03_31\' ...
-    '20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_' ...
-    'cf100000000_dur250p0s\20260331_ber250s_localdisk_rawiq_sc16_zeroif_' ...
-    'prn1_spread_sr4092000_cf100000000_dur250p0s'];
+    '20260331_190530_ber250s_prn1_spread_sr4p092e6_cf100e6_d250s\' ...
+    '20260331_190530_ber250s_prn1_spread_sr4p092e6_cf100e6_d250s'];
 BER_MODE = 'tracked_truth';
 
 clc

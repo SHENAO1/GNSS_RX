@@ -5,6 +5,7 @@
 才能正确解析原始数据（知道采样率、格式、PRN 号等信息）。
 """
 
+from datetime import datetime, timezone
 import json           # 用于解析 JSON 文件内容
 import tempfile       # 用于创建临时目录，测试后自动清理
 import unittest       # Python 内置单元测试框架
@@ -34,6 +35,7 @@ class TestMetadata(unittest.TestCase):
         self.assertEqual(metadata.complex_layout, "iq_int16_interleaved_le")  # le = little-endian 小端
         self.assertEqual(metadata.samples_captured, 8192)
         self.assertEqual(metadata.prn_id, 1)  # 默认 PRN 为 1
+        self.assertIn("T", metadata.capture_started_at_iso)
 
     def test_write_metadata_json_serializes_expected_keys(self) -> None:
         """验证元数据写入 JSON 文件后，反序列化结果包含正确的键值。
@@ -52,6 +54,7 @@ class TestMetadata(unittest.TestCase):
         self.assertEqual(parsed["sample_format"], "sc16")
         self.assertEqual(parsed["data_file"], "demo.sc16")   # 关联的数据文件名
         self.assertEqual(parsed["signal_mode"], "spread")    # 扩频模式
+        self.assertIn("capture_started_at_iso", parsed)
 
     def test_metadata_preserves_selected_prn(self) -> None:
         """验证当用户指定 prn_id 时，元数据中记录的是正确的 PRN 编号。
@@ -99,6 +102,22 @@ class TestMetadata(unittest.TestCase):
             parsed = json.loads(path.read_text(encoding="utf-8"))
         self.assertTrue(parsed["all_prns"])
         self.assertEqual(parsed["prn_ids"], list(range(1, 33)))
+
+    def test_metadata_uses_explicit_capture_started_at_iso_with_timezone(self) -> None:
+        """验证显式传入开始时间时，JSON 中保留带时区的 ISO 8601 字符串。"""
+        config = RxRuntimeConfig(bandwidth_hz=4.092e6)
+        capture_started_at = datetime(2026, 3, 31, 19, 5, 30, tzinfo=timezone.utc)
+
+        metadata = build_capture_metadata(
+            config=config,
+            samples_captured=2048,
+            data_path=Path("demo.sc16"),
+            capture_started_at=capture_started_at,
+        )
+
+        parsed_time = datetime.fromisoformat(metadata.capture_started_at_iso)
+        self.assertIsNotNone(parsed_time.tzinfo)
+        self.assertEqual(parsed_time.astimezone(timezone.utc), capture_started_at)
 
 
 if __name__ == "__main__":

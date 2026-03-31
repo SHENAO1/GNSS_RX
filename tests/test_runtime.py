@@ -18,9 +18,11 @@ from gnss_rx.runtime import (
     SUPPORTED_PRN_MIN,                # GPS PRN 编号下限（1）
     apply_overrides,                  # 用新参数覆盖配置的函数
     build_timestamped_capture_stem,   # 生成带时间戳的文件名前缀
+    format_capture_engineering_tag,
     load_rx_runtime_config,           # 从 YAML 文件加载配置
     resolve_chunk_capture_paths,
     resolve_capture_paths,            # 根据配置解析输出文件的完整路径
+    resolve_live_chunk_capture_paths,
 )
 
 
@@ -88,27 +90,33 @@ class TestRxRuntimeConfig(unittest.TestCase):
         self.assertEqual(updated.sample_rate_hz, 2.046e6)
         self.assertEqual(updated.bandwidth_hz, 2.046e6)          # 带宽也应同步减半
 
+    def test_format_capture_engineering_tag_shortens_large_numeric_fields(self) -> None:
+        """验证采样率/中心频率使用工程计数法缩短，避免文件名过长。"""
+        self.assertEqual(format_capture_engineering_tag(4.092e6), "4p092e6")
+        self.assertEqual(format_capture_engineering_tag(100e6), "100e6")
+        self.assertEqual(format_capture_engineering_tag(2.5), "2p5")
+
     def test_build_timestamped_capture_stem_uses_required_labels(self) -> None:
         """验证时间戳文件名包含所有必要的标签字段，且格式正确。
 
-        文件名格式：<日期>_<时间>_rawiq_sc16_zeroif_<prn标签>_<模式>_sr<采样率>_cf<中心频率>_dur<时长>
-        例：20260323_190530_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur2p0s
+        文件名格式：<日期>_<时间>_iq_sc16_zi_<prn标签>_<模式>_sr<采样率>_cf<中心频率>_d<时长>s
+        例：20260323_190530_iq_sc16_zi_prn1_spread_sr4p092e6_cf100e6_d2s
 
         各字段含义：
-          rawiq    = 原始 IQ 数据
+          iq       = 原始 IQ 数据
           sc16     = SC16 格式
-          zeroif   = 零中频（Zero-IF）接收模式
+          zi       = 零中频（Zero-IF）接收模式
           prn1     = 第 1 号 GPS 卫星
           spread   = 扩频信号模式
-          sr...    = 采样率（Hz）
-          cf...    = 中心频率（Hz）
-          dur...   = 采集时长（秒，小数点用 p 替代）
+          sr...    = 工程缩写后的采样率（Hz）
+          cf...    = 工程缩写后的中心频率（Hz）
+          d...     = 采集时长（秒）
         """
         config = RxRuntimeConfig(bandwidth_hz=4.092e6)
         stem = build_timestamped_capture_stem(config, datetime(2026, 3, 23, 19, 5, 30))
         self.assertEqual(
             stem,
-            "20260323_190530_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur2p0s",
+            "20260323_190530_iq_sc16_zi_prn1_spread_sr4p092e6_cf100e6_d2s",
         )
 
     def test_resolve_capture_paths_uses_shared_folder_date_hierarchy(self) -> None:
@@ -127,8 +135,8 @@ class TestRxRuntimeConfig(unittest.TestCase):
         )
         expected_stem = (
             "/mnt/hgfs/GongXiangDocument/GNSS_RX_Data/2026/2026_03_23/"
-            "20260323_190530_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur2p0s/"
-            "20260323_190530_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur2p0s"
+            "20260323_190530_iq_sc16_zi_prn1_spread_sr4p092e6_cf100e6_d2s/"
+            "20260323_190530_iq_sc16_zi_prn1_spread_sr4p092e6_cf100e6_d2s"
         )
         self.assertEqual(str(data_path), f"{expected_stem}.sc16")
         self.assertEqual(str(metadata_path), f"{expected_stem}.json")
@@ -181,12 +189,12 @@ class TestRxRuntimeConfig(unittest.TestCase):
     def test_all_prns_stem_contains_prn_all32_tag(self) -> None:
         """验证全卫星模式的文件名包含 "prn_all32" 标签，而不是单个 PRN 编号。
 
-        "prn_all32" 清晰地表明数据包含全部 32 颗 GPS 卫星的叠加信号，
+        "prnall32" 清晰地表明数据包含全部 32 颗 GPS 卫星的叠加信号，
         与单颗卫星文件（如 "prn7"）明确区分，避免混淆。
         """
         config = RxRuntimeConfig(bandwidth_hz=4.092e6, all_prns=True)
         stem = build_timestamped_capture_stem(config, datetime(2026, 3, 26, 0, 0, 0))
-        self.assertIn("prn_all32", stem)
+        self.assertIn("prnall32", stem)
         self.assertNotIn("prn1", stem)   # 不应出现单颗卫星的标签
 
     def test_default_config_all_prns_is_false(self) -> None:
@@ -216,6 +224,33 @@ class TestRxRuntimeConfig(unittest.TestCase):
         self.assertEqual(chunk_specs[0][2], 30.0)
         self.assertEqual(chunk_specs[-1][2], 5.0)
         self.assertTrue(str(chunk_specs[0][0]).endswith("_chunk0001of0004.sc16"))
+        self.assertIn("d95s", str(chunk_specs[0][0]))
+
+    def test_resolve_live_chunk_capture_paths_uses_chunk_start_time_in_filename(self) -> None:
+        """验证真实长时 chunk 采集时，每段文件名都绑定自己的起始时间。"""
+        config = RxRuntimeConfig(
+            bandwidth_hz=4.092e6,
+            duration_s=30.0,
+            capture_mode="chunked",
+            chunk_duration_s=30.0,
+        )
+
+        data_path, metadata_path, group_id = resolve_live_chunk_capture_paths(
+            Path("/project"),
+            config,
+            session_when=datetime(2026, 3, 23, 19, 5, 30),
+            chunk_when=datetime(2026, 3, 23, 19, 6, 0),
+            chunk_index=2,
+            chunk_count=4,
+        )
+
+        self.assertIn("20260323_190530_iq_sc16_zi_prn1_spread_sr4p092e6_cf100e6_d30s", group_id)
+        self.assertTrue(
+            str(data_path).endswith(
+                "20260323_190600_iq_sc16_zi_prn1_spread_sr4p092e6_cf100e6_d30s_chunk0002of0004.sc16"
+            )
+        )
+        self.assertEqual(str(metadata_path), str(data_path.with_suffix(".json")))
 
 
 if __name__ == "__main__":

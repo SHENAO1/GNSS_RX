@@ -18,10 +18,11 @@ metadata.py — 采集元数据定义与序列化
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass  # dataclass：自动生成 __init__ 等方法
+from datetime import datetime
 from pathlib import Path
 import json  # Python 标准库：JSON 序列化与反序列化
 
-from gnss_rx.runtime import RxRuntimeConfig  # 运行时配置（包含所有采集参数）
+from gnss_rx.runtime import RxRuntimeConfig, normalize_capture_time  # 运行时配置（包含所有采集参数）
 
 
 @dataclass(frozen=True)  # frozen=True：创建后不可修改，保持元数据的一致性
@@ -42,6 +43,7 @@ class CaptureMetadata:
         sample_rate_hz:        采样率（Hz），MATLAB 读取时必须使用此值。
         center_freq_hz:        射频中心频率（Hz）。
         duration_s:            配置的采集时长（秒）。
+        capture_started_at_iso: 采集启动时间（ISO 8601，带时区偏移）。
         samples_captured:      实际写入磁盘的样本数（可能略少于理论值）。
         rx_gain_db:            接收增益（dB）。
         bandwidth_hz:          射频带宽（Hz），None 表示使用硬件默认值。
@@ -66,6 +68,7 @@ class CaptureMetadata:
     sample_rate_hz: float
     center_freq_hz: float
     duration_s: float
+    capture_started_at_iso: str
     samples_captured: int     # 实际采集到的样本数（受硬件/系统影响可能略有偏差）
     rx_gain_db: float
     bandwidth_hz: float | None
@@ -105,6 +108,7 @@ def build_capture_metadata(
     chunk_count: int | None = None,
     chunk_duration_s: float | None = None,
     capture_group_id: str | None = None,
+    capture_started_at: datetime | None = None,
 ) -> CaptureMetadata:
     """根据运行时配置和实际采集结果，构造 CaptureMetadata 实例。
 
@@ -113,8 +117,10 @@ def build_capture_metadata(
 
     参数：
         config:           本次采集使用的运行时配置。
-        samples_captured: 实际写入磁盘的样本总数（从 Sc16CaptureSink.samples_written 获取）。
-        data_path:        .sc16 数据文件的完整路径，用于提取文件名。
+        samples_captured:    实际写入磁盘的样本总数（从 Sc16CaptureSink.samples_written 获取）。
+        data_path:           .sc16 数据文件的完整路径，用于提取文件名。
+        capture_started_at:  这份文件真正开始采集的时间。若不显式传入，
+                             会在此处自动取当前本地时间，兼容旧调用方。
 
     返回：
         填充完整的 CaptureMetadata 实例，可直接传给 write_metadata_json。
@@ -124,6 +130,8 @@ def build_capture_metadata(
             config, samples_captured=sink.samples_written, data_path=sc16_path
         )
     """
+    capture_started_at_iso = normalize_capture_time(capture_started_at).isoformat(timespec="seconds")
+
     return CaptureMetadata(
         # 固定常量：v1 格式约定
         sample_format="sc16",
@@ -133,6 +141,7 @@ def build_capture_metadata(
         sample_rate_hz=config.sample_rate_hz,
         center_freq_hz=config.center_freq_hz,
         duration_s=config.duration_s,
+        capture_started_at_iso=capture_started_at_iso,
         samples_captured=samples_captured,    # 来自 sink 的实际计数
         rx_gain_db=config.rx_gain_db,
         bandwidth_hz=config.bandwidth_hz,

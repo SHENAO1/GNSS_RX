@@ -42,6 +42,11 @@ PYTHONPATH=src python3 scripts/record_rx.py \
 PYTHONPATH=src python3 scripts/record_rx.py \
     --duration 5 --rx-gain 30 --output-base-dir /tmp/gnss_test
 
+# 默认自动命名示例：
+# /tmp/gnss_test/20260331_190530_iq_sc16_zi_prn1_spread_sr4p092e6_cf100e6_d5s/
+#   20260331_190530_iq_sc16_zi_prn1_spread_sr4p092e6_cf100e6_d5s.sc16
+#   20260331_190530_iq_sc16_zi_prn1_spread_sr4p092e6_cf100e6_d5s.json
+
 # 指定固定文件 stem（便于脚本读取）
 PYTHONPATH=src python3 scripts/record_rx.py \
     --output-stem /tmp/gnss_test/my_capture
@@ -94,6 +99,7 @@ PYTHONPATH=/home/shen/projects/gnss_tx/src:src \
 ```
 
 输出文件 stem 末尾带 `_synthetic` 标签，格式与真实采集完全一致，MATLAB 可直接读取。
+真实采集与合成采集都会在 `.json` 中写入 `capture_started_at_iso`，用于保存带时区的精确开始时间。
 
 ### CLI 参数参考
 

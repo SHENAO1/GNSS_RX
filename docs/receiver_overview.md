@@ -65,12 +65,12 @@ USRP source -> zero-IF complex samples -> SC16 writer -> JSON sidecar
 **文件 stem 生成 — `build_timestamped_capture_stem(config, when)`**：
 
 ```
-<YYYYMMDD_HHMMSS>_rawiq_sc16_zeroif_prn<id>_<mode>_sr<rate>_cf<freq>_dur<dur>s
+<YYYYMMDD_HHMMSS>_iq_sc16_zi_prn<id>_<mode>_sr<eng>_cf<eng>_d<dur>s
 ```
 
-示例：`20260325_143000_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur2p0s`
+示例：`20260325_143000_iq_sc16_zi_prn1_spread_sr4p092e6_cf100e6_d2s`
 
-浮点数字段通过 `format_capture_tag()` 压缩：整数去小数点，小数将 `.` 替换为 `p`、负号替换为 `m`。
+大数值字段通过 `format_capture_engineering_tag()` 压缩为工程计数法：例如 `4.092e6 → 4p092e6`、`100e6 → 100e6`。精确开始时间写入 `.json` 的 `capture_started_at_iso` 字段。
 
 **输出路径 — `resolve_output_stem_path()`**：
 

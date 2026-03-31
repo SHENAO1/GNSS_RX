@@ -31,7 +31,7 @@ if str(SRC_PATH) not in sys.path:
     sys.path.insert(0, str(SRC_PATH))
 
 from gnss_rx.metadata import CaptureMetadata, write_metadata_json
-from gnss_rx.runtime import load_rx_runtime_config, resolve_capture_paths
+from gnss_rx.runtime import load_rx_runtime_config, normalize_capture_time, resolve_capture_paths
 from gnss_rx.writer import write_sc16_file
 
 try:
@@ -188,7 +188,8 @@ def main() -> int:
     noisy_signal = _add_awgn(clean_signal, snr_db=args.snr_db)
 
     # 文件路径：在 stem 末尾加 _synthetic 标签，与真实采集区分
-    capture_time = datetime.now()
+    # 合成数据也写入与真实采集一致的开始时间语义，方便 MATLAB / 文档示例统一。
+    capture_time = normalize_capture_time(datetime.now().astimezone())
     sc16_path, json_path = resolve_capture_paths(PROJECT_ROOT, config, when=capture_time)
     sc16_path = sc16_path.with_name(sc16_path.stem + "_synthetic" + sc16_path.suffix)
     json_path = json_path.with_name(json_path.stem + "_synthetic" + json_path.suffix)
@@ -203,6 +204,7 @@ def main() -> int:
         sample_rate_hz=sample_rate,
         center_freq_hz=config.center_freq_hz,
         duration_s=args.duration_s,
+        capture_started_at_iso=capture_time.isoformat(timespec="seconds"),
         samples_captured=samples_written,
         rx_gain_db=config.rx_gain_db,
         bandwidth_hz=config.bandwidth_hz,

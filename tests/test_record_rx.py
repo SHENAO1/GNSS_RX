@@ -45,7 +45,7 @@ class TestRecordRxScript(unittest.TestCase):
         # 固定的输出路径（通常由当前时间生成，这里固定以便断言）
         fixed_data_path = Path(
             "/mnt/hgfs/GongXiangDocument/GNSS_RX_Data/2026/2026-03-23/"
-            "20260323_190530_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur2p0s.sc16"
+            "20260323_190530_iq_sc16_zi_prn1_spread_sr4p092e6_cf100e6_d2s.sc16"
         )
         fixed_metadata_path = fixed_data_path.with_suffix(".json")  # 同名但扩展名改为 .json
 
@@ -93,7 +93,7 @@ class TestRecordRxScript(unittest.TestCase):
 
         fixed_data_path = Path(
             "/mnt/hgfs/GongXiangDocument/GNSS_RX_Data/2026/2026-03-23/"
-            "20260323_190530_rawiq_sc16_zeroif_prn7_spread_sr4092000_cf100000000_dur2p0s.sc16"
+            "20260323_190530_iq_sc16_zi_prn7_spread_sr4p092e6_cf100e6_d2s.sc16"
         )
         fixed_metadata_path = fixed_data_path.with_suffix(".json")
 
@@ -131,8 +131,8 @@ class TestRecordRxScript(unittest.TestCase):
 
         fixed_data_path = Path(
             "/mnt/hgfs/GongXiangDocument/GNSS_RX_Data/2026/2026-03-23/"
-            "20260323_190530_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur95p0s/"
-            "20260323_190530_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur95p0s_chunk0001of0004.sc16"
+            "20260323_190530_iq_sc16_zi_prn1_spread_sr4p092e6_cf100e6_d95s/"
+            "20260323_190530_iq_sc16_zi_prn1_spread_sr4p092e6_cf100e6_d95s_chunk0001of0004.sc16"
         )
         fixed_metadata_path = fixed_data_path.with_suffix(".json")
         chunk_specs = [

@@ -287,6 +287,50 @@ def format_capture_tag(value: float, *, keep_decimal: bool = False) -> str:
     return text.replace("-", "m").replace(".", "p")
 
 
+def format_capture_engineering_tag(value: float) -> str:
+    """将数值压缩为文件名安全的工程计数法字符串。
+
+    这里专门服务于文件名缩短场景：像采样率、中心频率这类大数值
+    直接写全量十进制会非常长，因此改为 10^3 的工程指数表示。
+    同时仍然沿用文件名安全替换规则，避免引入 "."、"+" 等在
+    shell、Windows 路径或批处理脚本里不够稳妥的字符。
+
+    示例：
+        format_capture_engineering_tag(4.092e6)   →  "4p092e6"
+        format_capture_engineering_tag(100e6)     →  "100e6"
+        format_capture_engineering_tag(2.5)       →  "2p5"
+        format_capture_engineering_tag(0.001)     →  "1em3"
+    """
+    numeric = float(value)
+    if numeric == 0.0:
+        return "0"
+
+    sign = "m" if numeric < 0 else ""
+    magnitude = abs(numeric)
+    exponent = int(math.floor(math.log10(magnitude) / 3.0) * 3)
+
+    # 工程指数为 0 时，直接回退到普通短标签，避免产生冗余的 e0。
+    if exponent == 0:
+        return sign + format_capture_tag(magnitude)
+
+    mantissa = magnitude / (10 ** exponent)
+    mantissa_text = format(mantissa, ".12f").rstrip("0").rstrip(".")
+    mantissa_tag = mantissa_text.replace(".", "p")
+    exponent_tag = f"m{abs(exponent)}" if exponent < 0 else str(exponent)
+    return f"{sign}{mantissa_tag}e{exponent_tag}"
+
+
+def normalize_capture_time(when: datetime | None = None) -> datetime:
+    """返回带本地时区的采集时间。
+
+    旧代码大多使用 naive datetime；这里统一在运行时补成本地时区时间，
+    这样文件名里的秒级时间戳与 JSON 里的 ISO 时间戳可以共享同一来源，
+    又不会破坏现有测试里传入 naive datetime 的调用方式。
+    """
+    capture_time = when if when is not None else datetime.now().astimezone()
+    return capture_time.astimezone()
+
+
 def build_timestamped_capture_stem(config: RxRuntimeConfig, when: datetime) -> str:
     """根据配置和时间戳，构造带参数摘要的文件名主干（不含扩展名）。
 
@@ -294,36 +338,37 @@ def build_timestamped_capture_stem(config: RxRuntimeConfig, when: datetime) -> s
     而无需打开配套的 .json 元数据文件。
 
     示例输出（格式化后已换行，实际为一行）：
-        "20260326_153045_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur2p0s"
+        "20260326_153045_iq_sc16_zi_prn1_spread_sr4p092e6_cf100e6_d2s"
 
     各字段含义：
         20260326_153045  → 采集开始时间
-        rawiq            → 原始 IQ 数据
+        iq               → 原始 IQ 数据
         sc16             → 数据格式（Signed Complex 16-bit）
-        zeroif           → 零中频采集模式
-        prn1 / prn_all32 → 目标 PRN 编号或全部 32 颗
+        zi               → 零中频采集模式（zero-if）
+        prn1 / prnall32  → 目标 PRN 编号或全部 32 颗
         spread / tone    → 信号调制模式
-        sr4092000        → 采样率 4.092 MHz
-        cf100000000      → 中心频率 100 MHz
-        dur2p0s          → 采集时长 2.0 秒
+        sr4p092e6        → 采样率 4.092 MHz
+        cf100e6          → 中心频率 100 MHz
+        d2s              → 采集时长 2 秒
 
     参数：
         config: 当前运行时配置。
         when:   采集开始时刻（datetime 对象）。
     """
-    timestamp = when.strftime(TIMESTAMP_FORMAT)
-    prn_tag = "prn_all32" if config.all_prns else f"prn{config.prn_id}"
+    capture_time = normalize_capture_time(when)
+    timestamp = capture_time.strftime(TIMESTAMP_FORMAT)
+    prn_tag = "prnall32" if config.all_prns else f"prn{config.prn_id}"
     return "_".join(
         [
             timestamp,
-            "rawiq",
+            "iq",
             "sc16",
-            "zeroif",
+            "zi",
             prn_tag,
             config.signal_mode,
-            f"sr{format_capture_tag(config.sample_rate_hz)}",
-            f"cf{format_capture_tag(config.center_freq_hz)}",
-            f"dur{format_capture_tag(config.duration_s, keep_decimal=True)}s",
+            f"sr{format_capture_engineering_tag(config.sample_rate_hz)}",
+            f"cf{format_capture_engineering_tag(config.center_freq_hz)}",
+            f"d{format_capture_tag(config.duration_s)}s",
         ]
     )
 
@@ -341,9 +386,9 @@ def resolve_output_stem_path(project_root: Path, config: RxRuntimeConfig, when: 
         /mnt/hgfs/.../GNSS_RX_Data/
           2026/
             2026_03_26/
-              20260326_153045_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur2p0s/
-                20260326_153045_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur2p0s.sc16
-                20260326_153045_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur2p0s.json
+              20260326_153045_iq_sc16_zi_prn1_spread_sr4p092e6_cf100e6_d2s/
+                20260326_153045_iq_sc16_zi_prn1_spread_sr4p092e6_cf100e6_d2s.sc16
+                20260326_153045_iq_sc16_zi_prn1_spread_sr4p092e6_cf100e6_d2s.json
 
     参数：
         project_root: 项目根目录，用于将相对路径转换为绝对路径。
@@ -362,7 +407,7 @@ def resolve_output_stem_path(project_root: Path, config: RxRuntimeConfig, when: 
         return stem_path
 
     # 情况 2：自动生成时间戳文件名
-    capture_time = when if when is not None else datetime.now()
+    capture_time = normalize_capture_time(when)
 
     base_dir = Path(config.output_base_dir)
     if not base_dir.is_absolute():
@@ -395,18 +440,56 @@ def resolve_capture_paths(project_root: Path, config: RxRuntimeConfig, when: dat
     return stem_path.with_suffix(".sc16"), stem_path.with_suffix(".json")
 
 
+def resolve_live_chunk_capture_paths(
+    project_root: Path,
+    config: RxRuntimeConfig,
+    *,
+    session_when: datetime,
+    chunk_when: datetime,
+    chunk_index: int,
+    chunk_count: int,
+) -> tuple[Path, Path, str]:
+    """为真实 chunk 采集解析路径，并让每段文件名绑定各自开始时间。
+
+    dry-run 和测试仍可继续使用 resolve_chunk_capture_paths() 的静态结果；
+    真正进入长时 chunked 采集时，这个辅助函数按 chunk 实时生成文件名，
+    让每个 chunk 的 stem 秒级时间戳与 JSON 中的 ISO 开始时间保持一致。
+    同时目录层级仍按一次采集 session 归档，不拆散已有的人工浏览习惯。
+    """
+    if config.output_stem is not None:
+        raise ValueError("resolve_live_chunk_capture_paths 仅用于自动命名模式。")
+
+    session_time = normalize_capture_time(session_when)
+    chunk_time = normalize_capture_time(chunk_when)
+
+    base_dir = Path(config.output_base_dir)
+    if not base_dir.is_absolute():
+        base_dir = project_root / base_dir
+
+    dated_dir = base_dir / session_time.strftime("%Y") / session_time.strftime(DATE_DIRECTORY_FORMAT)
+    group_id = build_timestamped_capture_stem(config, session_time)
+    chunk_stem_name = build_timestamped_capture_stem(config, chunk_time)
+
+    # group_id 继续代表整轮长时采集；chunk 文件名单独携带自身起始秒级时间戳，
+    # 这样既便于归档，也能在每段文件名上直接看到真实起始时间。
+    chunk_stem = dated_dir / group_id / f"{chunk_stem_name}_chunk{chunk_index:04d}of{chunk_count:04d}"
+    return chunk_stem.with_suffix(".sc16"), chunk_stem.with_suffix(".json"), group_id
+
+
 def resolve_chunk_capture_paths(
     project_root: Path,
     config: RxRuntimeConfig,
     when: datetime | None = None,
 ) -> list[tuple[Path, Path, float, int, int, str]]:
     """解析 chunked 采集模式下每个 chunk 的输出路径和时长。"""
+    capture_time = normalize_capture_time(when)
+
     if config.capture_mode != "chunked":
-        data_path, metadata_path = resolve_capture_paths(project_root, config, when=when)
+        data_path, metadata_path = resolve_capture_paths(project_root, config, when=capture_time)
         group_id = data_path.stem
         return [(data_path, metadata_path, config.duration_s, 1, 1, group_id)]
 
-    base_stem = resolve_output_stem_path(project_root, config, when=when)
+    base_stem = resolve_output_stem_path(project_root, config, when=capture_time)
     group_id = base_stem.name
     chunk_specs: list[tuple[Path, Path, float, int, int, str]] = []
     total_chunks = config.chunk_count
@@ -510,11 +593,14 @@ __all__ = [
     "SUPPORTED_PRN_MIN",
     "apply_overrides",
     "build_timestamped_capture_stem",
+    "format_capture_engineering_tag",
     "format_capture_tag",
     "format_capture_report",
     "format_matlab_handoff",
     "load_rx_runtime_config",
+    "normalize_capture_time",
     "resolve_chunk_capture_paths",
     "resolve_capture_paths",
+    "resolve_live_chunk_capture_paths",
     "resolve_output_stem_path",
 ]
