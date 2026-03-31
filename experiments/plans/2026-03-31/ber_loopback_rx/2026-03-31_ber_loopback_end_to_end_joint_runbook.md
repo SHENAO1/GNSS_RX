@@ -1248,19 +1248,26 @@ ACCEL_OPTIONS = struct('backend', 'gpu', 'precision', 'single', 'batch_ms', 2000
 
 就是本轮默认推荐的 GPU 版本。
 
-结合当前 MATLAB 代码实现，可把“GPU 真正参与了哪些环节”理解为：
+结合当前 MATLAB 代码实现，可把”GPU 真正参与了哪些环节”理解为：
 
 - `run_prn_acquisition`：会在 GPU 路径下调用 `compute_search_map_gpu(...)`，用 `gpuArray + FFT/IFFT` 完成捕获搜索
 - `recover_nav_bits`：会在 `gpu_enabled=true` 时，把批量相关求和放到 GPU 上执行
-- tracking 主循环：当前版本仍不等于“全流程 GPU”，因此日志中即使出现部分 CPU 阶段，也不代表 GPU 配置失效
+- tracking 主链（A 类 GPU，`gpu_enabled=true` 时自动激活）：
+  - `estimate_initial_bit_alignment`：20 种 bit 边界 × pattern_len × 极性 的打分矩阵，GPU 批量计算
+  - `check_bit_timing_stability`：每个窗口内 20 个偏移量的 bit 积分，GPU 向量化
+  - `integrate_bits_from_prompt`：20ms 积分 reshape+sum，GPU 执行
+- tracking DLL 主循环（B 类 GPU，需额外设置 `dll_gpu_enabled=true`）：
+  - `track_code_phase_ms`：批处理段矩阵 GPU 矩阵乘，然后 CPU 串行更新 cursor
+  - 默认**关闭**，需在 BER 验证通过后才推荐开启（见第二十五节）
 
-因此本轮判断“GPU 已生效”的标准，不是要求所有步骤都显示 GPU，而是看：
+因此本轮判断”GPU 已生效”的标准，不是要求所有步骤都显示 GPU，而是看：
 
 - `gpuDevice` 能否正常返回设备对象
 - `ACCEL_OPTIONS.backend='gpu'` 后，日志中的 `resolved=gpu`
 - 日志中能打印出 `GPU 设备：[index] name`
+- Step 4 日志显示 `Step 4 实际后端：gpu`
 
-本轮正式 `ber` 已实测通过，关键输出如下：
+代码更新后（tracking 主链 A 类 GPU 已激活），`backend=gpu` 时 Step 4 的预期日志格式如下：
 
 ```text
 加速配置：requested=gpu, resolved=gpu, precision=single, batch_ms=2000, parfor=0
@@ -1272,23 +1279,29 @@ TX truth：JSON 模式（capture sidecar truth）
 === Step 3: open-loop truth 基线 ===
 Step 3 后端：gpu（precision=single, batch_ms=2000）
 === Step 4: tracked BER 主链 ===
-Step 4 后端：cpu（tracking 主循环在 v1 保持 CPU）
+Step 4 后端：gpu
 tracked BER：1.20e-03，匹配率：100.0%，bit 偏移：15 ms，pattern 偏移：7 bit
+Step 4 用时：XX.XX s
+Step 4 实际后端：gpu
 ========================================
   BER：         1.20e-03
   总发送比特数：12499
   误码个数：    15
   truth 匹配率：100.0%
+  加速后端：    gpu
 ========================================
 ```
 
-这组结果应判定为：
+关键判断：
 
-- GPU 配置已生效：因为日志明确显示 `requested=gpu, resolved=gpu`
-- GPU 已参与 Step 2 / Step 3：捕获与 open-loop 相关计算走的是 GPU 路径
-- `Step 4 后端：cpu` 仍属正常：当前代码版本中 tracking 主循环本来就保持 CPU，不代表 GPU 失败
+- GPU 配置已生效：日志显示 `requested=gpu, resolved=gpu`
+- GPU 已参与 Step 2 / Step 3：捕获与 open-loop 相关计算走 GPU 路径
+- Step 4 tracking 三个子函数（bit 对齐打分 / bit 稳定性检查 / bit 积分）现在走 GPU 路径
+- `Step 4 实际后端：gpu` 是本轮新增的日志行，验证 tracking 链实际使用了 GPU
+- `BER = 1.20e-03`、`truth 匹配率 = 100.0%` 应与之前 CPU 基线完全一致（Phase A 改动不引入数值近似）
 - sidecar truth 已正确命中：日志显示 `TX truth：JSON 模式（capture sidecar truth）`
-- 本轮 `250 s` BER 已成功产出正式结果：`BER = 1.20e-03`，`truth 匹配率 = 100.0%`
+
+> **注意**：若使用 `backend=cpu`，Step 4 日志将显示 `Step 4 后端：cpu` 和 `Step 4 实际后端：cpu`，这是正常的 CPU 路径。
 
 本轮末尾还出现过：
 
@@ -1644,33 +1657,46 @@ run('scripts/run_ber_loopback.m')
 
 ### 19.5 可选加速配置
 
-如果想启用 MATLAB 离线分析加速：
+#### 推荐：GPU 加速（Step 2 + Step 3 + tracking A 类子函数）
 
 ```matlab
+parallel.gpu.enableCUDAForwardCompatibility(true);  % RTX 5060 等新架构 GPU 需要
 ACCEL_OPTIONS = struct( ...
     'backend', 'gpu', ...
     'precision', 'single', ...
-    'batch_ms', 2000, ...
-    'use_parfor', false, ...
-    'device_index', []);
+    'batch_ms', 2000);
 ```
 
-若希望自动回退：
+`gpu_enabled=true` 时，以下子函数自动走 GPU 路径（Phase A，已默认激活）：
+
+- `estimate_initial_bit_alignment`：bit 对齐打分矩阵
+- `check_bit_timing_stability`：bit 稳定性检查积分
+- `integrate_bits_from_prompt`：20ms bit 积分
+
+#### 可选：同时开启 DLL 批处理 GPU 路径（Phase B，需先完成 BER 一致性验证）
+
+```matlab
+parallel.gpu.enableCUDAForwardCompatibility(true);
+ACCEL_OPTIONS = struct( ...
+    'backend', 'gpu', ...
+    'precision', 'single', ...
+    'batch_ms', 100, ...
+    'dll_gpu_enabled', true);
+```
+
+> 注意：`dll_gpu_enabled=true` 引入批次内 cursor 近似，建议先按第二十五节做 CPU vs GPU BER 对比验证再开启。推荐先用 `batch_ms=100` 验证通过后，再逐步提高至 500。
+
+#### 若希望自动回退（GPU 不可用时降 CPU）
 
 ```matlab
 ACCEL_OPTIONS = struct('backend', 'auto', 'precision', 'single');
 ```
 
-若希望强制 CPU：
+#### 若希望强制 CPU（基准对比用）
 
 ```matlab
 ACCEL_OPTIONS = struct('backend', 'cpu', 'precision', 'double');
 ```
-
-注意：
-
-- 当前 tracking 主循环在 v1 仍保持 CPU
-- GPU 更适合 open-loop 相关的批量扫描部分
 
 ### 19.6 采后快速体检命令
 
@@ -1851,3 +1877,197 @@ which run_ber_loopback -all
 - [ ] `1 h` 默认采用 `chunked`
 - [ ] 正式 BER 结论基于 `tracked_truth`
 - [ ] `run_capture_analysis()` 仅作为快速体检使用
+
+---
+
+## 二十五、tracking 主链 GPU 加速：测试与验证步骤
+
+本节对应代码改动：`matlab/functions/track_nav_bits.m`（Phase A + B）和 `matlab/scripts/run_ber_loopback.m`（Phase C 日志更新）。
+
+### 25.1 改动概述
+
+| Phase | 子函数 | 触发条件 | 说明 |
+| --- | --- | --- | --- |
+| A1 | `integrate_bits_from_prompt` | `gpu_enabled=true` | 20ms reshape+sum → GPU |
+| A2 | `estimate_initial_bit_alignment` | `gpu_enabled=true` | 打分矩阵批量 GPU 计算 |
+| A3 | `check_bit_timing_stability` | `gpu_enabled=true` | 窗口 bit 积分 GPU 向量化 |
+| B | `track_code_phase_ms` | `dll_gpu_enabled=true` | DLL 批处理 GPU 矩阵乘（有近似，默认关闭） |
+| C | `run_ber_loopback.m` 日志 | 无条件 | Step 4 日志从硬编码 `cpu` 改为动态读取后端 |
+
+Phase A 无数值近似，结果应与 CPU 完全一致。Phase B 批次内 cursor 近似，BER 不保证 bit 精确一致，但不应影响整体 BER 量级。
+
+### 25.2 Step 1：环境准备（代码同步）
+
+若在 Linux 主力机上直接修改了仓库，直接用；若在 Windows 上需要从 Ubuntu 侧同步：
+
+```bash
+cd ~/projects/GNSS_RX
+bash ./scripts/sync_matlab.sh <MATLAB_WORKSPACE_DIR>
+```
+
+然后在 MATLAB 中重新加载：
+
+```matlab
+cd('<MATLAB_WORKSPACE_DIR>')
+clear functions
+rehash
+
+which track_nav_bits -all
+which gnss_rx_resolve_accel_options -all
+which run_ber_loopback -all
+```
+
+三个函数都应指向本轮同步后的目录。
+
+### 25.3 Step 2：GPU 设备确认
+
+```matlab
+parallel.gpu.enableCUDAForwardCompatibility(true);
+gpuDeviceCount
+g = gpuDevice;
+disp(g.Name)
+disp(g.ComputeCapability)
+```
+
+预期：`gpuDeviceCount >= 1`，`gpuDevice` 正常返回设备对象。若报错则说明 GPU 不可用，后续只做 CPU 路径验证。
+
+### 25.4 Step 3：Phase A 验证（CPU vs GPU 结果对比）
+
+使用现有固定样本，先跑 CPU 基准，再跑 GPU，对比 BER 数值和 bit 偏移。
+
+```matlab
+% ── CPU 基准 ──────────────────────────────────────────
+CAPTURE_PATH = '<你的 CAPTURE_PATH>';  % 替换为实际路径
+BER_MODE = 'tracked_truth';
+ACCEL_OPTIONS = struct('backend', 'cpu', 'precision', 'double');
+
+run('scripts/run_ber_loopback.m')
+% 记录：BER_cpu、bit_offset_ms_cpu、pattern_offset_cpu、polarity_cpu
+```
+
+```matlab
+% ── GPU Phase A（不开 DLL GPU）─────────────────────────
+ACCEL_OPTIONS = struct('backend', 'gpu', 'precision', 'single', 'batch_ms', 2000);
+parallel.gpu.enableCUDAForwardCompatibility(true);
+
+run('scripts/run_ber_loopback.m')
+% 记录：BER_gpu_A、bit_offset_ms_gpu、pattern_offset_gpu、polarity_gpu
+```
+
+验证通过标准：
+
+- `BER_cpu` 与 `BER_gpu_A` 数值完全相同（或误差 < 1e-6）
+- `bit_offset_ms`、`pattern_offset`、`polarity` 三个值完全一致
+- `Step 4 实际后端：gpu` 出现在日志中
+- BER 统计块出现 `加速后端：    gpu`
+
+### 25.5 Step 4：Phase A 用时对比
+
+查看两次运行的 `Step 4 用时` 打印行，记录：
+
+```text
+CPU：Step 4 用时：XX.XX s
+GPU Phase A：Step 4 用时：XX.XX s
+```
+
+Phase A 的 GPU 收益主要来自 `estimate_initial_bit_alignment` 的打分矩阵（约 20 × pattern_len × 2 次打分），对于 30s 样本效果较小，对于 250s 以上长样本效果更明显。
+
+### 25.6 Step 5：Phase B 验证（DLL GPU，batch_ms=100）
+
+仅在 Step 3 验证通过（Phase A GPU 与 CPU 结果一致）后执行本步。
+
+```matlab
+% ── DLL GPU，batch_ms=100 ──────────────────────────────
+parallel.gpu.enableCUDAForwardCompatibility(true);
+ACCEL_OPTIONS = struct( ...
+    'backend', 'gpu', ...
+    'precision', 'single', ...
+    'batch_ms', 100, ...
+    'dll_gpu_enabled', true);
+
+run('scripts/run_ber_loopback.m')
+% 记录：BER_dll_gpu、bit_offset_ms、pattern_offset、Step 4 用时
+```
+
+验证通过标准：
+
+- `bit_offset_ms`、`pattern_offset`、`polarity` 与 CPU 基准一致（这三个值不受 DLL 近似影响）
+- `BER_dll_gpu` 与 CPU 基准在同一量级（允许个位数 bit 差异，不应相差 10 倍以上）
+- Step 4 用时应明显低于 CPU 基准（预期 2–5×加速）
+
+若通过，再做 `batch_ms=500` 版本：
+
+```matlab
+ACCEL_OPTIONS = struct( ...
+    'backend', 'gpu', ...
+    'precision', 'single', ...
+    'batch_ms', 500, ...
+    'dll_gpu_enabled', true);
+
+run('scripts/run_ber_loopback.m')
+```
+
+### 25.7 Step 6：250s 正式样本完整验证
+
+在长样本（250s）上重复 Step 3 和 Step 5，记录用时对比。
+
+```matlab
+% 设置 250s 样本路径
+CAPTURE_PATH = '<250s CAPTURE_PATH>';  % 替换为实际路径
+BER_MODE = 'tracked_truth';
+
+% CPU 基准
+ACCEL_OPTIONS = struct('backend', 'cpu');
+run('scripts/run_ber_loopback.m')
+
+% GPU Phase A
+ACCEL_OPTIONS = struct('backend', 'gpu', 'precision', 'single', 'batch_ms', 2000);
+run('scripts/run_ber_loopback.m')
+
+% GPU Phase A + B（若 Step 5 已验证通过）
+ACCEL_OPTIONS = struct('backend', 'gpu', 'precision', 'single', 'batch_ms', 500, 'dll_gpu_enabled', true);
+run('scripts/run_ber_loopback.m')
+```
+
+### 25.8 预期日志格式（代码更新后）
+
+无论 CPU 还是 GPU，Step 4 现在都会额外打印两行：
+
+```text
+=== Step 4: tracked BER 主链 ===
+Step 4 后端：<resolved_backend>
+tracked BER：X.XXe-XX，匹配率：XXX.X%，bit 偏移：XX ms，pattern 偏移：X bit
+Step 4 用时：XX.XX s
+Step 4 实际后端：<cpu 或 gpu>
+```
+
+BER 统计摘要新增一行：
+
+```text
+========================================
+  BER 统计结果
+========================================
+  模式：        tracked_truth
+  truth 模式：  ...
+  总发送比特数：XXXXX
+  误码个数：    XX
+  BER：         X.XXe-XX
+  bit 偏移：    XX ms
+  pattern 偏移：X bit
+  极性：        +1
+  truth 匹配率：XXX.X%
+  加速后端：    <cpu 或 gpu>
+  捕获 Doppler：X.X Hz
+  次峰比：      XX.XX
+========================================
+```
+
+### 25.9 失败排查
+
+| 现象 | 可能原因 | 处理方式 |
+| --- | --- | --- |
+| `Step 4 实际后端：cpu`（但 `ACCEL_OPTIONS.backend='gpu'`） | GPU 初始化失败或代码未同步 | 检查 `gpuDevice` 是否正常；重新 `clear functions` + `rehash` |
+| Phase A GPU 与 CPU BER 不一致 | `precision='single'` 引入 bit 级舍入 | 改为 `precision='double'` 对比；若仍不一致报 bug |
+| Phase B GPU `bit_offset_ms` 与 CPU 不一致 | 不可能，`bit_offset_ms` 来自 `estimate_initial_bit_alignment`（Phase A），不受 DLL 近似影响 | 确认 Phase A 已先单独验证通过 |
+| Phase B GPU BER 明显偏高 | `batch_ms` 过大，批次内 cursor 漂移超过阈值 | 降低 `batch_ms`（先试 50，再 100） |
+| `gpuDevice` 报错 | 新架构 GPU 未启用 forward compatibility | 先执行 `parallel.gpu.enableCUDAForwardCompatibility(true)` |

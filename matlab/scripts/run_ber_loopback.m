@@ -189,7 +189,7 @@ fprintf('Step 3 用时：%.2f s\n', stage_timings.step3_open_loop_s);
 
 %% Step 4：tracked BER 主链
 fprintf('=== Step 4: tracked BER 主链 ===\n');
-fprintf('Step 4 后端：cpu（tracking 主循环在 v1 保持 CPU）\n');
+fprintf('Step 4 后端：%s\n', accel_options.resolved_backend);
 step_timer = tic;
 % tracked 主链更接近真正接收机的工作方式：先持续跟踪，再做 bit 判决。
 tracked_result = track_nav_bits(samples, meta, acq_result, truth, TRACKING_OPTIONS, accel_options);
@@ -198,6 +198,7 @@ fprintf('tracked BER：%.2e，匹配率：%.1f%%，bit 偏移：%d ms，pattern 
     tracked_result.ber, tracked_result.match_rate * 100, ...
     tracked_result.bit_offset_ms, tracked_result.pattern_offset);
 fprintf('Step 4 用时：%.2f s\n', stage_timings.step4_tracked_s);
+fprintf('Step 4 实际后端：%s\n', tracked_result.accel_backend);
 
 % 默认使用 tracked_truth 作为最终判决结果，但仍保留 open-loop_truth 作为诊断基线。
 selected_result = tracked_result;
@@ -245,6 +246,7 @@ fprintf('  bit 偏移：    %d ms\n', selected_result.bit_offset_ms);
 fprintf('  pattern 偏移：%d bit\n', selected_result.pattern_offset);
 fprintf('  极性：        %+d\n', selected_result.polarity);
 fprintf('  truth 匹配率：%.1f%%\n', selected_result.match_rate * 100);
+fprintf('  加速后端：    %s\n', tracked_result.accel_backend);
 fprintf('  捕获 Doppler：%.1f Hz\n', acq_result.best_doppler_hz);
 fprintf('  次峰比：      %.2f\n', acq_peak_ratio);
 fprintf('========================================\n');
