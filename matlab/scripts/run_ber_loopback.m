@@ -189,7 +189,7 @@ fprintf('Step 3 用时：%.2f s\n', stage_timings.step3_open_loop_s);
 
 %% Step 4：tracked BER 主链
 fprintf('=== Step 4: tracked BER 主链 ===\n');
-fprintf('Step 4 后端：%s\n', accel_options.resolved_backend);
+fprintf('Step 4 计划后端：%s\n', accel_options.step4_backend_hint);
 step_timer = tic;
 % tracked 主链更接近真正接收机的工作方式：先持续跟踪，再做 bit 判决。
 tracked_result = track_nav_bits(samples, meta, acq_result, truth, TRACKING_OPTIONS, accel_options);
@@ -246,9 +246,14 @@ fprintf('  bit 偏移：    %d ms\n', selected_result.bit_offset_ms);
 fprintf('  pattern 偏移：%d bit\n', selected_result.pattern_offset);
 fprintf('  极性：        %+d\n', selected_result.polarity);
 fprintf('  truth 匹配率：%.1f%%\n', selected_result.match_rate * 100);
+fprintf('  请求后端：    %s\n', tracked_result.accel_requested_backend);
+fprintf('  解析后端：    %s\n', tracked_result.accel_resolved_backend);
 fprintf('  加速后端：    %s\n', tracked_result.accel_backend);
 fprintf('  捕获 Doppler：%.1f Hz\n', acq_result.best_doppler_hz);
 fprintf('  次峰比：      %.2f\n', acq_peak_ratio);
+if isfield(tracked_result, 'fallback_reason') && ~isempty(tracked_result.fallback_reason)
+    fprintf('  回退说明：    %s\n', tracked_result.fallback_reason);
+end
 fprintf('========================================\n');
 
 %% Step 7：可视化

@@ -1898,17 +1898,33 @@ Phase A 无数值近似，结果应与 CPU 完全一致。Phase B 批次内 curs
 
 ### 25.2 Step 1：环境准备（代码同步）
 
-若在 Linux 主力机上直接修改了仓库，直接用；若在 Windows 上需要从 Ubuntu 侧同步：
+若在 Linux 主力机上直接修改了仓库，直接用；若在 Windows 主力 MATLAB 分析机上需要从 Ubuntu 侧同步，按当前这轮已经验证通过的固定流程执行：
 
 ```bash
 cd ~/projects/GNSS_RX
-bash ./scripts/sync_matlab.sh <MATLAB_WORKSPACE_DIR>
+bash ./scripts/sync_matlab.sh ~/GNSS_RX_matlab_share
 ```
 
-然后在 MATLAB 中重新加载：
+注意：文档中的 `<...>` 只表示“这里需要替换成实际路径”的占位符，不能原样输入 Bash。  
+若把 `bash ./scripts/sync_matlab.sh <MATLAB_WORKSPACE_DIR>` 原样粘贴到 shell，Bash 会把 `<MATLAB_WORKSPACE_DIR>` 里的尖括号当成重定向/保留语法，从而报：
+
+```text
+bash: 未预期的记号 "newline" 附近有语法错误
+```
+
+Ubuntu 端同步完成后，在 Windows PowerShell 中执行：
+
+```powershell
+robocopy Z:\ E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab /MIR
+```
+
+然后在 MATLAB 中重新加载当前正式目录：
 
 ```matlab
-cd('<MATLAB_WORKSPACE_DIR>')
+cd('E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab')
+addpath(pwd)
+addpath(fullfile(pwd, 'functions'))
+addpath(fullfile(pwd, 'scripts'))
 clear functions
 rehash
 
@@ -1917,9 +1933,19 @@ which gnss_rx_resolve_accel_options -all
 which run_ber_loopback -all
 ```
 
-三个函数都应指向本轮同步后的目录。
+继续执行 `25.3` 之前，验收标准固定为：
+
+- Ubuntu 端 `bash ./scripts/sync_matlab.sh ~/GNSS_RX_matlab_share` 正常完成，不再出现 shell 语法错误
+- Windows 端 `robocopy Z:\ E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab /MIR` 正常完成，且无失败文件
+- `which track_nav_bits -all`
+- `which gnss_rx_resolve_accel_options -all`
+- `which run_ber_loopback -all`
+
+以上三条都必须指向 `E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab\...` 下的本轮同步结果；只有满足这一点，后续 `25.3` 的 GPU 设备确认才继续。
 
 ### 25.3 Step 2：GPU 设备确认
+
+先完成 `25.2` 的代码同步与 MATLAB 重载，再执行下面的 GPU 设备确认。
 
 ```matlab
 parallel.gpu.enableCUDAForwardCompatibility(true);
@@ -1935,18 +1961,71 @@ disp(g.ComputeCapability)
 
 使用现有固定样本，先跑 CPU 基准，再跑 GPU，对比 BER 数值和 bit 偏移。
 
+注意：这里的 `CAPTURE_PATH` 也不能写成 `<你的 CAPTURE_PATH>` 这种尖括号占位符文本。  
+`CAPTURE_PATH` 应填写为“采集文件主路径（stem）”，即不带扩展名的那条完整路径；后续脚本会自动拼接：
+
+- `CAPTURE_PATH.json`
+- `CAPTURE_PATH.sc16`
+- `CAPTURE_PATH_tx_truth.json`
+
+若要先查看本轮实际路径，可先执行：
+
+```matlab
+dir('F:\GNSS_RX_Data_local\2026\2026_03_31')
+dir('F:\GNSS_RX_Data_local\2026\2026_03_31\20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur250p0s')
+```
+
 ```matlab
 % ── CPU 基准 ──────────────────────────────────────────
-CAPTURE_PATH = '<你的 CAPTURE_PATH>';  % 替换为实际路径
+DRIVE = 'F:';
+CAPTURE_DIR = [DRIVE '\GNSS_RX_Data_local\2026\2026_03_31\' ...
+    '20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_' ...
+    'cf100000000_dur250p0s'];
+CAPTURE_PATH = fullfile(CAPTURE_DIR, ...
+    '20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur250p0s');
+
 BER_MODE = 'tracked_truth';
 ACCEL_OPTIONS = struct('backend', 'cpu', 'precision', 'double');
+
+disp(CAPTURE_PATH)
+exist([CAPTURE_PATH '.json'], 'file')
+exist([CAPTURE_PATH '.sc16'], 'file')
+exist([CAPTURE_PATH '_tx_truth.json'], 'file')
 
 run('scripts/run_ber_loopback.m')
 % 记录：BER_cpu、bit_offset_ms_cpu、pattern_offset_cpu、polarity_cpu
 ```
 
+本轮 CPU 基准实测结果（`2026-03-31`，`250 s` 样本）：
+
+- `disp(CAPTURE_PATH)` 正确打印为 `F:\GNSS_RX_Data_local\2026\2026_03_31\20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur250p0s\20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur250p0s`
+- `exist([CAPTURE_PATH '.json'], 'file') == 2`
+- `exist([CAPTURE_PATH '.sc16'], 'file') == 2`
+- `exist([CAPTURE_PATH '_tx_truth.json'], 'file') == 2`
+- `requested=cpu, resolved=cpu, precision=double, batch_ms=2000, parfor=0`
+- `Step 1 用时 = 287.69 s`
+- `Step 2 后端 = cpu（precision=double）`
+- `Step 2 用时 = 0.95 s`
+- `Step 3 后端 = cpu（precision=double, batch_ms=2000）`
+- `Step 3 用时 = 13.92 s`
+- `Step 4 后端 = cpu（tracking 主循环在 v1 保持 CPU）`
+- `Step 4 用时 = 25.80 s`
+- `tracked BER = 1.20e-03`
+- `误码个数 = 15 / 12499 bit`
+- `truth 匹配率 = 100.0%`
+- `tracked bit 偏移 = 15 ms`
+- `tracked pattern 偏移 = 7 bit`
+- `tracked 极性 = -1`
+- `捕获 Doppler = 0.0 Hz`
+- `次峰比 = 105.54`
+- 图形窗口标题与控制台统计一致：`BER=1.20e-03`、`Doppler=0.0 Hz`、`次峰比=105.54`
+
 ```matlab
 % ── GPU Phase A（不开 DLL GPU）─────────────────────────
+clc
+clear functions
+rehash
+
 ACCEL_OPTIONS = struct('backend', 'gpu', 'precision', 'single', 'batch_ms', 2000);
 parallel.gpu.enableCUDAForwardCompatibility(true);
 
@@ -1954,23 +2033,76 @@ run('scripts/run_ber_loopback.m')
 % 记录：BER_gpu_A、bit_offset_ms_gpu、pattern_offset_gpu、polarity_gpu
 ```
 
+说明：
+
+- `clc` 仅用于清屏，方便观察新一轮日志；不是功能必需项
+- `clear functions` + `rehash` 推荐在 CPU 基准之后、GPU Phase A 之前执行一次，用于强制 MATLAB 重新加载刚同步/刚修改过的 `.m` 文件
+- 这里不建议直接执行 `clear` 或 `clear all`，因为当前对比流程还需要沿用已定义好的 `CAPTURE_PATH`、`BER_MODE` 等变量；若全部清掉，需要重新定义一遍路径和配置
+- 如果只是紧接着 CPU 基准继续跑 GPU，对当前变量环境完全确认无误，则 `clc` 可以省略；但 `clear functions` + `rehash` 仍是更稳妥的默认做法
+
+本轮 GPU Phase A 实测结果（`2026-03-31`，`250 s` 样本，`backend=gpu`，`precision=single`，`batch_ms=2000`）：
+
+- `requested=gpu, resolved=gpu, precision=single, batch_ms=2000, parfor=0`
+- `GPU 设备 = [1] NVIDIA GeForce RTX 5060`
+- `Step 1 用时 = 45.65 s`
+- `Step 2 后端 = gpu（precision=single）`
+- `Step 2 用时 = 0.39 s`
+- `Step 3 后端 = gpu（precision=single, batch_ms=2000）`
+- `Step 3 用时 = 5.65 s`
+- `Step 4 后端 = cpu（tracking 主循环在 v1 保持 CPU）`
+- `Step 4 用时 = 24.17 s`
+- `tracked BER = 1.20e-03`
+- `误码个数 = 15 / 12499 bit`
+- `truth 匹配率 = 100.0%`
+- `tracked bit 偏移 = 15 ms`
+- `tracked pattern 偏移 = 7 bit`
+- `tracked 极性 = -1`
+- `捕获 Doppler = 0.0 Hz`
+- `次峰比 = 105.54`
+- 图形窗口标题与控制台统计一致：`BER=1.20e-03`、`Doppler=0.0 Hz`、`次峰比=105.54`
+
+CPU 与 GPU Phase A 本轮对比结论：
+
+- `BER_cpu` 与 `BER_gpu_A` 完全一致，均为 `1.20e-03`
+- `bit_offset_ms`、`pattern_offset`、`polarity` 完全一致，分别为 `15 ms`、`7 bit`、`-1`
+- `Step 2` 与 `Step 3` 已明确切到 GPU 路径
+- `Step 4` 当前日志仍显示 CPU，说明本轮 GPU 收益主要来自载入、捕获与 open-loop truth 相关计算；tracking 主循环尚未成为稳定 GPU 主路径
+- 总体上 Phase A 已通过“数值一致性验证”，可作为后续 DLL GPU / 更深 GPU 化改造的可靠基线
+
 验证通过标准：
 
 - `BER_cpu` 与 `BER_gpu_A` 数值完全相同（或误差 < 1e-6）
 - `bit_offset_ms`、`pattern_offset`、`polarity` 三个值完全一致
-- `Step 4 实际后端：gpu` 出现在日志中
-- BER 统计块出现 `加速后端：    gpu`
+- `requested=gpu, resolved=gpu` 出现在日志中
+- `Step 2 后端：gpu` 与 `Step 3 后端：gpu` 出现在日志中
+- 若 `Step 4` 仍显示 CPU，但最终 BER 与偏移结果和 CPU 基准完全一致，则本轮应判定为“Phase A 数值验证通过、tracking 主循环仍主要为 CPU 路径”
 
 ### 25.5 Step 4：Phase A 用时对比
 
-查看两次运行的 `Step 4 用时` 打印行，记录：
+查看两次运行的关键用时打印行，记录：
 
 ```text
-CPU：Step 4 用时：XX.XX s
-GPU Phase A：Step 4 用时：XX.XX s
+CPU：Step 1 用时：287.69 s
+GPU Phase A：Step 1 用时：45.65 s
+
+CPU：Step 2 用时：0.95 s
+GPU Phase A：Step 2 用时：0.39 s
+
+CPU：Step 3 用时：13.92 s
+GPU Phase A：Step 3 用时：5.65 s
+
+CPU：Step 4 用时：25.80 s
+GPU Phase A：Step 4 用时：24.17 s
 ```
 
-Phase A 的 GPU 收益主要来自 `estimate_initial_bit_alignment` 的打分矩阵（约 20 × pattern_len × 2 次打分），对于 30s 样本效果较小，对于 250s 以上长样本效果更明显。
+本轮实测可见：
+
+- `Step 1` 由 `287.69 s` 降至 `45.65 s`，约 `6.30x`
+- `Step 2` 由 `0.95 s` 降至 `0.39 s`，约 `2.44x`
+- `Step 3` 由 `13.92 s` 降至 `5.65 s`，约 `2.46x`
+- `Step 4` 由 `25.80 s` 降至 `24.17 s`，仅约 `1.07x`
+
+因此，Phase A 的 GPU 收益主要来自载入、捕获与 `estimate_initial_bit_alignment` / open-loop truth 相关计算；对于当前实现，tracking 主循环加速仍有限，这也与 `Step 4` 仍显示 CPU 的日志现象一致。
 
 ### 25.6 Step 5：Phase B 验证（DLL GPU，batch_ms=100）
 
@@ -1978,6 +2110,10 @@ Phase A 的 GPU 收益主要来自 `estimate_initial_bit_alignment` 的打分矩
 
 ```matlab
 % ── DLL GPU，batch_ms=100 ──────────────────────────────
+clc
+clear functions
+rehash
+
 parallel.gpu.enableCUDAForwardCompatibility(true);
 ACCEL_OPTIONS = struct( ...
     'backend', 'gpu', ...
@@ -1988,6 +2124,14 @@ ACCEL_OPTIONS = struct( ...
 run('scripts/run_ber_loopback.m')
 % 记录：BER_dll_gpu、bit_offset_ms、pattern_offset、Step 4 用时
 ```
+
+本轮从 `25.5` 继续进入 `25.6` 时，直接执行上面这组命令即可。  
+重点观察：
+
+- `requested=gpu, resolved=gpu` 是否继续成立
+- `Step 4 用时` 是否相对 CPU 基准 `25.80 s` 明显下降
+- `bit_offset_ms`、`pattern_offset`、`polarity` 是否仍与 CPU 基准一致
+- `BER` 是否仍保持在与 CPU 基准 `1.20e-03` 相同量级
 
 验证通过标准：
 
@@ -2006,6 +2150,126 @@ ACCEL_OPTIONS = struct( ...
 
 run('scripts/run_ber_loopback.m')
 ```
+
+### 25.6.1 代码更新后复测结果（2026-03-31）
+
+在完成 `Step 4 GPU 化与 CPU 回退` 代码改造并重新同步到 Windows MATLAB 目录后，使用同一组 `250 s` 样本做了两次复测：
+
+1. 正确率优先复测：`backend=gpu, precision=single, batch_ms=2000`
+2. Step 4 hybrid 复测：`backend=gpu, precision=single, batch_ms=100, dll_gpu_enabled=true`
+
+本轮两次复测分别使用以下命令：
+
+```matlab
+% 复测 1：正确率优先（推荐正式命令）
+% 差异说明：
+% - 不启用 dll_gpu_enabled
+% - Step 4 仍主要走 CPU，因此数值最稳定
+% - 适合产出正式 BER 结论，不以 Step 4 极限加速为目标
+CAPTURE_PATH = ['F:\GNSS_RX_Data_local\2026\2026_03_31\' ...
+    '20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_' ...
+    'cf100000000_dur250p0s\20260331_ber250s_localdisk_rawiq_sc16_zeroif_' ...
+    'prn1_spread_sr4092000_cf100000000_dur250p0s'];
+BER_MODE = 'tracked_truth';
+
+clc
+clear functions
+rehash
+
+ACCEL_OPTIONS = struct( ...
+    'backend', 'gpu', ...
+    'precision', 'single', ...
+    'batch_ms', 2000);
+
+run('scripts/run_ber_loopback.m')
+```
+
+```matlab
+% 复测 2：Step 4 hybrid 性能实验
+% 差异说明：
+% - 显式启用 dll_gpu_enabled=true
+% - 目标是让 Step 4 进入 gpu_hybrid 路径，观察 tracking 主链能否进一步加速
+% - 这是性能实验命令，不是当前正式 BER 结论命令；若 BER 恶化，则不能用于正式结果
+CAPTURE_PATH = ['F:\GNSS_RX_Data_local\2026\2026_03_31\' ...
+    '20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_' ...
+    'cf100000000_dur250p0s\20260331_ber250s_localdisk_rawiq_sc16_zeroif_' ...
+    'prn1_spread_sr4092000_cf100000000_dur250p0s'];
+BER_MODE = 'tracked_truth';
+
+clc
+clear functions
+rehash
+
+ACCEL_OPTIONS = struct( ...
+    'backend', 'gpu', ...
+    'precision', 'single', ...
+    'batch_ms', 100, ...
+    'dll_gpu_enabled', true);
+
+run('scripts/run_ber_loopback.m')
+```
+
+复测结果摘要如下：
+
+- 正确率优先复测：
+  - `Step 4 计划后端 = cpu`
+  - `Step 4 实际后端 = cpu`
+  - `Step 4 用时 = 21.08 s`
+  - `BER = 1.20e-03`
+  - `误码个数 = 15 / 12499`
+  - `truth 匹配率 = 100.0%`
+  - `请求后端 = gpu`
+  - `解析后端 = gpu`
+  - `加速后端 = cpu`
+- Step 4 hybrid 复测：
+  - `Step 4 计划后端 = gpu_hybrid`
+  - `Step 4 实际后端 = gpu_hybrid`
+  - `Step 4 用时 = 14.39 s`
+  - `BER = 4.68e-01`
+  - `误码个数 = 5853 / 12499`
+  - `truth 匹配率 = 90.9%`
+  - `请求后端 = gpu`
+  - `解析后端 = gpu`
+  - `加速后端 = gpu_hybrid`
+
+复测结论：
+
+- 代码更新后的日志语义已生效，能够区分 `请求后端 / 解析后端 / 加速后端`
+- `batch_ms=2000` 这条命令仍然是当前“正确率最高且结果稳定”的配置
+- `dll_gpu_enabled=true, batch_ms=100` 已经让 `Step 4` 真正进入 `gpu_hybrid`，并把 `Step 4` 从 `25.80 s` 压到 `14.39 s`
+- 但该 hybrid 路径当前会显著破坏 tracking 数值稳定性，导致 BER 从 `1.20e-03` 恶化到 `4.68e-01`
+- 因此，当前阶段应将 `gpu_hybrid` 视为“性能实验路径”，而不是正式 BER 结论路径
+
+### 25.6.2 当前推荐正式命令（正确率优先）
+
+在当前代码状态下，若目标是“得到正确率高且可复现的正式 BER 结论”，推荐固定使用下面这组命令，而**不要**启用 `dll_gpu_enabled=true`：
+
+```matlab
+CAPTURE_PATH = ['F:\GNSS_RX_Data_local\2026\2026_03_31\' ...
+    '20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_' ...
+    'cf100000000_dur250p0s\20260331_ber250s_localdisk_rawiq_sc16_zeroif_' ...
+    'prn1_spread_sr4092000_cf100000000_dur250p0s'];
+BER_MODE = 'tracked_truth';
+
+clc
+clear functions
+rehash
+
+ACCEL_OPTIONS = struct( ...
+    'backend', 'gpu', ...
+    'precision', 'single', ...
+    'batch_ms', 2000);
+
+run('scripts/run_ber_loopback.m')
+```
+
+本轮 `250 s` 样本下，上述命令的正式参考结果为：
+
+- `BER = 1.20e-03`
+- `误码个数 = 15 / 12499`
+- `truth 匹配率 = 100.0%`
+- `Step 4 用时 = 21.08 s`
+- `Step 4 实际后端 = cpu`
 
 ### 25.7 Step 6：250s 正式样本完整验证
 
@@ -2031,17 +2295,17 @@ run('scripts/run_ber_loopback.m')
 
 ### 25.8 预期日志格式（代码更新后）
 
-无论 CPU 还是 GPU，Step 4 现在都会额外打印两行：
+代码更新后，Step 4 的日志口径已从旧的单行 `Step 4 后端` 改成“计划后端 + 实际后端”双行；BER 统计块也会额外打印“请求后端 / 解析后端 / 加速后端”。
 
 ```text
 === Step 4: tracked BER 主链 ===
-Step 4 后端：<resolved_backend>
+Step 4 计划后端：<cpu 或 gpu_hybrid>
 tracked BER：X.XXe-XX，匹配率：XXX.X%，bit 偏移：XX ms，pattern 偏移：X bit
 Step 4 用时：XX.XX s
-Step 4 实际后端：<cpu 或 gpu>
+Step 4 实际后端：<cpu 或 gpu_hybrid>
 ```
 
-BER 统计摘要新增一行：
+BER 统计摘要新增如下几行：
 
 ```text
 ========================================
@@ -2056,7 +2320,10 @@ BER 统计摘要新增一行：
   pattern 偏移：X bit
   极性：        +1
   truth 匹配率：XXX.X%
-  加速后端：    <cpu 或 gpu>
+  请求后端：    <cpu / gpu / auto>
+  解析后端：    <cpu / gpu>
+  加速后端：    <cpu / gpu_hybrid>
+  回退说明：    <可选，仅在发生回退时打印>
   捕获 Doppler：X.X Hz
   次峰比：      XX.XX
 ========================================

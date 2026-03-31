@@ -94,6 +94,7 @@ function accel = gnss_rx_resolve_accel_options(accel_options)
     accel.gpu_device_index = [];
     accel.gpu_enabled = false;
     accel.fallback_reason = '';
+    accel.step4_backend_hint = 'cpu';
 
     % 独立封装 GPU 数量探测，内部已做版本兼容和异常兜底。
     gpu_count = discover_gpu_count();
@@ -122,11 +123,20 @@ function accel = gnss_rx_resolve_accel_options(accel_options)
                 accel.fallback_reason = '未检测到可用 GPU，已自动回退到 CPU。';
             end
         case 'gpu'
-            if ~accel.gpu_available
-                error('GNSS_RX:GpuUnavailable', ...
-                    'ACCEL_OPTIONS.backend=gpu，但当前 MATLAB 未检测到可用 GPU。');
+            if accel.gpu_available
+                try
+                    accel = attach_gpu_device(accel);
+                catch ME
+                    accel.resolved_backend = 'cpu';
+                    accel.gpu_enabled = false;
+                    accel.fallback_reason = sprintf( ...
+                        '显式请求 GPU，但初始化失败：%s 已自动回退到 CPU。', ...
+                        ME.message);
+                end
+            else
+                accel.resolved_backend = 'cpu';
+                accel.fallback_reason = '显式请求 GPU，但当前 MATLAB 未检测到可用 GPU；已自动回退到 CPU。';
             end
-            accel = attach_gpu_device(accel);
     end
 
     % 便于调用方使用的派生字段：
@@ -139,8 +149,14 @@ function accel = gnss_rx_resolve_accel_options(accel_options)
     % GPU 计算时再开 parfor 通常收益不稳定，且资源竞争复杂，因此默认禁用。
     if accel.gpu_enabled
         accel.parfor_enabled = false;
+        if accel.dll_gpu_enabled
+            accel.step4_backend_hint = 'gpu_hybrid';
+        else
+            accel.step4_backend_hint = 'cpu';
+        end
     else
         accel.parfor_enabled = accel.use_parfor && accel.parallel_toolbox_available;
+        accel.step4_backend_hint = 'cpu';
     end
 end
 

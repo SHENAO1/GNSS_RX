@@ -46,7 +46,7 @@ function tracked_result = track_nav_bits(samples, meta, acq_result, truth, optio
     end
 
     % 第一阶段：先做码跟踪。输出的 prompt/early/late 是后面所有判断的基础。
-    [prompt_ms, early_ms, late_ms, code_phase_samples, code_track_events, lock_metric_ms] = track_code_phase_ms( ...
+    [prompt_ms, early_ms, late_ms, code_phase_samples, code_track_events, lock_metric_ms, tracking_backend_info] = track_code_phase_ms( ...
         samples, samples_mean, prn_one_ms, acq_result.best_code_phase_samples + 1, ...
         samples_per_ms, acq_result.best_doppler_hz, fs, options, accel_options);
 
@@ -144,15 +144,37 @@ function tracked_result = track_nav_bits(samples, meta, acq_result, truth, optio
         'bit_corr_rot_phase_deg', rad2deg(angle(bit_corr_rot)), ...
         'initial_alignment', initial_alignment, ...
         'window_metrics', window_metrics);
-    if isstruct(accel_options) && isfield(accel_options, 'resolved_backend')
-        tracked_result.accel_requested_backend = accel_options.resolved_backend;
+    if isstruct(accel_options) && isfield(accel_options, 'requested_backend')
+        tracked_result.accel_requested_backend = accel_options.requested_backend;
     else
         tracked_result.accel_requested_backend = 'cpu';
     end
-    if isstruct(accel_options) && isfield(accel_options, 'gpu_enabled') && accel_options.gpu_enabled
-        tracked_result.accel_backend = 'gpu';
+    if isstruct(accel_options) && isfield(accel_options, 'resolved_backend')
+        tracked_result.accel_resolved_backend = accel_options.resolved_backend;
+    else
+        tracked_result.accel_resolved_backend = 'cpu';
+    end
+    if exist('tracking_backend_info', 'var') && isstruct(tracking_backend_info) ...
+            && isfield(tracking_backend_info, 'accel_backend') ...
+            && ~isempty(tracking_backend_info.accel_backend)
+        tracked_result.accel_backend = tracking_backend_info.accel_backend;
     else
         tracked_result.accel_backend = 'cpu';
+    end
+    fallback_notes = {};
+    if isstruct(accel_options) && isfield(accel_options, 'fallback_reason') ...
+            && ~isempty(accel_options.fallback_reason)
+        fallback_notes{end+1, 1} = char(string(accel_options.fallback_reason)); %#ok<AGROW>
+    end
+    if exist('tracking_backend_info', 'var') && isstruct(tracking_backend_info) ...
+            && isfield(tracking_backend_info, 'fallback_reason') ...
+            && ~isempty(tracking_backend_info.fallback_reason)
+        fallback_notes{end+1, 1} = char(string(tracking_backend_info.fallback_reason)); %#ok<AGROW>
+    end
+    if isempty(fallback_notes)
+        tracked_result.fallback_reason = '';
+    else
+        tracked_result.fallback_reason = strjoin(fallback_notes(:).', ' | ');
     end
 end
 
@@ -184,7 +206,7 @@ function options = ensure_track_defaults(options)
     end
 end
 
-function [prompt_ms, early_ms, late_ms, code_phase_samples, events, lock_metric_ms] = track_code_phase_ms( ...
+function [prompt_ms, early_ms, late_ms, code_phase_samples, events, lock_metric_ms, backend_info] = track_code_phase_ms( ...
     samples, samples_mean, prn_one_ms, start_sample, samples_per_ms, doppler_hz, fs, options, accel_options)
 
     % 这里的核心思想和传统 DLL 类似：
@@ -199,7 +221,38 @@ function [prompt_ms, early_ms, late_ms, code_phase_samples, events, lock_metric_
     if nargin < 9
         accel_options = struct();
     end
-    dll_gpu = isstruct(accel_options) && isfield(accel_options, 'dll_gpu_enabled') && accel_options.dll_gpu_enabled;
+    backend_info = struct('accel_backend', 'cpu', 'fallback_reason', '');
+
+    dll_gpu = isstruct(accel_options) ...
+        && isfield(accel_options, 'dll_gpu_enabled') ...
+        && accel_options.dll_gpu_enabled ...
+        && isfield(accel_options, 'gpu_enabled') ...
+        && accel_options.gpu_enabled;
+
+    if dll_gpu
+        try
+            [prompt_ms, early_ms, late_ms, code_phase_samples, events, lock_metric_ms] = ...
+                track_code_phase_ms_gpu_hybrid( ...
+                    samples, samples_mean, prn_one_ms, start_sample, samples_per_ms, ...
+                    doppler_hz, fs, options, accel_options);
+            backend_info.accel_backend = 'gpu_hybrid';
+            return;
+        catch ME
+            backend_info.accel_backend = 'cpu';
+            backend_info.fallback_reason = sprintf( ...
+                'Step 4 GPU tracking 路径失败，已自动回退到 CPU：%s', ...
+                ME.message);
+        end
+    end
+
+    [prompt_ms, early_ms, late_ms, code_phase_samples, events, lock_metric_ms] = ...
+        track_code_phase_ms_cpu( ...
+            samples, samples_mean, prn_one_ms, start_sample, samples_per_ms, ...
+            doppler_hz, fs, options);
+end
+
+function [prompt_ms, early_ms, late_ms, code_phase_samples, events, lock_metric_ms] = track_code_phase_ms_cpu( ...
+    samples, samples_mean, prn_one_ms, start_sample, samples_per_ms, doppler_hz, fs, options)
 
     num_ms = floor((length(samples) - start_sample + 1) / samples_per_ms);
     prompt_ms = complex(zeros(num_ms, 1));
@@ -212,137 +265,139 @@ function [prompt_ms, early_ms, late_ms, code_phase_samples, events, lock_metric_
     spacing = options.early_late_spacing_samples;
     early_code = circshift(prn_one_ms, -spacing);
     late_code = circshift(prn_one_ms, spacing);
-    % prn_block: [samples_per_ms × 3]，列顺序 prompt/early/late
-    prn_block = [prn_one_ms, early_code, late_code];
     carrier_one_ms = exp(-1j * 2 * pi * doppler_hz * (0:samples_per_ms-1)' / fs);
 
     cursor = double(start_sample);
     step = double(samples_per_ms);
 
-    if dll_gpu
-        % ── GPU 批处理路径 ──────────────────────────────────────────────
-        prec = accel_options.precision_class;
-        B = accel_options.batch_ms;
-        prn_gpu = gpuArray(cast(prn_block, prec));
-
-        batch_start = 1;
-        while batch_start <= num_ms
-            B_actual = min(B, num_ms - batch_start + 1);
-
-            % 1. 用当前 cursor 估算批内各 ms 的采样起始点
-            sample_starts = round(cursor) + (0:B_actual-1) * round(step);
-
-            % 检查边界，截短批次
-            valid_count = B_actual;
-            for b = 1:B_actual
-                ss = sample_starts(b);
-                if ss < 1 || (ss + samples_per_ms - 1) > length(samples)
-                    valid_count = b - 1;
-                    break;
-                end
-            end
-            if valid_count == 0
-                break;
-            end
-            B_actual = valid_count;
-            sample_starts = sample_starts(1:B_actual);
-
-            % 2. 提取段矩阵并混频（CPU，[samples_per_ms × B_actual]）
-            seg_block = complex(zeros(samples_per_ms, B_actual));
-            for b = 1:B_actual
-                ss = sample_starts(b);
-                raw = samples(ss : ss + samples_per_ms - 1) - samples_mean;
-                phase_start = exp(-1j * 2 * pi * doppler_hz * double(ss - 1) / fs);
-                seg_block(:, b) = raw .* (phase_start .* carrier_one_ms);
-            end
-
-            % 3. GPU 批量相关：corr_batch [3 × B_actual]
-            seg_gpu = gpuArray(cast(seg_block, prec));
-            corr_batch = double(gather(prn_gpu' * seg_gpu));
-
-            % 4. CPU 串行更新 DLL cursor，存储结果
-            for b = 1:B_actual
-                idx = batch_start + b - 1;
-                p = corr_batch(1, b);
-                e = corr_batch(2, b);
-                l = corr_batch(3, b);
-                prompt_ms(idx) = p;
-                early_ms(idx) = e;
-                late_ms(idx) = l;
-                code_phase_samples(idx) = sample_starts(b) - 1;
-                lm = abs(p) / max(abs(e) + abs(l), eps);
-                lock_metric_ms(idx) = lm;
-                next_adjust = choose_code_adjustment(p, e, l, options);
-                cursor = cursor + step + next_adjust;
-                % 局部重搜（保持和 CPU 路径相同的触发条件）
-                should_search = mod(idx, options.code_search_interval_ms) == 0 || lm < options.code_lock_threshold;
-                if should_search
-                    search_offsets = -options.code_search_half_span_samples : options.code_search_half_span_samples;
-                    [best_offset, best_metric] = search_local_code_offset( ...
-                        samples, samples_mean, prn_one_ms, sample_starts(b) + round(step), ...
-                        samples_per_ms, search_offsets, carrier_one_ms, doppler_hz, fs);
-                    if best_offset ~= 0
-                        old_cursor = cursor;
-                        cursor = cursor + best_offset;
-                        events(end+1) = struct( ... %#ok<AGROW>
-                            'ms_index', idx, ...
-                            'type', 'code_reacq', ...
-                            'detail', sprintf('local_search_metric=%.1f', best_metric), ...
-                            'old_value', old_cursor, ...
-                            'new_value', cursor);
-                    end
-                end
-            end
-            batch_start = batch_start + B_actual;
+    for ms_idx = 1:num_ms
+        sample_start = round(cursor);
+        if sample_start < 1 || (sample_start + samples_per_ms - 1) > length(samples)
+            prompt_ms = prompt_ms(1:ms_idx-1);
+            early_ms = early_ms(1:ms_idx-1);
+            late_ms = late_ms(1:ms_idx-1);
+            code_phase_samples = code_phase_samples(1:ms_idx-1);
+            lock_metric_ms = lock_metric_ms(1:ms_idx-1);
+            break;
         end
 
-        % 截短到实际处理的 ms 数
-        actual_ms = batch_start - 1;
-        prompt_ms = prompt_ms(1:actual_ms);
-        early_ms = early_ms(1:actual_ms);
-        late_ms = late_ms(1:actual_ms);
-        code_phase_samples = code_phase_samples(1:actual_ms);
-        lock_metric_ms = lock_metric_ms(1:actual_ms);
+        segment = extract_compensated_segment( ...
+            samples, samples_mean, sample_start, samples_per_ms, ...
+            carrier_one_ms, doppler_hz, fs);
+        prompt_ms(ms_idx) = sum(segment .* prn_one_ms);
+        early_ms(ms_idx) = sum(segment .* early_code);
+        late_ms(ms_idx) = sum(segment .* late_code);
+        code_phase_samples(ms_idx) = sample_start - 1;
 
-    else
-        % ── CPU 串行路径（原始逻辑） ────────────────────────────────────
-        for ms_idx = 1:num_ms
-            sample_start = round(cursor);
-            if sample_start < 1 || (sample_start + samples_per_ms - 1) > length(samples)
-                prompt_ms = prompt_ms(1:ms_idx-1);
-                early_ms = early_ms(1:ms_idx-1);
-                late_ms = late_ms(1:ms_idx-1);
-                code_phase_samples = code_phase_samples(1:ms_idx-1);
+        next_adjust = choose_code_adjustment(prompt_ms(ms_idx), early_ms(ms_idx), late_ms(ms_idx), options);
+        cursor = cursor + step + next_adjust;
+
+        lock_metric = abs(prompt_ms(ms_idx)) / max(abs(early_ms(ms_idx)) + abs(late_ms(ms_idx)), eps);
+        lock_metric_ms(ms_idx) = lock_metric;
+        should_search = mod(ms_idx, options.code_search_interval_ms) == 0 || lock_metric < options.code_lock_threshold;
+        if should_search
+            search_offsets = -options.code_search_half_span_samples : options.code_search_half_span_samples;
+            [best_offset, best_metric] = search_local_code_offset( ...
+                samples, samples_mean, prn_one_ms, sample_start + round(step), ...
+                samples_per_ms, search_offsets, carrier_one_ms, doppler_hz, fs);
+            if best_offset ~= 0
+                old_cursor = cursor;
+                cursor = cursor + best_offset;
+                events(end+1) = struct( ... %#ok<AGROW>
+                    'ms_index', ms_idx, ...
+                    'type', 'code_reacq', ...
+                    'detail', sprintf('local_search_metric=%.1f', best_metric), ...
+                    'old_value', old_cursor, ...
+                    'new_value', cursor);
+            end
+        end
+    end
+end
+
+function [prompt_ms, early_ms, late_ms, code_phase_samples, events, lock_metric_ms] = track_code_phase_ms_gpu_hybrid( ...
+    samples, samples_mean, prn_one_ms, start_sample, samples_per_ms, doppler_hz, fs, options, accel_options)
+
+    num_ms = floor((length(samples) - start_sample + 1) / samples_per_ms);
+    prompt_ms = complex(zeros(num_ms, 1));
+    early_ms = complex(zeros(num_ms, 1));
+    late_ms = complex(zeros(num_ms, 1));
+    code_phase_samples = zeros(num_ms, 1);
+    lock_metric_ms = zeros(num_ms, 1);
+    events = struct('ms_index', {}, 'type', {}, 'detail', {}, 'old_value', {}, 'new_value', {});
+
+    spacing = options.early_late_spacing_samples;
+    early_code = circshift(prn_one_ms, -spacing);
+    late_code = circshift(prn_one_ms, spacing);
+    prn_block = [prn_one_ms, early_code, late_code];
+    carrier_one_ms = exp(-1j * 2 * pi * doppler_hz * (0:samples_per_ms-1)' / fs);
+
+    prec = accel_options.precision_class;
+    B = accel_options.batch_ms;
+    sample_offsets = (0:samples_per_ms-1)';
+    samples_mean_prec = cast(samples_mean, prec);
+
+    samples_gpu = gpuArray(cast(samples, prec));
+    samples_mean_gpu = gpuArray(samples_mean_prec);
+    prn_gpu = gpuArray(cast(prn_block, prec));
+    prn_prompt_gpu = gpuArray(cast(prn_one_ms, prec));
+    carrier_gpu = gpuArray(cast(carrier_one_ms, prec));
+
+    cursor = double(start_sample);
+    step = double(samples_per_ms);
+    batch_start = 1;
+    while batch_start <= num_ms
+        B_actual = min(B, num_ms - batch_start + 1);
+        sample_starts = round(cursor) + (0:B_actual-1) * round(step);
+
+        valid_mask = sample_starts >= 1 & (sample_starts + samples_per_ms - 1) <= length(samples);
+        if ~any(valid_mask)
+            break;
+        end
+        first_invalid = find(~valid_mask, 1, 'first');
+        if ~isempty(first_invalid)
+            B_actual = first_invalid - 1;
+            if B_actual == 0
                 break;
             end
+            sample_starts = sample_starts(1:B_actual);
+        end
 
-            segment = extract_compensated_segment( ...
-                samples, samples_mean, sample_start, samples_per_ms, ...
-                carrier_one_ms, doppler_hz, fs);
-            prompt_ms(ms_idx) = sum(segment .* prn_one_ms);
-            early_ms(ms_idx) = sum(segment .* early_code);
-            late_ms(ms_idx) = sum(segment .* late_code);
-            code_phase_samples(ms_idx) = sample_start - 1;
+        idx_mat = bsxfun(@plus, sample_offsets, sample_starts);
+        raw_gpu = samples_gpu(idx_mat) - samples_mean_gpu;
+        phase_start = exp(-1j * 2 * pi * doppler_hz * double(sample_starts - 1) / fs);
+        phase_gpu = reshape(gpuArray(cast(phase_start, prec)), 1, []);
+        seg_gpu = raw_gpu .* (carrier_gpu .* phase_gpu);
+        corr_batch = double(gather(prn_gpu' * seg_gpu));
 
-            % 根据 early/prompt/late 的相对强弱，决定下一步是否把码相位微调 ±1 个采样点。
-            next_adjust = choose_code_adjustment(prompt_ms(ms_idx), early_ms(ms_idx), late_ms(ms_idx), options);
-            cursor = cursor + step + next_adjust;
+        prompt_batch = corr_batch(1, :).';
+        early_batch = corr_batch(2, :).';
+        late_batch = corr_batch(3, :).';
+        lock_metric_batch = abs(prompt_batch) ./ max(abs(early_batch) + abs(late_batch), eps);
+        next_adjust_batch = choose_code_adjustment_batch(prompt_batch, early_batch, late_batch, options);
+        should_search_batch = mod((batch_start:batch_start+B_actual-1).', options.code_search_interval_ms) == 0 ...
+            | lock_metric_batch < options.code_lock_threshold;
 
-            lock_metric = abs(prompt_ms(ms_idx)) / max(abs(early_ms(ms_idx)) + abs(late_ms(ms_idx)), eps);
-            lock_metric_ms(ms_idx) = lock_metric;
-            should_search = mod(ms_idx, options.code_search_interval_ms) == 0 || lock_metric < options.code_lock_threshold;
-            if should_search
-                % 一旦锁定指标偏低，就在附近几个采样点内做一次小范围重搜，
-                % 相当于给 DLL 一个”就地扶正”的机会。
+        for b = 1:B_actual
+            idx = batch_start + b - 1;
+            p = prompt_batch(b);
+            e = early_batch(b);
+            l = late_batch(b);
+            prompt_ms(idx) = p;
+            early_ms(idx) = e;
+            late_ms(idx) = l;
+            code_phase_samples(idx) = sample_starts(b) - 1;
+            lock_metric_ms(idx) = lock_metric_batch(b);
+            cursor = cursor + step + next_adjust_batch(b);
+            if should_search_batch(b)
                 search_offsets = -options.code_search_half_span_samples : options.code_search_half_span_samples;
-                [best_offset, best_metric] = search_local_code_offset( ...
-                    samples, samples_mean, prn_one_ms, sample_start + round(step), ...
-                    samples_per_ms, search_offsets, carrier_one_ms, doppler_hz, fs);
+                [best_offset, best_metric] = search_local_code_offset_gpu( ...
+                    samples_gpu, samples_mean_gpu, prn_prompt_gpu, sample_starts(b) + round(step), ...
+                    samples_per_ms, search_offsets, carrier_gpu, doppler_hz, fs, prec);
                 if best_offset ~= 0
                     old_cursor = cursor;
                     cursor = cursor + best_offset;
                     events(end+1) = struct( ... %#ok<AGROW>
-                        'ms_index', ms_idx, ...
+                        'ms_index', idx, ...
                         'type', 'code_reacq', ...
                         'detail', sprintf('local_search_metric=%.1f', best_metric), ...
                         'old_value', old_cursor, ...
@@ -350,7 +405,26 @@ function [prompt_ms, early_ms, late_ms, code_phase_samples, events, lock_metric_
                 end
             end
         end
+        batch_start = batch_start + B_actual;
     end
+
+    actual_ms = batch_start - 1;
+    prompt_ms = prompt_ms(1:actual_ms);
+    early_ms = early_ms(1:actual_ms);
+    late_ms = late_ms(1:actual_ms);
+    code_phase_samples = code_phase_samples(1:actual_ms);
+    lock_metric_ms = lock_metric_ms(1:actual_ms);
+end
+
+function next_adjust = choose_code_adjustment_batch(prompt_corr, early_corr, late_corr, options)
+    prompt_mag = abs(prompt_corr);
+    early_mag = abs(early_corr);
+    late_mag = abs(late_corr);
+    next_adjust = zeros(size(prompt_mag));
+    early_mask = early_mag > prompt_mag * options.code_switch_ratio & early_mag > late_mag;
+    late_mask = late_mag > prompt_mag * options.code_switch_ratio & late_mag > early_mag;
+    next_adjust(early_mask) = -1;
+    next_adjust(late_mask) = +1;
 end
 
 function segment = extract_compensated_segment( ...
@@ -396,6 +470,29 @@ function [best_offset, best_metric] = search_local_code_offset( ...
             best_offset = off;
         end
     end
+end
+
+function [best_offset, best_metric] = search_local_code_offset_gpu( ...
+    samples_gpu, samples_mean_gpu, prn_one_ms_gpu, center_sample, samples_per_ms, ...
+    search_offsets, carrier_one_ms_gpu, doppler_hz, fs, prec)
+    sample_starts = center_sample + search_offsets;
+    valid_mask = sample_starts >= 1 & (sample_starts + samples_per_ms - 1) <= length(samples_gpu);
+    if ~any(valid_mask)
+        best_offset = 0;
+        best_metric = -inf;
+        return;
+    end
+
+    valid_starts = sample_starts(valid_mask);
+    valid_offsets = search_offsets(valid_mask);
+    idx_mat = bsxfun(@plus, (0:samples_per_ms-1)', valid_starts);
+    raw_gpu = samples_gpu(idx_mat) - samples_mean_gpu;
+    phase_start = exp(-1j * 2 * pi * doppler_hz * double(valid_starts - 1) / fs);
+    phase_gpu = reshape(gpuArray(cast(phase_start, prec)), 1, []);
+    seg_gpu = raw_gpu .* (carrier_one_ms_gpu .* phase_gpu);
+    metrics = abs(double(gather(prn_one_ms_gpu' * seg_gpu)));
+    [best_metric, best_idx] = max(metrics);
+    best_offset = valid_offsets(best_idx);
 end
 
 function [prompt_fll, prompt_pll, carrier_history] = track_carrier_from_prompt(prompt_ms, options)
