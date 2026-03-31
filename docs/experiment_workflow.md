@@ -66,3 +66,8 @@
 默认分析结果会保存到：
 
 `<capture_date_dir>/analysis/<stem>/`
+
+## 数据传输（新硬件环境）
+
+当采集在裸机 Linux 工作站（X310）上进行时，VMware 共享文件夹（`/mnt/hgfs/`）不再可用。  
+请参考 [docs/lan_data_sharing_setup.md](lan_data_sharing_setup.md) 通过 Samba 局域网共享将数据目录挂载到 Windows MATLAB 主机。

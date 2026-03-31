@@ -8,7 +8,7 @@
 %
 % 用法（在 MATLAB 命令行中）：
 %   ber
-%       自动分析最新采集文件，并默认使用同目录下的 tx_truth.json。
+%       自动分析最新采集文件，并优先使用采集目录旁的 sidecar truth。
 %
 %   CAPTURE_PATH = 'xxx.json'; ber
 %       分析指定采集文件。
@@ -17,7 +17,8 @@
 %       清除手动指定路径，回到“自动分析最新采集”的模式。
 %
 % 说明：
-%   - 若未手动设置 TX_TRUTH_PATH，则默认指向当前目录下的 tx_truth.json。
+%   - 若未手动设置 TX_TRUTH_PATH，则 run_ber_loopback.m 会优先解析
+%     CAPTURE_PATH 同目录下的 sidecar truth，再回退到当前目录下的 tx_truth.json。
 %   - 若未手动设置 BER_MODE，则默认使用 tracked_truth。
 %   - 当 CAPTURE_PATH 未设置时，run_ber_loopback.m 内部仍可继续走交互式选文件流程。
 
@@ -29,10 +30,8 @@ addpath(fullfile(here, 'scripts'));
 clear functions %#ok<CLFUNC>
 rehash
 
-% 若调用前未显式指定 truth JSON，则默认使用当前目录下的 tx_truth.json。
-if ~exist('TX_TRUTH_PATH', 'var') || isempty(TX_TRUTH_PATH)
-    TX_TRUTH_PATH = fullfile(here, 'tx_truth.json');
-end
+% 当前目录中的 tx_truth.json 只作为“最终回退 truth”，不再压过采集目录 sidecar truth。
+WORKSPACE_TX_TRUTH_FALLBACK_PATH = fullfile(here, 'tx_truth.json');
 
 % 默认走 tracked BER 主链；如需 open-loop 基线，可在调用前手工覆盖。
 if ~exist('BER_MODE', 'var') || isempty(BER_MODE)

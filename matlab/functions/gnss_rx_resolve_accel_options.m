@@ -107,7 +107,15 @@ function accel = gnss_rx_resolve_accel_options(accel_options)
             accel.resolved_backend = 'cpu';
         case 'auto'
             if accel.gpu_available
-                accel = attach_gpu_device(accel);
+                try
+                    accel = attach_gpu_device(accel);
+                catch ME
+                    accel.resolved_backend = 'cpu';
+                    accel.gpu_enabled = false;
+                    accel.fallback_reason = sprintf( ...
+                        '检测到 GPU，但初始化失败：%s 已自动回退到 CPU。', ...
+                        ME.message);
+                end
             else
                 accel.resolved_backend = 'cpu';
                 accel.fallback_reason = '未检测到可用 GPU，已自动回退到 CPU。';

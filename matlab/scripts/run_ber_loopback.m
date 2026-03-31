@@ -17,7 +17,7 @@
 %   - TX_TRUTH_PATH：TX 导出的 truth JSON，用作参考真值，不是 IQ 采集输入
 %   - BER_MODE：结果判决模式；默认 tracked_truth，但脚本仍会同时计算 open-loop 基线
 
-clearvars -except CAPTURE_PATH TX_TRUTH_PATH BER_MODE TRACKING_OPTIONS ACCEL_OPTIONS;
+clearvars -except CAPTURE_PATH TX_TRUTH_PATH BER_MODE TRACKING_OPTIONS ACCEL_OPTIONS WORKSPACE_TX_TRUTH_FALLBACK_PATH;
 close all;
 addpath(fullfile(fileparts(mfilename('fullpath')), '..', 'functions'));
 
@@ -133,23 +133,33 @@ fprintf('Step 2 用时：%.2f s\n', stage_timings.step2_acquisition_s);
 
 %% Step 2.5：加载 TX truth 契约
 truth_path = '';
-if ~exist('TX_TRUTH_PATH', 'var') || isempty(TX_TRUTH_PATH)
-    % 若未显式指定 TX_TRUTH_PATH，就尝试在采集目录旁边寻找 truth JSON。
-    truth_path = discover_tx_truth_json(CAPTURE_PATH);
-else
+truth_source = 'internal_fallback';
+truth_log_label = 'fallback 模式（使用默认参考 pattern）';
+if exist('TX_TRUTH_PATH', 'var') && ~isempty(TX_TRUTH_PATH)
     truth_path = char(string(TX_TRUTH_PATH));
+    truth_source = 'explicit';
+    truth_log_label = 'JSON 模式（显式 TX_TRUTH_PATH）';
+else
+    workspace_truth_path = '';
+    if exist('WORKSPACE_TX_TRUTH_FALLBACK_PATH', 'var') && ~isempty(WORKSPACE_TX_TRUTH_FALLBACK_PATH)
+        workspace_truth_path = char(string(WORKSPACE_TX_TRUTH_FALLBACK_PATH));
+    end
+    [truth_path, truth_source, truth_log_label] = discover_tx_truth_json(CAPTURE_PATH, workspace_truth_path);
 end
 
 if ~isempty(truth_path) && isfile(truth_path)
     truth = load_tx_truth_json(truth_path);
-    fprintf('TX truth：JSON 模式，来源 = %s\n', truth.source_path);
+    fprintf('TX truth：%s，来源 = %s\n', truth_log_label, truth.source_path);
 else
+    if strcmpi(truth_source, 'explicit') && ~isempty(truth_path)
+        warning('显式指定的 TX_TRUTH_PATH 不存在：%s；当前将回退到脚本内默认 pattern。', truth_path);
+    end
     % fallback truth 只能提供“兼容旧流程”的参考模式，不能保证和发送端真实状态完全对齐，
     % 因此适合排查脚本链路是否能跑通，但不适合做严格 BER 结论。
     truth = build_fallback_tx_truth(DEFAULT_TX_PATTERN, meta, acq_result);
     warning(['未提供 TX truth JSON；当前将回退到脚本内默认 pattern。', ...
              ' 该模式仅用于兼容旧流程，建议优先使用 gnss_tx 导出的 truth JSON。']);
-    fprintf('TX truth：fallback 模式（使用默认参考 pattern）\n');
+    fprintf('TX truth：%s\n', truth_log_label);
 end
 
 %% Step 3：open-loop truth 基线
@@ -243,6 +253,7 @@ fprintf('========================================\n');
 analysis_result = struct();
 analysis_result.ber_mode = BER_MODE;
 analysis_result.truth = truth;
+analysis_result.truth_source = truth_source;
 analysis_result.acq_result = acq_result;
 analysis_result.acq_peak_ratio = acq_peak_ratio;
 analysis_result.open_loop_result = open_loop_result;
@@ -273,9 +284,14 @@ else
     fprintf('已跳过保存。\n');
 end
 
-function truth_path = discover_tx_truth_json(capture_path)
-    % 尝试几种常见命名方式，减少用户必须手工传 TX_TRUTH_PATH 的次数。
+function [truth_path, truth_source, truth_log_label] = discover_tx_truth_json(capture_path, workspace_truth_path)
+    % truth 自动发现顺序：
+    %   1. capture stem 绑定的 sidecar truth
+    %   2. capture 目录中的通用 truth 文件名
+    %   3. MATLAB 工作区根目录中的 fallback truth
     truth_path = '';
+    truth_source = 'internal_fallback';
+    truth_log_label = 'fallback 模式（使用默认参考 pattern）';
     capture_str = char(string(capture_path));
     capture_dir = fileparts(capture_str);
     [~, capture_name, ext] = fileparts(capture_str);
@@ -286,16 +302,25 @@ function truth_path = discover_tx_truth_json(capture_path)
     end
 
     candidates = {
-        fullfile(capture_dir, 'tx_truth.json'), ...
-        fullfile(capture_dir, 'ber_truth.json'), ...
-        fullfile(capture_dir, [capture_stem, '_tx_truth.json']), ...
-        fullfile(capture_dir, [capture_stem, '.truth.json'])};
+        fullfile(capture_dir, [capture_stem, '_tx_truth.json']), 'sidecar', 'JSON 模式（capture sidecar truth）'; ...
+        fullfile(capture_dir, [capture_stem, '.truth.json']), 'sidecar', 'JSON 模式（capture sidecar truth）'; ...
+        fullfile(capture_dir, 'tx_truth.json'), 'capture_dir', 'JSON 模式（capture 目录 truth）'; ...
+        fullfile(capture_dir, 'ber_truth.json'), 'capture_dir', 'JSON 模式（capture 目录 truth）'};
 
-    for k = 1:numel(candidates)
-        if isfile(candidates{k})
-            truth_path = candidates{k};
+    for k = 1:size(candidates, 1)
+        candidate_path = candidates{k, 1};
+        if isfile(candidate_path)
+            truth_path = candidate_path;
+            truth_source = candidates{k, 2};
+            truth_log_label = candidates{k, 3};
             return;
         end
+    end
+
+    if ~isempty(workspace_truth_path) && isfile(workspace_truth_path)
+        truth_path = workspace_truth_path;
+        truth_source = 'workspace_fallback';
+        truth_log_label = 'JSON 模式（workspace fallback truth）';
     end
 end
 

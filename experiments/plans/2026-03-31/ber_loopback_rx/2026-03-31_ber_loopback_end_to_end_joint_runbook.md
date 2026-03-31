@@ -1,4 +1,4 @@
-# 闭环 BER 全链路总手册（TX/RX 一体版）
+# 闭环 BER 全链路总手册（TX/RX 一体 ）
 
 > 创建时间：2026-03-31
 > 适用场景：从一台全新裸机 Ubuntu 笔记本开始，完成 B210 线缆回环采集，并在主力机 MATLAB 上做正式 BER 分析
@@ -68,9 +68,15 @@
 
 职责：
 
-- 从裸机笔记本转运采集数据
+- 在采集完成后，从裸机笔记本转运采集数据
 - 可选转运 `tx_truth.json`
 - 可选作为 Windows 主力机的“临时直读数据盘”
+
+本轮更推荐的实际执行顺序是：
+
+- 采集阶段先把数据写到 Ubuntu 本地固定目录
+- 等两台 B210 断开、USB 口空出来以后
+- 再把整轮采集目录复制到移动硬盘
 
 ### 2.3 主力机 MATLAB
 
@@ -86,10 +92,12 @@
 裸机 Ubuntu
   ├─ gnss_tx/.venv + run_tx.py
   ├─ GNSS_RX/.venv + record_rx.py
-  ├─ tx_truth.json
-  └─ <capture>.sc16 + <capture>.json
+  └─ /home/<user>/GNSS_RX_Data_local/<date>/<capture_name>/
+       ├─ <capture>.sc16
+       ├─ <capture>.json
+       └─ <capture>_tx_truth.json
             ↓
-        移动硬盘
+      采集完成后复制到移动硬盘
             ↓
       Windows / Linux 主力机
             ↓
@@ -97,6 +105,8 @@
             ↓
       ber → run_ber_loopback.m → tracked_truth BER
 ```
+
+若裸机笔记本只有两个 USB 3.x 口，且采集时需要同时连接两台 B210，则默认不要在采集过程中再接移动硬盘。推荐口径是：**先本地落盘，后离线转运**。
 
 ---
 
@@ -451,7 +461,7 @@ RX B210 (serial=8003272) RX2
 
 ## 十一、正式导出 TX truth JSON
 
-`tx_truth.json` 不是采集文件，也不是 BER 结果文件，它是 TX 发射前导出的“真值契约”。
+truth JSON 不是采集文件，也不是 BER 结果文件，它是 TX 发射前导出的“真值契约”。
 
 正式 BER 对比时，RX MATLAB 侧主要依赖它获取：
 
@@ -465,7 +475,76 @@ RX B210 (serial=8003272) RX2
 - `epochs_per_bit`
 - `prn_id`
 
-### 11.1 裸机 Linux 本地保存版本
+### 11.1 当前推荐口径：按时间戳绑定 capture 与 sidecar truth
+
+正式 BER 采集前，先固定本轮 `CAPTURE_NAME`，并让 truth 文件与 capture stem 使用同一主名。
+
+下面给出 `250 s` 的标准模板；`30 s`、`100 s`、`1 h` 只需要替换 `CAPTURE_NAME` 与时长：
+
+```bash
+CAPTURE_NAME=20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur250p0s
+CAPTURE_DIR=/home/$USER/GNSS_RX_Data_local/2026/2026_03_31/$CAPTURE_NAME
+LOCAL_STEM=$CAPTURE_DIR/$CAPTURE_NAME
+TRUTH_PATH=$CAPTURE_DIR/${CAPTURE_NAME}_tx_truth.json
+
+mkdir -p "$CAPTURE_DIR"
+printf 'CAPTURE_DIR=<%s>\n' "$CAPTURE_DIR"
+printf 'LOCAL_STEM=<%s>\n' "$LOCAL_STEM"
+printf 'TRUTH_PATH=<%s>\n' "$TRUTH_PATH"
+```
+
+本轮在 `shenao` 账户下已实测展开为：
+
+```text
+CAPTURE_DIR=</home/shenao/GNSS_RX_Data_local/2026/2026_03_31/20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur250p0s>
+LOCAL_STEM=</home/shenao/GNSS_RX_Data_local/2026/2026_03_31/20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur250p0s/20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur250p0s>
+TRUTH_PATH=</home/shenao/GNSS_RX_Data_local/2026/2026_03_31/20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur250p0s/20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur250p0s_tx_truth.json>
+```
+
+这说明 `mkdir -p "$CAPTURE_DIR"` 已成功，后续 TX dry-run 导出 truth 与 RX 正式采集都可以直接沿用这三个变量。
+
+推荐先在 TX 侧做一次 dry-run，把 sidecar truth 直接导出到本轮采集目录：
+
+```bash
+cd ~/projects/gnss_tx
+source .venv/bin/activate
+PYTHONPATH=src python3 scripts/run_tx.py \
+    --config configs/tx_b210_cable_loopback.yaml \
+    --tx-gain 50 \
+    --amplitude 1.0 \
+    --dry-run \
+    --export-truth-json "$TRUTH_PATH"
+deactivate
+```
+
+若终端里的 `UHD discovery output` 同时列出 `x300`、两块 `B210`，这通常只是因为当前主机所在网段上还能被 `uhd_find_devices` 扫到一台网络型 X300。它不是本轮实验的绑定目标。
+
+当前真正决定 TX 设备的是配置里的 `usrp_addr`。本轮 `configs/tx_b210_cable_loopback.yaml` 已固定为 `serial=193982`，而且本步骤使用了 `--dry-run`，日志末尾若出现 `Dry run requested. Transmission was not started.`，就说明这里只做了配置加载、设备枚举打印和 truth 导出，并没有真正启动发射，更没有切到 X300 发波。
+
+若手工检查时出现 `TRUTH_PATH=<>`，表示当前 shell 里的 `TRUTH_PATH` 变量是空的。最常见原因是换了一个新终端、重开了 tab，或还没重新执行本节最前面的 4 行变量赋值。此时 `--export-truth-json "$TRUTH_PATH"` 会退化成空参数，因此 dry-run 日志里通常也不会出现 `[INFO] Exported TX truth JSON: ...`。
+
+重新执行本节变量赋值后，只要 `CAPTURE_DIR`、`LOCAL_STEM` 正常展开，`TRUTH_PATH` 也应展开到同一目录下并以 `_tx_truth.json` 结尾。若聊天记录或终端截图里最后一行看起来被截断，通常只是复制/显示被裁切，不代表 shell 报错；以重新执行 `printf 'TRUTH_PATH=<%s>\n' "$TRUTH_PATH"` 的完整输出为准。
+
+这样本轮目录最终应至少包含：
+
+```text
+<capture_dir>/
+  <capture_stem>.sc16
+  <capture_stem>.json
+  <capture_stem>_tx_truth.json
+```
+
+**若本轮计划通过移动硬盘转运采集数据到主力机，推荐到这里为止，后续直接把整个 `<capture_dir>` 拷走即可。此时 `11.2` 和 `11.3` 都可以跳过**，因为它们只是把 `tx_truth.json` 额外写到 MATLAB 工作区根目录，属于兼容旧流程的 fallback，不是移动硬盘方案的主路径。
+
+`11.1` 的正确状态可以按下面判断：
+
+- `printf 'TRUTH_PATH=<%s>\n' "$TRUTH_PATH"` 能打印出完整绝对路径，且以 `_tx_truth.json` 结尾
+- 重新运行本节 dry-run 后，日志里出现 `[INFO] Exported TX truth JSON: ...`
+- 执行 `ls -l "$TRUTH_PATH"` 能看到该 JSON 文件已经落盘
+
+若以上 3 条都满足，说明本轮 sidecar truth 已准备完成。下一步不要去做 `11.2/11.3`，而是继续进入后续 RX 正式采集步骤，让 `.sc16`、`.json`、`_tx_truth.json` 三个文件最终落在同一个 `<capture_dir>` 下，后面整目录一起拷贝到移动硬盘。
+
+### 11.2 兼容旧流程：裸机 Linux 本地保存到 MATLAB 工作区根目录
 
 ```bash
 cd ~/projects/gnss_tx
@@ -479,7 +558,7 @@ PYTHONPATH=src python3 scripts/run_tx.py \
 deactivate
 ```
 
-### 11.2 若主力机为 Windows 且使用 VMware 共享目录
+### 11.3 若主力机为 Windows 且使用 VMware 共享目录
 
 ```bash
 cd ~/projects/gnss_tx
@@ -493,9 +572,11 @@ PYTHONPATH=src python3 scripts/run_tx.py \
 deactivate
 ```
 
-### 11.3 完成标志
+这条路径继续保留，但当前只建议作为兼容旧流程的 fallback truth，不再推荐作为正式 BER 的首选 truth 来源。
 
-- `tx_truth.json` 已成功生成
+### 11.4 完成标志
+
+- `<capture_stem>_tx_truth.json` 已成功生成，或兼容旧流程的根目录 `tx_truth.json` 已成功生成
 - dry-run 摘要中的 `nav_pattern`、`initial_nav_epoch`、`initial_nav_bit_index` 与当前基线一致
 - 后续 MATLAB 正式 BER 日志能看到 `TX truth：JSON 模式`
 
@@ -505,12 +586,22 @@ deactivate
 
 ### 12.1 同步入口
 
-唯一推荐同步方式：
+唯一推荐同步方式：在 Ubuntu 端执行 `sync_matlab.sh`，把 `GNSS_RX/matlab/` 镜像到一个**实际存在且可写**的目标目录。
 
 ```bash
 cd ~/projects/GNSS_RX
-./scripts/sync_matlab.sh /mnt/hgfs/GongXiangDocument/GNSS_RX_matlab
+bash ./scripts/sync_matlab.sh <MATLAB_WORKSPACE_DIR>
 ```
+
+常见目标目录示例：
+
+- VMware 共享目录：`/mnt/hgfs/GongXiangDocument/GNSS_RX_matlab`
+- 移动硬盘挂载点：`/media/$USER/<drive_name>/GNSS_RX_matlab`
+- Ubuntu 本机临时目录：`$HOME/GNSS_RX_matlab`
+
+若这里直接运行 `./scripts/sync_matlab.sh ...` 出现“权限不够”，通常只是脚本暂时没有执行位；优先改用 `bash ./scripts/sync_matlab.sh ...` 即可继续。
+
+若目标写成 `/mnt/hgfs/...` 却报 `mkdir: 无法创建目录 "/mnt/hgfs": 权限不够`，优先按“该机没有 VMware 共享目录挂载”处理。此时不要继续硬用 `/mnt/hgfs/...`，而应改成这台 Ubuntu 当前真实存在的可写目录；如果本轮走移动硬盘转运，推荐直接改成 `/media/$USER/<drive_name>/GNSS_RX_matlab`。
 
 同步内容包括：
 
@@ -520,6 +611,13 @@ cd ~/projects/GNSS_RX
 - `architecture.drawio`
 - `gnss_rx_user_paths.m.example`
 - 根目录快捷入口 `ber.m`
+
+注意：
+
+- `GNSS_RX/matlab/` 才是源码真相源
+- `GNSS_RX_matlab/` 只是主力机部署镜像，不应手工改代码
+- `sync_matlab.sh` 只同步 MATLAB 代码与受管入口文件
+- 采集目录中的 sidecar truth 属于数据，不属于 MATLAB 代码镜像，不会随这个脚本一起复制
 
 ### 12.2 为什么要先同步
 
@@ -559,7 +657,7 @@ which gnss_rx_resolve_accel_options -all
 - MATLAB 环境通
 - `ber` 入口通
 - `run_ber_loopback.m` 主链通
-- `tx_truth.json` 加载通
+- truth 自动匹配口径通
 - `tracked_truth` 判决通
 
 ### 13.1 固定回归样本
@@ -579,7 +677,6 @@ cd('C:\VMwareVirtualMachines\GongXiangDocument\GNSS_RX_matlab')
 clear functions
 rehash
 
-TX_TRUTH_PATH = 'C:\VMwareVirtualMachines\GongXiangDocument\GNSS_RX_matlab\tx_truth.json';
 CAPTURE_PATH = ['C:\VMwareVirtualMachines\GongXiangDocument\GNSS_RX_Data\2026\' ...
     '2026_03_28\20260328_142122_rawiq_sc16_zeroif_prn1_spread_sr4092000_' ...
     'cf100000000_dur30p0s\20260328_142122_rawiq_sc16_zeroif_prn1_spread_' ...
@@ -596,7 +693,6 @@ cd('/home/shenao/projects/GNSS_RX/matlab')
 clear functions
 rehash
 
-TX_TRUTH_PATH = '/home/shenao/projects/GNSS_RX/matlab/tx_truth.json';
 CAPTURE_PATH = ['/mnt/hgfs/GongXiangDocument/GNSS_RX_Data/2026/' ...
     '2026_03_28/20260328_142122_rawiq_sc16_zeroif_prn1_spread_sr4092000_' ...
     'cf100000000_dur30p0s/20260328_142122_rawiq_sc16_zeroif_prn1_spread_' ...
@@ -661,10 +757,21 @@ TX 启动稳定后约 5 秒，再开 RX：
 ```bash
 cd ~/projects/GNSS_RX
 source .venv/bin/activate
+
+CAPTURE_NAME=20260331_ber30s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur30p0s
+CAPTURE_DIR=/home/$USER/GNSS_RX_Data_local/2026/2026_03_31/$CAPTURE_NAME
+LOCAL_STEM=$CAPTURE_DIR/$CAPTURE_NAME
+TRUTH_PATH=$CAPTURE_DIR/${CAPTURE_NAME}_tx_truth.json
+
+mkdir -p "$CAPTURE_DIR"
+printf 'LOCAL_STEM=<%s>\n' "$LOCAL_STEM"
+printf 'TRUTH_PATH=<%s>\n' "$TRUTH_PATH"
+
 PYTHONPATH=src python3 scripts/record_rx.py \
     --config configs/rx_baremetal.yaml \
     --duration 30 \
-    --capture-mode single
+    --capture-mode single \
+    --output-stem "$LOCAL_STEM"
 ```
 
 ### 14.4 文件量级
@@ -719,10 +826,13 @@ cd ~/projects/GNSS_RX
 source .venv/bin/activate
 
 CAPTURE_NAME=20260331_ber100s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur100p0s
-LOCAL_STEM=/home/$USER/GNSS_RX_Data_local/2026/2026_03_31/$CAPTURE_NAME/$CAPTURE_NAME
+CAPTURE_DIR=/home/$USER/GNSS_RX_Data_local/2026/2026_03_31/$CAPTURE_NAME
+LOCAL_STEM=$CAPTURE_DIR/$CAPTURE_NAME
+TRUTH_PATH=$CAPTURE_DIR/${CAPTURE_NAME}_tx_truth.json
 
-mkdir -p "$(dirname "$LOCAL_STEM")"
+mkdir -p "$CAPTURE_DIR"
 printf 'LOCAL_STEM=<%s>\n' "$LOCAL_STEM"
+printf 'TRUTH_PATH=<%s>\n' "$TRUTH_PATH"
 
 PYTHONPATH=src python3 scripts/record_rx.py \
     --config configs/rx_baremetal.yaml \
@@ -770,6 +880,14 @@ PYTHONPATH=src python3 scripts/record_rx.py \
 → 再给主力机 MATLAB 分析
 ```
 
+若笔记本只有两个 USB 3.x 口，并且这两个口都被两台 B210 占用，则采集阶段不要强行插入移动硬盘。默认先写入：
+
+```text
+/home/$USER/GNSS_RX_Data_local/...
+```
+
+待采集结束后，再断开一台 B210 或释放 USB 口，把本轮 `<capture_dir>` 整目录复制到移动硬盘。
+
 ### 16.2 若要进一步降低被抢占风险
 
 对于 250 s 及以上长时实验，推荐提高进程调度优先级：
@@ -797,12 +915,15 @@ cd ~/projects/GNSS_RX
 source .venv/bin/activate
 
 CAPTURE_NAME=20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur250p0s
-LOCAL_STEM=/home/$USER/GNSS_RX_Data_local/2026/2026_03_31/$CAPTURE_NAME/$CAPTURE_NAME
+CAPTURE_DIR=/home/$USER/GNSS_RX_Data_local/2026/2026_03_31/$CAPTURE_NAME
+LOCAL_STEM=$CAPTURE_DIR/$CAPTURE_NAME
+TRUTH_PATH=$CAPTURE_DIR/${CAPTURE_NAME}_tx_truth.json
 TRANSFER_DIR=/home/$USER/GNSS_RX_Transfer/2026/2026_03_31/$CAPTURE_NAME
 
-mkdir -p "$(dirname "$LOCAL_STEM")"
+mkdir -p "$CAPTURE_DIR"
 mkdir -p "$TRANSFER_DIR"
 printf 'LOCAL_STEM=<%s>\n' "$LOCAL_STEM"
+printf 'TRUTH_PATH=<%s>\n' "$TRUTH_PATH"
 printf 'TRANSFER_DIR=<%s>\n' "$TRANSFER_DIR"
 
 sudo chrt -f 50 env PYTHONPATH=src python3 scripts/record_rx.py \
@@ -812,15 +933,116 @@ sudo chrt -f 50 env PYTHONPATH=src python3 scripts/record_rx.py \
     --output-stem "$LOCAL_STEM"
 ```
 
-### 16.5 采后复制
+### 16.5 采后固定收尾流程
 
-推荐优先用 `cp`：
+采集结束后，统一固定按下面 3 步执行，不建议跳步。
+
+#### 第 1 步：先检查本地落盘
+
+```bash
+ls -lh "$CAPTURE_DIR"
+```
+
+本轮 `250 s` 已实测到的正常状态为：
+
+- `.sc16` 已成功生成
+- `.json` 已成功生成
+- 当前目录量级约 `3.9G`，与 `250 s @ 4.092 Msps` 的预期一致
+
+#### 第 2 步：固定补导或覆盖导出 `*_tx_truth.json`
+
+无论 `11.1` 是否已经执行过，采后都推荐**再执行一次**下面这条 dry-run 导出命令，把 sidecar truth 固定写回当前 `CAPTURE_DIR`：
+
+```bash
+cd ~/projects/gnss_tx
+source .venv/bin/activate
+
+CAPTURE_NAME=20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur250p0s
+CAPTURE_DIR=/home/$USER/GNSS_RX_Data_local/2026/2026_03_31/$CAPTURE_NAME
+TRUTH_PATH=$CAPTURE_DIR/${CAPTURE_NAME}_tx_truth.json
+
+PYTHONPATH=src python3 scripts/run_tx.py \
+    --config configs/tx_b210_cable_loopback.yaml \
+    --tx-gain 50 \
+    --amplitude 1.0 \
+    --dry-run \
+    --export-truth-json "$TRUTH_PATH"
+```
+
+这样做的目的不是重新发射，而是确保本轮目录下**必定**存在与当前 `CAPTURE_NAME` 绑定的 sidecar truth。
+
+#### 第 3 步：确认三件套后再复制
+
+先确认：
+
+```bash
+ls -lh "$CAPTURE_DIR"
+```
+
+同目录下应同时存在：
+
+- `<capture_stem>.sc16`
+- `<capture_stem>.json`
+- `<capture_stem>_tx_truth.json`
+
+确认无误后，若此时**已经插上移动硬盘**，推荐直接复制整个 `<capture_dir>`，不要再手工拆成三条文件复制命令。
+
+推荐命令如下：
+
+```bash
+DRIVE_NAME=<drive_name>
+DRIVE_ROOT="/media/$USER/$DRIVE_NAME"
+DEST_PARENT="$DRIVE_ROOT/GNSS_RX_Data_local/2026/2026_03_31"
+DEST_DIR="$DEST_PARENT/$CAPTURE_NAME"
+
+printf 'DRIVE_ROOT=<%s>\n' "$DRIVE_ROOT"
+printf 'DEST_DIR=<%s>\n' "$DEST_DIR"
+
+mkdir -p "$DEST_PARENT"
+cp -av "$CAPTURE_DIR" "$DEST_PARENT"/
+sync
+ls -lh "$DEST_DIR"
+```
+
+本轮 `ls /media/$USER` 已实测为：
+
+```text
+Seagate Basic
+```
+
+因此当前可直接写成：
+
+```bash
+DRIVE_ROOT="/media/$USER/Seagate Basic"
+DEST_PARENT="$DRIVE_ROOT/GNSS_RX_Data_local/2026/2026_03_31"
+DEST_DIR="$DEST_PARENT/$CAPTURE_NAME"
+
+mkdir -p "$DEST_PARENT"
+cp -av "$CAPTURE_DIR" "$DEST_PARENT"/
+sync
+ls -lh "$DEST_DIR"
+```
+
+复制完成后，`$DEST_DIR` 下应继续同时包含：
+
+- `<capture_stem>.sc16`
+- `<capture_stem>.json`
+- `<capture_stem>_tx_truth.json`
+
+若当前还**没有**插上移动硬盘，才退回到先复制到本机 `TRANSFER_DIR` 的旧流程：
 
 ```bash
 cp -v "$(dirname "$LOCAL_STEM")"/*.json "$TRANSFER_DIR"/
 cp -v "$(dirname "$LOCAL_STEM")"/*.sc16 "$TRANSFER_DIR"/
+cp -v "$TRUTH_PATH" "$TRANSFER_DIR"/
 ls -lh "$TRANSFER_DIR"
 ```
+
+额外说明：
+
+- 若 `record_rx.py` 是通过 `sudo chrt -f 50 ...` 启动，生成的 `.sc16/.json` 可能显示为 `root:root` 属主
+- 只要文件权限仍是可读的（例如 `-rw-r--r--`），后续 `ls`、`cp`、移动硬盘转运通常仍可继续
+- 若后面确实遇到权限问题，再单独执行 `sudo chown -R $USER:$USER "$CAPTURE_DIR"` 修正属主
 
 ### 16.6 文件量级
 
@@ -828,6 +1050,281 @@ ls -lh "$TRANSFER_DIR"
 
 - 约 `4.09 GB` 十进制
 - 约 `3.81 GiB` 二进制
+
+### 16.6.1 移动硬盘回到 Windows 后的 MATLAB 验证命令
+
+当移动硬盘重新插回 Windows 主力 MATLAB 分析机后，推荐先不要直接跑 `ber`，而是先在 MATLAB 命令行里完成下面这组验证。
+
+先确认 Windows 端 MATLAB 代码目录：
+
+```matlab
+CODE_ROOT = 'E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab';
+cd(CODE_ROOT)
+addpath(pwd)
+addpath(fullfile(pwd, 'functions'))
+addpath(fullfile(pwd, 'scripts'))
+rehash
+
+which ber -all
+which run_ber_loopback -all
+which run_prn_acquisition -all
+which recover_nav_bits -all
+which gnss_rx_resolve_accel_options -all
+```
+
+本轮已实测通过，下面这组输出就表示“代码侧验证通过，可以继续往下执行”：
+
+```text
+E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab\ber.m
+E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab\scripts\run_ber_loopback.m
+E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab\functions\run_prn_acquisition.m
+E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab\functions\recover_nav_bits.m
+E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab\functions\gnss_rx_resolve_accel_options.m
+```
+
+只要 `which ... -all` 全部指向 `E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab\...`，就说明：
+
+- MATLAB 已经加载到本轮正确代码副本
+- 不再受旧目录或网络盘 `Z:` 干扰
+- 可以继续执行下面的“移动硬盘盘符确认”和“采集三件套验证”
+
+若不确定移动硬盘当前在 Windows 上的盘符，可以先在 MATLAB 中执行：
+
+```matlab
+system('powershell -NoProfile -Command "Get-Volume | Select DriveLetter, FileSystemLabel | Format-Table -AutoSize"')
+```
+
+假设移动硬盘当前盘符为 `F:`，则继续执行：
+
+```matlab
+CAPTURE_DIR = ['F:\GNSS_RX_Data_local\2026\2026_03_31\' ...
+    '20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_' ...
+    'cf100000000_dur250p0s'];
+
+CAPTURE_STEM = fullfile(CAPTURE_DIR, ...
+    '20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur250p0s');
+
+dir(CAPTURE_DIR)
+exist([CAPTURE_STEM '.sc16'], 'file')
+exist([CAPTURE_STEM '.json'], 'file')
+exist([CAPTURE_STEM '_tx_truth.json'], 'file')
+truth = load_tx_truth_json([CAPTURE_STEM '_tx_truth.json']);
+disp(truth.prn_id)
+disp(truth.sample_rate)
+```
+
+本轮已实测通过，出现下面这类结果就表示“采集三件套 + sidecar truth 验证通过”：
+
+```text
+ans =
+
+     2
+
+ans =
+
+     2
+
+ans =
+
+     2
+
+     1
+
+     4092000
+```
+
+其中含义为：
+
+- 前面 3 个 `ans = 2` 表示：
+  - `[CAPTURE_STEM '.sc16']` 存在
+  - `[CAPTURE_STEM '.json']` 存在
+  - `[CAPTURE_STEM '_tx_truth.json']` 存在
+- `disp(truth.prn_id)` 输出 `1`，说明读取到的 truth 对应 `PRN 1`
+- `disp(truth.sample_rate)` 输出 `4092000`，说明 truth 中的采样率与本轮基线一致
+
+只要你看到的是这一类结果，就说明：
+
+- Windows 已能正常读取移动硬盘上的本轮采集目录
+- sidecar truth 与本轮文件名绑定正确
+- 可以继续进入下面的正式 `ber` 步骤
+
+这一步的目标不是先出 BER 数值，而是先确认：
+
+- MATLAB 已从 `E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab` 加载到正确代码
+- 移动硬盘上的 `250 s` 目录确实能被 Windows 正常读到
+- `.sc16`、`.json`、`_tx_truth.json` 三件套齐全
+- `load_tx_truth_json(...)` 能正常解析 sidecar truth
+
+以上都通过后，再进入后面的正式 `ber` 步骤。
+
+### 16.6.2 验证通过后的正式 `ber` 命令
+
+当 `which ... -all`、`exist(...)`、`load_tx_truth_json(...)` 都通过后，默认按 **GPU 加速优先** 的版本执行正式 BER：
+
+推荐先单独完成一次“GPU 启动检查”，再运行 `ber`：
+
+```matlab
+parallel.gpu.enableCUDAForwardCompatibility(true);
+gpuDeviceCount
+g = gpuDevice;
+disp(g.Name)
+disp(g.ComputeCapability)
+```
+
+只要这组命令能正常返回设备对象，就说明本轮 MATLAB 已经完成 GPU 绑定，可以继续把 `ACCEL_OPTIONS` 设为 GPU。
+
+本轮已实测通过，实际输出为：
+
+```text
+ans =
+
+     1
+
+警告: 将重新编译 GPU 库，因为您的设备比库更新。编译可能需要几分钟时间。
+
+NVIDIA GeForce RTX 5060
+12.0
+```
+
+这组结果的含义是：
+
+- `gpuDeviceCount = 1`：MATLAB 已检测到 1 块可见 GPU
+- `gpuDevice` 能成功返回设备对象：说明启用 `parallel.gpu.enableCUDAForwardCompatibility(true)` 后，GPU 已可被当前 MATLAB 会话实际使用
+- `NVIDIA GeForce RTX 5060`：当前绑定到的 GPU 设备名称
+- `12.0`：该卡的 `ComputeCapability`
+- “将重新编译 GPU 库”警告：属于 forward compatibility 模式下的预期现象，首次绑定新架构 GPU 时可能需要额外编译时间；只要后续没有报错中断，就不视为失败
+
+因此，本轮这组输出应判定为：
+
+```text
+GPU 启动检查通过，可以继续按 GPU 版本运行 ber
+```
+
+```matlab
+CODE_ROOT = 'E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab';
+cd(CODE_ROOT)
+addpath(pwd)
+addpath(fullfile(pwd, 'functions'))
+addpath(fullfile(pwd, 'scripts'))
+clear functions
+rehash
+
+parallel.gpu.enableCUDAForwardCompatibility(true);
+ACCEL_OPTIONS = struct( ...
+    'backend', 'gpu', ...
+    'precision', 'single', ...
+    'batch_ms', 2000);
+
+DRIVE = 'F:';  % 按当前移动硬盘实际盘符替换
+CAPTURE_STEM = [DRIVE '\GNSS_RX_Data_local\2026\2026_03_31\' ...
+    '20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_' ...
+    'cf100000000_dur250p0s\20260331_ber250s_localdisk_rawiq_sc16_zeroif_' ...
+    'prn1_spread_sr4092000_cf100000000_dur250p0s'];
+
+CAPTURE_PATH = CAPTURE_STEM;
+BER_MODE = 'tracked_truth';
+
+ber
+```
+
+本轮 GPU 相关背景如下：
+
+```matlab
+gpuDevice
+```
+
+本轮实测中，`gpuDeviceCount` 返回 `1`，说明 MATLAB 能看到 GPU；但 `gpuDevice` 报错提示该卡的 `compute capability 12.0` 高于当前 MATLAB 内置 CUDA 库原生支持范围，因此需要先启用：
+
+```matlab
+parallel.gpu.enableCUDAForwardCompatibility(true)
+```
+
+也就是说，上面正式 `ber` 命令里的这两行：
+
+```matlab
+parallel.gpu.enableCUDAForwardCompatibility(true);
+ACCEL_OPTIONS = struct('backend', 'gpu', 'precision', 'single', 'batch_ms', 2000);
+```
+
+就是本轮默认推荐的 GPU 版本。
+
+结合当前 MATLAB 代码实现，可把“GPU 真正参与了哪些环节”理解为：
+
+- `run_prn_acquisition`：会在 GPU 路径下调用 `compute_search_map_gpu(...)`，用 `gpuArray + FFT/IFFT` 完成捕获搜索
+- `recover_nav_bits`：会在 `gpu_enabled=true` 时，把批量相关求和放到 GPU 上执行
+- tracking 主循环：当前版本仍不等于“全流程 GPU”，因此日志中即使出现部分 CPU 阶段，也不代表 GPU 配置失效
+
+因此本轮判断“GPU 已生效”的标准，不是要求所有步骤都显示 GPU，而是看：
+
+- `gpuDevice` 能否正常返回设备对象
+- `ACCEL_OPTIONS.backend='gpu'` 后，日志中的 `resolved=gpu`
+- 日志中能打印出 `GPU 设备：[index] name`
+
+本轮正式 `ber` 已实测通过，关键输出如下：
+
+```text
+加速配置：requested=gpu, resolved=gpu, precision=single, batch_ms=2000, parfor=0
+GPU 设备：[1] NVIDIA GeForce RTX 5060
+=== Step 2: GPS L1 C/A 捕获 ===
+Step 2 后端：gpu（precision=single）
+捕获成功！Doppler = 0.0 Hz，码相位 = 2954 samples，次峰比 = 105.54
+TX truth：JSON 模式（capture sidecar truth）
+=== Step 3: open-loop truth 基线 ===
+Step 3 后端：gpu（precision=single, batch_ms=2000）
+=== Step 4: tracked BER 主链 ===
+Step 4 后端：cpu（tracking 主循环在 v1 保持 CPU）
+tracked BER：1.20e-03，匹配率：100.0%，bit 偏移：15 ms，pattern 偏移：7 bit
+========================================
+  BER：         1.20e-03
+  总发送比特数：12499
+  误码个数：    15
+  truth 匹配率：100.0%
+========================================
+```
+
+这组结果应判定为：
+
+- GPU 配置已生效：因为日志明确显示 `requested=gpu, resolved=gpu`
+- GPU 已参与 Step 2 / Step 3：捕获与 open-loop 相关计算走的是 GPU 路径
+- `Step 4 后端：cpu` 仍属正常：当前代码版本中 tracking 主循环本来就保持 CPU，不代表 GPU 失败
+- sidecar truth 已正确命中：日志显示 `TX truth：JSON 模式（capture sidecar truth）`
+- 本轮 `250 s` BER 已成功产出正式结果：`BER = 1.20e-03`，`truth 匹配率 = 100.0%`
+
+本轮末尾还出现过：
+
+```text
+警告: 将图例条目限制为 50 个。
+```
+
+这属于绘图阶段的 legend 数量提示，不影响 BER 数值本身，也不影响本轮结果判定。
+
+若你不想承担 forward compatibility 的额外不确定性，则继续保持 CPU 也完全可行；当前代码默认就是：
+
+```matlab
+ACCEL_OPTIONS = struct();
+```
+
+也就是 `requested=cpu, resolved=cpu, precision=double, batch_ms=2000, parfor=0`。
+
+额外说明：
+
+- 从本轮起，若你把 `ACCEL_OPTIONS.backend` 设为 `'auto'`，但 GPU 初始化失败，代码会自动回退到 CPU 并打印回退原因
+- 若你显式设为 `'gpu'`，则仍保持严格模式，GPU 初始化失败时直接报错
+
+这一步的预期现象是：
+
+- `ber` 能正常启动，不报“未找到函数”或“找不到采集文件”
+- 日志中优先使用 capture sidecar truth
+- BER 计算开始进入 acquisition / tracking / bit recovery 流程
+
+若你希望先做一次更稳妥的显式检查，也可以在 `ber` 前先执行：
+
+```matlab
+disp(CAPTURE_PATH)
+exist([CAPTURE_PATH '.json'], 'file')
+exist([CAPTURE_PATH '.sc16'], 'file')
+exist([CAPTURE_PATH '_tx_truth.json'], 'file')
+```
 
 ### 16.7 正式验收目标
 
@@ -945,6 +1442,12 @@ sudo chrt -f 50 env PYTHONPATH=src python3 scripts/record_rx.py \
 - 从裸机 Ubuntu 把采集数据带回主力机
 - 或把数据临时放到可移动介质再分析
 
+本轮默认口径：
+
+- 采集时先把数据写到 Ubuntu 本地目录 `~/GNSS_RX_Data_local/`
+- 采集完成后，再把目标轮次目录复制到移动硬盘
+- 不要求在 TX/RX 正在运行时同时挂着移动硬盘
+
 ### 18.1 找到移动硬盘挂载点
 
 ```bash
@@ -954,22 +1457,33 @@ ls /media/$USER/
 
 ### 18.2 推荐复制方式
 
+假设本轮目录是：
+
 ```bash
-cp -r ~/GNSS_RX_Data /media/$USER/<drive_name>/GNSS_RX_Data_baremetal
+CAPTURE_NAME=20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur250p0s
+CAPTURE_DIR=/home/$USER/GNSS_RX_Data_local/2026/2026_03_31/$CAPTURE_NAME
+```
+
+则推荐复制方式为：
+
+```bash
+mkdir -p /media/$USER/<drive_name>/GNSS_RX_Data_local/2026/2026_03_31
+cp -av "$CAPTURE_DIR" /media/$USER/<drive_name>/GNSS_RX_Data_local/2026/2026_03_31/
 sync
 ```
 
 若目录名含空格，例如 `Seagate Basic`：
 
 ```bash
-cp -r ~/GNSS_RX_Data "/media/$USER/Seagate Basic/GNSS_RX_Data_baremetal"
+mkdir -p "/media/$USER/Seagate Basic/GNSS_RX_Data_local/2026/2026_03_31"
+cp -av "$CAPTURE_DIR" "/media/$USER/Seagate Basic/GNSS_RX_Data_local/2026/2026_03_31/"
 sync
 ```
 
 ### 18.3 建议一起转移的文件
 
-- `GNSS_RX_Data_baremetal/`
-- 对应轮次的 `tx_truth.json`
+- 对应轮次的整目录 `<capture_dir>/`
+- 其中应同时包含 `.sc16`、`.json`、`_tx_truth.json`
 - 若需要复盘，还可额外保存 TX / RX 终端日志
 
 ---
@@ -983,7 +1497,8 @@ sync
 - 正式 BER 用 `ber`
 - 正式 BER 模式用 `tracked_truth`
 - 默认显式指定 `CAPTURE_PATH`
-- 默认显式指定 `TX_TRUTH_PATH`
+- 默认让 `ber` 自动优先匹配 capture sidecar truth
+- 根目录 `GNSS_RX_matlab/tx_truth.json` 只作为兼容旧流程的 fallback
 
 ### 19.2 Windows 主力机：推荐方案
 
@@ -1014,7 +1529,6 @@ cd('C:\VMwareVirtualMachines\GongXiangDocument\GNSS_RX_matlab')
 clear functions
 rehash
 
-TX_TRUTH_PATH = 'C:\VMwareVirtualMachines\GongXiangDocument\GNSS_RX_matlab\tx_truth.json';
 CAPTURE_PATH = ['C:\VMwareVirtualMachines\GongXiangDocument\GNSS_RX_Data_baremetal\2026\' ...
     '2026_03_31\20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_' ...
     'sr4092000_cf100000000_dur250p0s\20260331_ber250s_localdisk_rawiq_' ...
@@ -1047,7 +1561,6 @@ cd('C:\VMwareVirtualMachines\GongXiangDocument\GNSS_RX_matlab')
 clear functions
 rehash
 
-TX_TRUTH_PATH = 'C:\VMwareVirtualMachines\GongXiangDocument\GNSS_RX_matlab\tx_truth.json';
 CAPTURE_PATH = ['F:\GNSS_RX_Data_baremetal\2026\2026_03_31\' ...
     '20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_' ...
     'cf100000000_dur250p0s\20260331_ber250s_localdisk_rawiq_sc16_zeroif_' ...
@@ -1063,6 +1576,54 @@ ber
 GNSS_RX_DATA_DIR = 'F:\GNSS_RX_Data_baremetal';
 ```
 
+#### Windows 直读现有目录示例：`20260330_025519...dur300p0s`
+
+如果你手头已经有下面这类目录，并且目录里至少有同名的 `.json` 与 `.sc16`：
+
+```text
+F:\GNSS_RX_Data_baremetal\2026\2026_03_30\
+  20260330_025519_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur300p0s\
+    20260330_025519_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur300p0s.json
+    20260330_025519_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur300p0s.sc16
+    20260330_025519_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur300p0s_tx_truth.json
+```
+
+则在 MATLAB 中推荐直接传 stem 路径：
+
+```matlab
+cd('C:\VMwareVirtualMachines\GongXiangDocument\GNSS_RX_matlab')
+clear functions
+rehash
+
+CAPTURE_PATH = ['F:\GNSS_RX_Data_baremetal\2026\2026_03_30\' ...
+    '20260330_025519_rawiq_sc16_zeroif_prn1_spread_sr4092000_' ...
+    'cf100000000_dur300p0s\20260330_025519_rawiq_sc16_zeroif_' ...
+    'prn1_spread_sr4092000_cf100000000_dur300p0s'];
+BER_MODE = 'tracked_truth';
+```
+
+若同目录下还有 `<capture_stem>_tx_truth.json`，则此时直接执行：
+
+```matlab
+ber
+```
+
+脚本会优先把它识别为本轮 sidecar truth。
+
+若 sidecar truth 不存在，但 `GNSS_RX_matlab` 根目录下有兼容旧流程的 `tx_truth.json`，`ber` 也仍可继续跑；只是该 truth 已降级为 fallback。
+
+若当前只有 `.json + .sc16`，还没有与该轮 TX 参数一致的 truth JSON，则先做二选一：
+
+- 只想确认样本能否加载、能否捕获：运行 `result = run_capture_analysis(CAPTURE_PATH);`
+- 想继续跑完整 BER 链路用于诊断：可直接执行 `ber`，但日志会回退到 `TX truth：fallback 模式`，该结果默认不作为正式 BER 验收结论
+
+补充说明：
+
+- `CAPTURE_PATH` 也可以直接写成 `.json` 或 `.sc16` 文件路径，不一定非要 stem
+- 正式 BER 验收时，仍以日志出现 `TX truth：JSON 模式` 为准
+- 如果 sidecar truth 与 `GNSS_RX_matlab` 根目录 `tx_truth.json` 同时存在，当前默认优先使用 sidecar truth
+- 只有在 sidecar truth 缺失时，`ber` 才会回退到 `GNSS_RX_matlab` 根目录下的 `tx_truth.json`
+
 ### 19.4 Linux 主力机正式 BER 示例
 
 若主力机本身就是 Linux，并且 MATLAB 直接在 Linux 上运行：
@@ -1072,7 +1633,6 @@ cd('/home/shenao/projects/GNSS_RX/matlab')
 clear functions
 rehash
 
-TX_TRUTH_PATH = '/home/shenao/projects/GNSS_RX/matlab/tx_truth.json';
 CAPTURE_PATH = ['/home/shenao/GNSS_RX_Data_baremetal/2026/2026_03_31/' ...
     '20260331_ber250s_localdisk_rawiq_sc16_zeroif_prn1_spread_sr4092000_' ...
     'cf100000000_dur250p0s/20260331_ber250s_localdisk_rawiq_sc16_zeroif_' ...

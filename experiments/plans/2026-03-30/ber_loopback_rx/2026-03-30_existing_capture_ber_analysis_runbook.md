@@ -71,9 +71,9 @@ C:\VMwareVirtualMachines\GongXiangDocument\GNSS_RX_Data\2026\2026_03_28\20260328
 至少需要以下两类输入：
 
 - 一组采集文件：同名 `.sc16` 与 `.json`
-- 一份参考真值：`tx_truth.json`
+- 一份参考真值：优先推荐与采集 stem 绑定的 sidecar truth
 
-`tx_truth.json` 不是采集文件，也不是 BER 结果文件。它是 TX 在发射前导出的“比特真值契约”，主要告诉 RX：
+truth JSON 不是采集文件，也不是 BER 结果文件。它是 TX 在发射前导出的“比特真值契约”，主要告诉 RX：
 
 - 当前实际使用的导航 bit pattern
 - 发射起点对应的 `initial_nav_epoch` / `initial_nav_bit_index`
@@ -89,17 +89,38 @@ C:\VMwareVirtualMachines\GongXiangDocument\GNSS_RX_Data\2026\2026_03_28\20260328
 <capture_dir>/
   20260328_142122_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur30p0s.sc16
   20260328_142122_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur30p0s.json
-  tx_truth.json
+  20260328_142122_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur30p0s_tx_truth.json
 ```
 
 说明：
 
 - `CAPTURE_PATH` 可以传 stem 路径，也可以直接传 `.json` 或 `.sc16`
-- 若不显式给 `TX_TRUTH_PATH`，脚本会在采集目录旁自动尝试寻找：
-  - `tx_truth.json`
-  - `ber_truth.json`
+- 若不显式给 `TX_TRUTH_PATH`，脚本当前会按以下顺序自动尝试寻找：
   - `<capture_stem>_tx_truth.json`
   - `<capture_stem>.truth.json`
+  - `tx_truth.json`
+  - `ber_truth.json`
+  - MATLAB 工作区根目录下的 `tx_truth.json`
+- 正式 BER 当前优先推荐使用 sidecar truth；根目录 `tx_truth.json` 只作为兼容旧流程的 fallback
+
+### 4.1 为什么现在优先推荐 sidecar truth
+
+如果所有样本都共用 MATLAB 工作区根目录中的单份 `tx_truth.json`，很容易出现：
+
+- 当前分析的是 `3 月 30 日` 的采集
+- 根目录里的 truth 却是另一个时间点 later dry-run 导出的
+- MATLAB 日志虽然显示 `JSON 模式`，但 truth 并不一定匹配当前采集轮次
+
+因此从当前版本开始，更推荐让每份采集形成下面这组三件套：
+
+```text
+<capture_dir>/
+  <capture_stem>.sc16
+  <capture_stem>.json
+  <capture_stem>_tx_truth.json
+```
+
+这样复制到主力机后，只要设置 `CAPTURE_PATH`，`ber` 就会先匹配同目录、同 stem 的 truth 文件。
 
 ---
 
@@ -180,7 +201,7 @@ BER_MODE = 'tracked_truth';
 run('scripts/run_ber_loopback.m')
 ```
 
-前提是 `tx_truth.json` 就放在采集目录里，或者命名满足脚本的自动发现规则。
+前提是 sidecar truth 已放在采集目录里，或者命名满足脚本的自动发现规则。
 
 ### 方式 C：只想先看 open-loop 基线
 
@@ -198,9 +219,9 @@ run('scripts/run_ber_loopback.m')
 
 注意：当前默认最终结论仍应优先看 `tracked_truth`。
 
-### 方式 D：先补齐 truth JSON，再分析已有样本
+### 方式 D：先补齐 sidecar truth，再分析已有样本
 
-如果你现在只有采集文件，但还没有和本轮 TX 参数一致的 `tx_truth.json`，可以先按联合 runbook 的口径做一次 TX `dry-run`：
+如果你现在只有采集文件，但还没有和本轮 TX 参数一致的 truth JSON，建议优先补一份与采集 stem 绑定的 sidecar truth：
 
 ```bash
 cd /home/shenao/projects/gnss_tx
@@ -209,10 +230,18 @@ env PYTHONPATH=src python3 scripts/run_tx.py \
     --tx-gain 40 \
     --amplitude 1.0 \
     --dry-run \
-    --export-truth-json /mnt/hgfs/GongXiangDocument/GNSS_RX_matlab/tx_truth.json
+    --export-truth-json /path/to/<capture_dir>/<capture_stem>_tx_truth.json
 ```
 
 这一步不需要真实 RX 同时运行。
+
+如果你暂时只能维护一份全局 truth，也可以继续导出到：
+
+```text
+/mnt/hgfs/GongXiangDocument/GNSS_RX_matlab/tx_truth.json
+```
+
+但这条路径现在只建议作为兼容旧流程的 fallback，不建议继续作为正式 BER 的首选 truth 来源。
 
 如果你是在宿主机 MATLAB 上分析，还应确认 `GNSS_RX_matlab/` 中的脚本已经同步到较新版本；至少要覆盖：
 
