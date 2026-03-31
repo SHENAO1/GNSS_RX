@@ -13,6 +13,7 @@
 | [2026-03-27/ber_loopback_rx/2026-03-27_ber_loopback_impl_stages.md](2026-03-27/ber_loopback_rx/2026-03-27_ber_loopback_impl_stages.md) | 2026-03-27 | BER 三阶段实施方案（阶段思想保留，已被后续实现更新） | `[~]` 历史参考 |
 | [2026-03-28/ber_loopback_rx/2026-03-28_ber_loopback_rx_plan.md](2026-03-28/ber_loopback_rx/2026-03-28_ber_loopback_rx_plan.md) | 2026-03-28 | 当前 BER 主计划：truth JSON + tracked BER + 30 s 优先收敛 | `[~]` 当前执行主线 |
 | [2026-03-28/ber_loopback_rx/2026-03-28_ber_loopback_debug_playbook.md](2026-03-28/ber_loopback_rx/2026-03-28_ber_loopback_debug_playbook.md) | 2026-03-28 | BER 排障操作手册，含 truth / tracked / chunked 当前流程 | `[~]` 当前排障手册 |
+| [2026-03-30/ber_loopback_rx/2026-03-30_existing_capture_ber_analysis_runbook.md](2026-03-30/ber_loopback_rx/2026-03-30_existing_capture_ber_analysis_runbook.md) | 2026-03-30 | 已有采集数据 BER 分析手册：直接对 `.sc16 + .json` 做误码率分析 | `[~]` 当前分析入口 |
 | [2026-03-27/freq_offset_acquisition_stability/2026-03-27_freq_offset_acquisition_stability.md](2026-03-27/freq_offset_acquisition_stability/2026-03-27_freq_offset_acquisition_stability.md) | 2026-03-27 | 人为频偏对 GPS L1 C/A 捕获稳定性的影响研究 | `[ ]` 待执行 |
 | [2026-03-27/lo_leakage_acquisition_study/2026-03-27_lo_leakage_acquisition_study.md](2026-03-27/lo_leakage_acquisition_study/2026-03-27_lo_leakage_acquisition_study.md) | 2026-03-27 | 本振泄露对单星捕获影响的研究 | `[ ]` 待执行 |
 | [2026-03-27/correlation_length_accumulation_study/2026-03-27_correlation_length_accumulation_study.md](2026-03-27/correlation_length_accumulation_study/2026-03-27_correlation_length_accumulation_study.md) | 2026-03-27 | 相关长度与积累策略对采集性能的影响研究 | `[ ]` 待执行 |
@@ -37,6 +38,7 @@ _暂无_
 
 ## 更新日志
 
+- **2026-03-30**：新增“已有采集数据 BER 分析手册”，明确当前默认动作是先分析已有数据，再决定是否重采
 - **2026-03-28**：BER 文档体系已更新为 truth JSON + tracked BER + chunked capture 的当前代码状态
 - **2026-03-27**：BER、频偏研究、LO 泄露研究、相关长度研究统一收纳到 `plans/2026-03-27/<topic>/`
 - **2026-03-26**：TX/RX 综合改进路线图收纳到 `plans/2026-03-26/tx_rx_improvement/`

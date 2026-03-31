@@ -2,7 +2,7 @@
 
 > 创建时间：2026-03-27
 > 对应主计划：[2026-03-27_ber_loopback_rx_plan.md](2026-03-27_ber_loopback_rx_plan.md)
-> 状态：`[~]` 阶段思想保留；当前已进入 truth + tracked BER + 长时接口准备阶段
+> 状态：`[~]` 阶段思想保留；当前默认先分析已有采集数据的 BER，再决定是否重采
 
 ---
 
@@ -16,8 +16,13 @@
   - open-loop truth 基线
   - tracked BER 主链
   - `single/chunked` 采集接口
+- 因此当前第一优先级不再是补采集步骤，而是对固定样本直接做离线 BER 分析
 
 当前实际执行应以 `2026-03-28_ber_loopback_rx_plan.md` 为主，本文件用于解释为什么仍然坚持“先 30 s、再 250 s、最后 1 h”。
+
+若手头已经有采集样本，建议先参考：
+
+- `/home/shenao/projects/GNSS_RX/experiments/plans/2026-03-30/ber_loopback_rx/2026-03-30_existing_capture_ber_analysis_runbook.md`
 
 ---
 
@@ -44,7 +49,7 @@
 - 让 `BER < 1e-3`
 - 消除 `ambiguity_flag`
 
-当前状态：`[~]` 代码已完成，待宿主机 MATLAB 验证
+当前状态：`[~]` 代码已完成；当前默认动作是直接分析固定样本，而不是再采新样本
 
 ### 阶段 1：新的 30 s 短时真实硬件验证
 
@@ -73,3 +78,8 @@
 3. 做 250 s
 4. 做 1 h chunked
 5. 视需要再做 Full 1h Raw IQ
+
+补充说明：
+
+- 如果现有固定样本尚未分析完，不建议跳过它直接进入新采
+- “新采 30 s”是复验动作，不是默认起点

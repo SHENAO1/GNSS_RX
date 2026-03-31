@@ -2,7 +2,7 @@
 
 > 创建时间：2026-03-27
 > 对应发射端计划：`/home/shen/projects/gnss_tx/experiments/plans/2026-03-27/ber_loopback_tx/2026-03-27_ber_loopback_tx_plan.md`
-> 状态：`[~]` 历史主计划；基础能力已落地，当前执行以 2026-03-28 重构版为准
+> 状态：`[~]` 历史主计划；基础能力已落地，当前默认下一步是先分析已有数据的 BER
 > 里程碑目标：Milestone 1 — 射频线直连闭环 BER 验证
 
 ---
@@ -17,11 +17,13 @@
 - RX 侧已新增 truth JSON 加载能力
 - RX 侧已新增 `tracked_truth` 主链
 - 采集端已支持 `single/chunked` 双模式
+- 当前推荐入口已从“先组织采集”切换为“先对已有采集文件运行 `run_ber_loopback.m`”
 
 当前执行应优先参考：
 
 - `/home/shen/projects/GNSS_RX/experiments/plans/2026-03-28/ber_loopback_rx/2026-03-28_ber_loopback_rx_plan.md`
 - `/home/shen/projects/GNSS_RX/experiments/plans/2026-03-28/ber_loopback_rx/2026-03-28_ber_loopback_debug_playbook.md`
+- `/home/shenao/projects/GNSS_RX/experiments/plans/2026-03-30/ber_loopback_rx/2026-03-30_existing_capture_ber_analysis_runbook.md`
 
 ---
 
@@ -49,3 +51,16 @@
 | MATLAB BER 主脚本 | ✅ 已实现 | `matlab/scripts/run_ber_loopback.m` |
 
 **结论：本页原先“需要新建 MATLAB 文件”的任务已经完成，当前重点是 30 s tracked BER 收敛。**
+
+---
+
+## 当前推荐动作
+
+如果手头已经有 `.sc16 + .json` 采集数据，当前默认动作是：
+
+1. 显式设置 `CAPTURE_PATH`
+2. 显式设置 `TX_TRUTH_PATH`
+3. 在 MATLAB 中运行 `run('scripts/run_ber_loopback.m')`
+4. 优先读取 `tracked_truth` 的 BER、匹配率和诊断图
+
+只有在现有数据已经确认存在 overflow、underflow 或明显连续性破坏时，才把“重新采集”提升为主线。
