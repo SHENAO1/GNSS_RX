@@ -560,7 +560,7 @@ PYTHONPATH=src python3 scripts/run_tx.py \
 deactivate
 ```
 
-### 11.3 若主力机为 Windows 且使用 VMware 共享目录
+### 11.3 兼容旧流程：保存到待同步工作区镜像根目录
 
 ```bash
 cd ~/projects/gnss_tx
@@ -570,11 +570,11 @@ PYTHONPATH=src python3 scripts/run_tx.py \
     --tx-gain 50 \
     --amplitude 1.0 \
     --dry-run \
-    --export-truth-json /mnt/hgfs/GongXiangDocument/GNSS_RX_matlab/tx_truth.json
+    --export-truth-json ~/GNSS_RX_matlab_share/tx_truth.json
 deactivate
 ```
 
-这条路径继续保留，但当前只建议作为兼容旧流程的 fallback truth，不再推荐作为正式 BER 的首选 truth 来源。
+这条路径继续保留，但当前只建议作为兼容旧流程的 fallback truth，不再推荐作为正式 BER 的首选 truth 来源。若后续需要同步到 Windows 主力机，再通过 `robocopy Z:\ E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab /MIR` 一并带过去。
 
 ### 11.4 完成标志
 
@@ -588,22 +588,31 @@ deactivate
 
 ### 12.1 同步入口
 
-唯一推荐同步方式：在 Ubuntu 端执行 `sync_matlab.sh`，把 `GNSS_RX/matlab/` 镜像到一个**实际存在且可写**的目标目录。
+当前唯一推荐同步方式是“两段式同步”：
+
+1. Ubuntu 端把 `GNSS_RX/matlab/` 镜像到本机共享目录 `~/GNSS_RX_matlab_share`
+2. Windows 主力机从已挂载网络盘 `Z:`（`\\192.168.100.86\gnss_rx_matlab`）同步到本地分析目录 `E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab`
+
+Ubuntu 端执行：
 
 ```bash
 cd ~/projects/GNSS_RX
-bash ./scripts/sync_matlab.sh <MATLAB_WORKSPACE_DIR>
+bash ./scripts/sync_matlab.sh ~/GNSS_RX_matlab_share
 ```
 
-常见目标目录示例：
+Windows PowerShell 执行：
 
-- VMware 共享目录：`/mnt/hgfs/GongXiangDocument/GNSS_RX_matlab`
-- 移动硬盘挂载点：`/media/$USER/<drive_name>/GNSS_RX_matlab`
-- Ubuntu 本机临时目录：`$HOME/GNSS_RX_matlab`
+```powershell
+robocopy Z:\ E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab /MIR
+```
 
 若这里直接运行 `./scripts/sync_matlab.sh ...` 出现“权限不够”，通常只是脚本暂时没有执行位；优先改用 `bash ./scripts/sync_matlab.sh ...` 即可继续。
 
-若目标写成 `/mnt/hgfs/...` 却报 `mkdir: 无法创建目录 "/mnt/hgfs": 权限不够`，优先按“该机没有 VMware 共享目录挂载”处理。此时不要继续硬用 `/mnt/hgfs/...`，而应改成这台 Ubuntu 当前真实存在的可写目录；如果本轮走移动硬盘转运，推荐直接改成 `/media/$USER/<drive_name>/GNSS_RX_matlab`。
+注意：
+
+- 文档中的 `<...>` 只表示“这里需要替换成实际路径”的占位符，不能原样粘贴进 Bash
+- 不再推荐 `/mnt/hgfs/...` 或 VMware 共享目录；当前文档后续均以网络盘 `Z:` 和本地目录 `E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab` 为准
+- `~/GNSS_RX_matlab_share` 只是 Ubuntu 侧待同步镜像，不应手工改代码；源码真相源仍是仓库里的 `GNSS_RX/matlab/`
 
 同步内容包括：
 
@@ -613,6 +622,7 @@ bash ./scripts/sync_matlab.sh <MATLAB_WORKSPACE_DIR>
 - `architecture.drawio`
 - `gnss_rx_user_paths.m.example`
 - 根目录快捷入口 `ber.m`
+- 根目录 chunked 汇总入口 `run_ber_loopback_chunk_group.m`
 
 注意：
 
@@ -639,14 +649,19 @@ bash ./scripts/sync_matlab.sh <MATLAB_WORKSPACE_DIR>
 进入主力机 MATLAB 后，先执行：
 
 ```matlab
+cd('E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab')
+clear functions
+rehash
+
 which ber -all
 which run_ber_loopback -all
+which run_ber_loopback_chunk_group -all
 which run_prn_acquisition -all
 which recover_nav_bits -all
 which gnss_rx_resolve_accel_options -all
 ```
 
-要求这些路径都指向本轮刚同步的工作区。
+要求这些路径都指向本轮刚同步的 `E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab\...`。
 
 ---
 
@@ -667,7 +682,7 @@ which gnss_rx_resolve_accel_options -all
 当前历史基线样本：
 
 ```text
-C:\VMwareVirtualMachines\GongXiangDocument\GNSS_RX_Data\2026\2026_03_28\20260328_142122_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur30p0s
+E:\MATLAB_code_Gongwei_Local\GNSS_RX_Data_local\2026\2026_03_28\20260328_142122_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur30p0s
 ```
 
 本轮回归时建议显式指定 `CAPTURE_PATH`，不要依赖“自动选最新文件”。
@@ -675,11 +690,11 @@ C:\VMwareVirtualMachines\GongXiangDocument\GNSS_RX_Data\2026\2026_03_28\20260328
 ### 13.2 Windows 主力机正式 BER 示例
 
 ```matlab
-cd('C:\VMwareVirtualMachines\GongXiangDocument\GNSS_RX_matlab')
+cd('E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab')
 clear functions
 rehash
 
-CAPTURE_PATH = ['C:\VMwareVirtualMachines\GongXiangDocument\GNSS_RX_Data\2026\' ...
+CAPTURE_PATH = ['E:\MATLAB_code_Gongwei_Local\GNSS_RX_Data_local\2026\' ...
     '2026_03_28\20260328_142122_rawiq_sc16_zeroif_prn1_spread_sr4092000_' ...
     'cf100000000_dur30p0s\20260328_142122_rawiq_sc16_zeroif_prn1_spread_' ...
     'sr4092000_cf100000000_dur30p0s'];
@@ -695,7 +710,7 @@ cd('/home/shenao/projects/GNSS_RX/matlab')
 clear functions
 rehash
 
-CAPTURE_PATH = ['/mnt/hgfs/GongXiangDocument/GNSS_RX_Data/2026/' ...
+CAPTURE_PATH = ['/home/shenao/GNSS_RX_Data_local/2026/' ...
     '2026_03_28/20260328_142122_rawiq_sc16_zeroif_prn1_spread_sr4092000_' ...
     'cf100000000_dur30p0s/20260328_142122_rawiq_sc16_zeroif_prn1_spread_' ...
     'sr4092000_cf100000000_dur30p0s'];
@@ -867,13 +882,7 @@ PYTHONPATH=src python3 scripts/record_rx.py \
 
 ### 16.1 为什么不建议直接写共享目录
 
-历史经验已经表明，长时采集若直接写：
-
-```text
-/mnt/hgfs/...
-```
-
-更容易把共享目录写盘抖动和主机负载混进来，增加 overflow 风险。
+历史经验已经表明，长时采集若直接写外部共享目录或网络挂载目录，更容易把共享链路的写盘抖动和主机负载混进来，增加 overflow 风险。
 
 因此 250 s 统一推荐流程是：
 
@@ -1436,14 +1445,24 @@ MATLAB 端本章统一给出 3 类命令：
 
 ### 17.5 联机 30 min
 
+长时分析路径选择：
+
+| 场景 | 推荐采集/分析路径 | 说明 |
+|------|-------------------|------|
+| `< 250 s` | `single` 或 `chunked` 均可 | 数据量较小，`run_capture_analysis` / `ber` 直接处理通常可接受 |
+| `30 min / 45 min / 60 min` | 默认 `chunked` | 当前正式 BER 主路径；可用 `run_ber_loopback_chunk_group(CAPTURE_DIR)` 做单段或整组汇总 |
+| 特殊排障 / 兼容性留样 | `single` | 保留用于采集归档与必要时局部诊断，不承诺对超大 `single` 文件直接全长 BER |
+
 #### 17.5.1 变量块
 
-先统一定义 `chunked` 和 `single` 两套变量：
+本轮正式推荐：`30 min` 默认只采 `chunked`，并把每个 chunk 固定为 `5 min = 300 s`。先统一定义变量：
 
 ```bash
 RUN_TS=$(date +%Y%m%d_%H%M%S)
 TODAY_YEAR=$(date +%Y)
 TODAY_DIR=$(date +%Y_%m_%d)
+CHUNK_DURATION_S=300
+TOTAL_DURATION_S=1800
 
 CAPTURE_GROUP_ID_CHUNK=${RUN_TS}_ber30min_chunked_prn1_spread_sr4p092e6_cf100e6_d1800s
 CAPTURE_DIR_CHUNK=/home/$USER/GNSS_RX_Data_local/$TODAY_YEAR/$TODAY_DIR/$CAPTURE_GROUP_ID_CHUNK
@@ -1456,7 +1475,16 @@ LOCAL_STEM_SINGLE=$CAPTURE_DIR_SINGLE/$CAPTURE_NAME_SINGLE
 mkdir -p "$CAPTURE_DIR_CHUNK" "$CAPTURE_DIR_SINGLE"
 printf 'CAPTURE_DIR_CHUNK=<%s>\n' "$CAPTURE_DIR_CHUNK"
 printf 'CAPTURE_DIR_SINGLE=<%s>\n' "$CAPTURE_DIR_SINGLE"
+printf 'TOTAL_DURATION_S=%s, CHUNK_DURATION_S=%s, EXPECTED_CHUNKS=%s\n' \
+    "$TOTAL_DURATION_S" "$CHUNK_DURATION_S" "$((TOTAL_DURATION_S / CHUNK_DURATION_S))"
 ```
+
+说明：
+
+- 当前正式 30 min BER 主路径默认使用 `chunked`
+- `CHUNK_DURATION_S=300` 表示每个 chunk 为 `5 min`
+- `TOTAL_DURATION_S=1800` 且 `CHUNK_DURATION_S=300` 时，预期得到 `chunk0001of0006 ... chunk0006of0006`
+- `single` 变量继续保留，仅用于兼容留样；若本轮不采 `single`，后续 `17.5.5 / 17.5.6` 会自动跳过它
 
 #### 17.5.2 TX 端命令
 
@@ -1478,11 +1506,13 @@ source .venv/bin/activate
 
 sudo chrt -f 50 env PYTHONPATH=src python3 scripts/record_rx.py \
     --config configs/rx_baremetal.yaml \
-    --duration 1800 \
+    --duration "$TOTAL_DURATION_S" \
     --capture-mode chunked \
-    --chunk-duration 30 \
+    --chunk-duration "$CHUNK_DURATION_S" \
     --output-stem "$LOCAL_STEM_CHUNK"
 ```
+
+说明：该命令会在 `30 min` 总时长内生成 `6` 个 `5 min` chunk。
 
 #### 17.5.4 RX 端命令：single 版本
 
@@ -1503,28 +1533,40 @@ sudo chrt -f 50 env PYTHONPATH=src python3 scripts/record_rx.py \
 cd ~/projects/gnss_tx
 source .venv/bin/activate
 
-: "${CAPTURE_DIR_CHUNK:?Run 17.5.1 first in the same shell, or set CAPTURE_DIR_CHUNK manually}"
-: "${CAPTURE_DIR_SINGLE:?Run 17.5.1 first in the same shell, or set CAPTURE_DIR_SINGLE manually}"
-: "${CAPTURE_NAME_SINGLE:?Run 17.5.1 first in the same shell, or set CAPTURE_NAME_SINGLE manually}"
+EXPORTED_ANY=0
 
-mkdir -p "$CAPTURE_DIR_CHUNK" "$CAPTURE_DIR_SINGLE"
-printf 'CAPTURE_DIR_CHUNK=<%s>\n' "$CAPTURE_DIR_CHUNK"
-printf 'CAPTURE_DIR_SINGLE=<%s>\n' "$CAPTURE_DIR_SINGLE"
+if [ -n "${CAPTURE_DIR_CHUNK:-}" ] && [ -d "$CAPTURE_DIR_CHUNK" ]; then
+    mkdir -p "$CAPTURE_DIR_CHUNK"
+    printf 'CAPTURE_DIR_CHUNK=<%s>\n' "$CAPTURE_DIR_CHUNK"
+    PYTHONPATH=src python3 scripts/run_tx.py \
+        --config configs/tx_b210_cable_loopback.yaml \
+        --tx-gain 50 \
+        --amplitude 1.0 \
+        --dry-run \
+        --export-truth-json "$CAPTURE_DIR_CHUNK/tx_truth.json"
+    EXPORTED_ANY=1
+else
+    printf 'Skipping chunked truth export: CAPTURE_DIR_CHUNK is unset or missing.\n'
+fi
 
-PYTHONPATH=src python3 scripts/run_tx.py \
-    --config configs/tx_b210_cable_loopback.yaml \
-    --tx-gain 50 \
-    --amplitude 1.0 \
-    --dry-run \
-    --export-truth-json "$CAPTURE_DIR_CHUNK/tx_truth.json"
+if [ -n "${CAPTURE_DIR_SINGLE:-}" ] && [ -n "${CAPTURE_NAME_SINGLE:-}" ] && [ -d "$CAPTURE_DIR_SINGLE" ]; then
+    mkdir -p "$CAPTURE_DIR_SINGLE"
+    printf 'CAPTURE_DIR_SINGLE=<%s>\n' "$CAPTURE_DIR_SINGLE"
+    PYTHONPATH=src python3 scripts/run_tx.py \
+        --config configs/tx_b210_cable_loopback.yaml \
+        --tx-gain 50 \
+        --amplitude 1.0 \
+        --dry-run \
+        --export-truth-json "$CAPTURE_DIR_SINGLE/${CAPTURE_NAME_SINGLE}_tx_truth.json"
+    EXPORTED_ANY=1
+else
+    printf 'Skipping single truth export: CAPTURE_DIR_SINGLE is unset or missing.\n'
+fi
 
-PYTHONPATH=src python3 scripts/run_tx.py \
-    --config configs/tx_b210_cable_loopback.yaml \
-    --tx-gain 50 \
-    --amplitude 1.0 \
-    --dry-run \
-    --export-truth-json "$CAPTURE_DIR_SINGLE/${CAPTURE_NAME_SINGLE}_tx_truth.json"
+[ "$EXPORTED_ANY" -eq 1 ] || { printf 'No capture directory available for truth export.\n' >&2; exit 1; }
 ```
+
+若本轮正式只采 `chunked`，执行这一节时只需要确保 `CAPTURE_DIR_CHUNK` 对应目录存在即可。
 
 #### 17.5.6 导出到移动硬盘 `Seagate Basic`
 
@@ -1567,7 +1609,7 @@ fi
 
 #### 17.5.7 MATLAB 命令：chunked 版本
 
-以下命令默认在**已回传到 Windows 本地 SSD**后执行；并且应将示例中的 `20260331_190530...` 替换为本轮真实打印出来的 `CAPTURE_GROUP_ID_CHUNK`。
+以下命令默认在**已按第十二节完成 MATLAB 代码同步，并且数据已回传到 Windows 本地 SSD**后执行；并且应将示例中的 `20260331_190530...` 替换为本轮真实打印出来的 `CAPTURE_GROUP_ID_CHUNK`。
 
 ```matlab
 cd('E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab')
@@ -1575,11 +1617,11 @@ clear functions
 rehash
 
 CAPTURE_GROUP_ID = '20260331_190530_ber30min_chunked_prn1_spread_sr4p092e6_cf100e6_d1800s';
-CAPTURE_DIR = fullfile('E:\GNSS_RX_Data_local\2026\2026_03_31', CAPTURE_GROUP_ID);
+CAPTURE_DIR = fullfile('E:\MATLAB_code_Gongwei_Local\GNSS_RX_Data_local\2026\2026_03_31', CAPTURE_GROUP_ID);
 
-CAPTURE_PATH_1  = fullfile(CAPTURE_DIR, [CAPTURE_GROUP_ID '_chunk0001of0060']);
-CAPTURE_PATH_30 = fullfile(CAPTURE_DIR, [CAPTURE_GROUP_ID '_chunk0030of0060']);
-CAPTURE_PATH_60 = fullfile(CAPTURE_DIR, [CAPTURE_GROUP_ID '_chunk0060of0060']);
+CAPTURE_PATH_1 = fullfile(CAPTURE_DIR, [CAPTURE_GROUP_ID '_chunk0001of0006']);
+CAPTURE_PATH_3 = fullfile(CAPTURE_DIR, [CAPTURE_GROUP_ID '_chunk0003of0006']);
+CAPTURE_PATH_6 = fullfile(CAPTURE_DIR, [CAPTURE_GROUP_ID '_chunk0006of0006']);
 ```
 
 快速体检：
@@ -1607,8 +1649,74 @@ run('scripts/run_ber_loopback.m')
 建议顺序：
 
 - 先跑 `CAPTURE_PATH_1`
-- 再把 `CAPTURE_PATH` 改成 `CAPTURE_PATH_30`
-- 最后改成 `CAPTURE_PATH_60`
+- 再把 `CAPTURE_PATH` 改成 `CAPTURE_PATH_3`
+- 最后改成 `CAPTURE_PATH_6`
+
+说明：
+
+- 上述 `CAPTURE_PATH_1 / _3 / _6` 仍是**单个 chunk 抽查**
+- 若要对单个 `chunked` 或整组 `chunk0001of0006 ... chunk0006of0006` 给出 BER 结论，应使用下面的统一入口
+
+统一 chunked BER 入口：
+
+```matlab
+batch_result = run_ber_loopback_chunk_group(CAPTURE_DIR);
+```
+
+若只想对单个 chunk 跑同一入口，也可直接写：
+
+```matlab
+single_chunk_result = run_ber_loopback_chunk_group(CAPTURE_PATH_1);
+```
+
+查看汇总结果：
+
+```matlab
+batch_result.aggregate_ber
+batch_result.aggregate_errors
+batch_result.aggregate_bits
+batch_result.successful_chunks
+batch_result.failed_chunks
+```
+
+说明：
+
+- 传入 `CAPTURE_DIR` 时，该入口会“逐个 chunk 跑 `tracked_truth`，再汇总总误码数 / 总比特数”
+- 传入 `CAPTURE_PATH_1` 这类单个 chunk 路径时，它会退化成“只分析这一段 chunk”
+- 它不是把所有 `.sc16` 原始文件物理拼接成一个超大文件
+- `batch_result.per_chunk` 中会保留每个 chunk 的 BER 摘要，便于定位是哪一段开始恶化
+- 若 `batch_result.failed_chunks` 非空，则说明整轮结果不完整，应优先排查失败 chunk
+
+#### 17.5.7A MATLAB 代码同步
+
+在 Windows 主力机运行 `17.5.7` 之前，先按第十二节完成 MATLAB 代码同步：
+
+Ubuntu：
+
+```bash
+cd ~/projects/GNSS_RX
+bash ./scripts/sync_matlab.sh ~/GNSS_RX_matlab_share
+```
+
+Windows PowerShell：
+
+```powershell
+robocopy Z:\ E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab /MIR
+```
+
+Windows MATLAB 自检：
+
+```matlab
+cd('E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab')
+clear functions
+rehash
+
+which ber -all
+which run_ber_loopback -all
+which run_ber_loopback_chunk_group -all
+```
+
+要求这三条都指向 `E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab\...`。
 
 #### 17.5.8 MATLAB 命令：single 版本
 
@@ -1630,9 +1738,27 @@ CAPTURE_PATH = fullfile(CAPTURE_DIR, CAPTURE_NAME);
 result = run_capture_analysis(CAPTURE_PATH);
 ```
 
+说明：
+
+- `single` 长时文件会先在 `load_gnss_rx_capture` 中一次性整文件读入内存
+- 对 `30 min` 量级的 `single`，若 `.sc16` 已达数十 GB，`run_capture_analysis(CAPTURE_PATH)` 可能在 Step 1 直接 OOM
+- 这不是 `ACCEL_OPTIONS.backend='gpu'` 能绕过的问题，因为 OOM 发生在 GPU 计算开始之前
+- 当前正式长时 BER 默认请改走 `17.5.7` 的 `chunked` 路径；`single` 仅保留为采后归档与必要时局部诊断入口
+
 正式 BER：
 
 ```matlab
+BER_MODE = 'tracked_truth';
+ber
+```
+
+若确认需要对小体量 `single` 样本继续尝试 BER，可先显式使用当前正式 GPU 配置：
+
+```matlab
+ACCEL_OPTIONS = struct( ...
+    'backend', 'gpu', ...
+    'precision', 'single', ...
+    'batch_ms', 2000);
 BER_MODE = 'tracked_truth';
 ber
 ```
@@ -1812,6 +1938,33 @@ run('scripts/run_ber_loopback.m')
 - 再把 `CAPTURE_PATH` 改成 `CAPTURE_PATH_45`
 - 最后改成 `CAPTURE_PATH_90`
 
+说明：
+
+- 上述 `CAPTURE_PATH_1 / _45 / _90` 仍是**单个 chunk 抽查**
+- 若要对单个 `chunked` 或整组 `chunk0001of0090 ... chunk0090of0090` 给出 BER 结论，应使用下面的统一入口
+
+统一 chunked BER 入口：
+
+```matlab
+batch_result = run_ber_loopback_chunk_group(CAPTURE_DIR);
+```
+
+若只想对单个 chunk 跑同一入口，也可直接写：
+
+```matlab
+single_chunk_result = run_ber_loopback_chunk_group(CAPTURE_PATH_1);
+```
+
+查看汇总结果：
+
+```matlab
+batch_result.aggregate_ber
+batch_result.aggregate_errors
+batch_result.aggregate_bits
+batch_result.successful_chunks
+batch_result.failed_chunks
+```
+
 #### 17.6.8 MATLAB 命令：single 版本
 
 应将下面示例里的 `20260331_190530...` 替换为本轮真实 `CAPTURE_NAME_SINGLE`：
@@ -1831,6 +1984,12 @@ CAPTURE_PATH = fullfile(CAPTURE_DIR, CAPTURE_NAME);
 ```matlab
 result = run_capture_analysis(CAPTURE_PATH);
 ```
+
+说明：
+
+- `45 min single` 属于长时大文件，当前不作为正式 BER 主路径
+- 若 `run_capture_analysis(CAPTURE_PATH)` 在 Step 1 OOM，根因是整文件加载，而不是 GPU 算子不足
+- 当前正式结论请默认改走 `17.6.7` 的 `chunked` 路径；`single` 仅保留为归档与必要时局部诊断入口
 
 正式 BER：
 
@@ -2014,6 +2173,33 @@ run('scripts/run_ber_loopback.m')
 - 再把 `CAPTURE_PATH` 改成 `CAPTURE_PATH_60`
 - 最后改成 `CAPTURE_PATH_120`
 
+说明：
+
+- 上述 `CAPTURE_PATH_1 / _60 / _120` 仍是**单个 chunk 抽查**
+- 若要对单个 `chunked` 或整组 `chunk0001of0120 ... chunk0120of0120` 给出 BER 结论，应使用下面的统一入口
+
+统一 chunked BER 入口：
+
+```matlab
+batch_result = run_ber_loopback_chunk_group(CAPTURE_DIR);
+```
+
+若只想对单个 chunk 跑同一入口，也可直接写：
+
+```matlab
+single_chunk_result = run_ber_loopback_chunk_group(CAPTURE_PATH_1);
+```
+
+查看汇总结果：
+
+```matlab
+batch_result.aggregate_ber
+batch_result.aggregate_errors
+batch_result.aggregate_bits
+batch_result.successful_chunks
+batch_result.failed_chunks
+```
+
 #### 17.7.8 MATLAB 命令：single 版本
 
 应将下面示例里的 `20260331_190530...` 替换为本轮真实 `CAPTURE_NAME_SINGLE`：
@@ -2033,6 +2219,12 @@ CAPTURE_PATH = fullfile(CAPTURE_DIR, CAPTURE_NAME);
 ```matlab
 result = run_capture_analysis(CAPTURE_PATH);
 ```
+
+说明：
+
+- `60 min single` 在当前代码状态下通常会先卡在整文件加载内存压力，不建议作为正式 BER 主路径
+- 即使启用 GPU，`load_gnss_rx_capture` 仍会先一次性读完整个 `.sc16`，因此 GPU 不能解决该阶段的 OOM
+- 当前正式结论请默认改走 `17.7.7` 的 `chunked` 路径；`single` 仅保留为归档与必要时局部诊断入口
 
 正式 BER：
 
@@ -2215,9 +2407,9 @@ sudo lsof +L1
 推荐目录结构：
 
 ```text
-C:\VMwareVirtualMachines\GongXiangDocument\
+E:\MATLAB_code_Gongwei_Local\
 ├── GNSS_RX_matlab\
-└── GNSS_RX_Data_baremetal\
+└── GNSS_RX_Data_local\
 ```
 
 若要让“自动找最新采集”也能工作，可在：
@@ -2227,17 +2419,17 @@ C:\VMwareVirtualMachines\GongXiangDocument\
 中写：
 
 ```matlab
-GNSS_RX_DATA_DIR = 'C:\VMwareVirtualMachines\GongXiangDocument\GNSS_RX_Data_baremetal';
+GNSS_RX_DATA_DIR = 'E:\MATLAB_code_Gongwei_Local\GNSS_RX_Data_local';
 ```
 
 #### Windows 正式 BER 示例：本地 SSD 版本
 
 ```matlab
-cd('C:\VMwareVirtualMachines\GongXiangDocument\GNSS_RX_matlab')
+cd('E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab')
 clear functions
 rehash
 
-CAPTURE_PATH = ['C:\VMwareVirtualMachines\GongXiangDocument\GNSS_RX_Data_baremetal\2026\' ...
+CAPTURE_PATH = ['E:\MATLAB_code_Gongwei_Local\GNSS_RX_Data_local\2026\' ...
     '2026_03_31\20260331_190530_ber250s_prn1_spread_sr4p092e6_cf100e6_d250s\' ...
     '20260331_190530_ber250s_prn1_spread_sr4p092e6_cf100e6_d250s'];
 BER_MODE = 'tracked_truth';
@@ -2264,11 +2456,11 @@ ber
 假设移动硬盘盘符为 `F:`，则：
 
 ```matlab
-cd('C:\VMwareVirtualMachines\GongXiangDocument\GNSS_RX_matlab')
+cd('E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab')
 clear functions
 rehash
 
-CAPTURE_PATH = ['F:\GNSS_RX_Data_baremetal\2026\2026_03_31\' ...
+CAPTURE_PATH = ['F:\GNSS_RX_Data_local\2026\2026_03_31\' ...
     '20260331_190530_ber250s_prn1_spread_sr4p092e6_cf100e6_d250s\' ...
     '20260331_190530_ber250s_prn1_spread_sr4p092e6_cf100e6_d250s'];
 BER_MODE = 'tracked_truth';
@@ -2279,7 +2471,7 @@ ber
 若你希望让“自动找最新采集”直接指向移动硬盘，也可以写：
 
 ```matlab
-GNSS_RX_DATA_DIR = 'F:\GNSS_RX_Data_baremetal';
+GNSS_RX_DATA_DIR = 'F:\GNSS_RX_Data_local';
 ```
 
 #### Windows 直读现有目录示例：`20260330_025519...dur300p0s`
@@ -2287,7 +2479,7 @@ GNSS_RX_DATA_DIR = 'F:\GNSS_RX_Data_baremetal';
 如果你手头已经有下面这类目录，并且目录里至少有同名的 `.json` 与 `.sc16`：
 
 ```text
-F:\GNSS_RX_Data_baremetal\2026\2026_03_30\
+F:\GNSS_RX_Data_local\2026\2026_03_30\
   20260330_025519_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur300p0s\
     20260330_025519_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur300p0s.json
     20260330_025519_rawiq_sc16_zeroif_prn1_spread_sr4092000_cf100000000_dur300p0s.sc16
@@ -2297,11 +2489,11 @@ F:\GNSS_RX_Data_baremetal\2026\2026_03_30\
 则在 MATLAB 中推荐直接传 stem 路径：
 
 ```matlab
-cd('C:\VMwareVirtualMachines\GongXiangDocument\GNSS_RX_matlab')
+cd('E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab')
 clear functions
 rehash
 
-CAPTURE_PATH = ['F:\GNSS_RX_Data_baremetal\2026\2026_03_30\' ...
+CAPTURE_PATH = ['F:\GNSS_RX_Data_local\2026\2026_03_30\' ...
     '20260330_025519_rawiq_sc16_zeroif_prn1_spread_sr4092000_' ...
     'cf100000000_dur300p0s\20260330_025519_rawiq_sc16_zeroif_' ...
     'prn1_spread_sr4092000_cf100000000_dur300p0s'];

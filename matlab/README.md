@@ -38,31 +38,40 @@
 
 ```bash
 # 复制模板
-cp /home/shen/projects/GNSS_RX/matlab/gnss_rx_user_paths.m.example \
-   /home/shen/projects/GNSS_RX/matlab/gnss_rx_user_paths.m
+cp /home/shenao/projects/GNSS_RX/matlab/gnss_rx_user_paths.m.example \
+   /home/shenao/projects/GNSS_RX/matlab/gnss_rx_user_paths.m
 ```
 
 在 `gnss_rx_user_paths.m` 中填写实际数据目录：
 
 ```matlab
-% Windows 宿主机（VMware 共享目录）
-GNSS_RX_DATA_DIR = 'C:\VMwareVirtualMachines\GongXiangDocument\GNSS_RX_Data';
+% Windows 主力机（推荐：本地 SSD 分析目录）
+GNSS_RX_DATA_DIR = 'E:\MATLAB_code_Gongwei_Local\GNSS_RX_Data_local';
 
 % 或 Linux 本机
-GNSS_RX_DATA_DIR = '/mnt/hgfs/GongXiangDocument/GNSS_RX_Data';
+GNSS_RX_DATA_DIR = '/home/shenao/GNSS_RX_Data_local';
 ```
 
-### 2. 同步 MATLAB 代码到宿主机（MATLAB 在 Windows 时）
+### 2. 同步 MATLAB 代码到 Windows 主力机
 
 `GNSS_RX/matlab/` 是 MATLAB 代码的唯一真相源。
-`/mnt/hgfs/GongXiangDocument/GNSS_RX_matlab` 仅作为宿主机 MATLAB 的部署镜像，不应手工修改。
+推荐固定采用“两段式同步”：
+
+1. Ubuntu 端同步到 `~/GNSS_RX_matlab_share`
+2. Windows 主力机从已挂载网络盘 `Z:`（`\\192.168.100.86\gnss_rx_matlab`）镜像到 `E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab`
+
 同步脚本会保留共享根目录中的运行期文件，例如 `tx_truth.json`。
 采集目录中的 sidecar truth（如 `<capture_stem>_tx_truth.json`）属于数据，不属于 MATLAB 代码镜像，不会由同步脚本搬运。
 
 ```bash
-# 推荐：通过脚本镜像同步整个工作区
-/home/shen/projects/GNSS_RX/scripts/sync_matlab.sh \
-    /mnt/hgfs/GongXiangDocument/GNSS_RX_matlab
+# Ubuntu 端：同步到本机共享目录
+/home/shenao/projects/GNSS_RX/scripts/sync_matlab.sh \
+    ~/GNSS_RX_matlab_share
+```
+
+```powershell
+# Windows 端：从网络盘同步到本地 MATLAB 工作区
+robocopy Z:\ E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab /MIR
 ```
 
 同步结果包含：
@@ -71,12 +80,18 @@ GNSS_RX_DATA_DIR = '/mnt/hgfs/GongXiangDocument/GNSS_RX_Data';
 - `scripts/`
 - `README.md`
 - 根目录快捷入口脚本 `ber.m`
+- 根目录 chunked 汇总入口 `run_ber_loopback_chunk_group.m`
 
 每次 Ubuntu 端修改 MATLAB 代码后，统一执行上面的同步命令；随后在主力机 MATLAB 中执行：
 
 ```matlab
+cd('E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab')
+clear functions
+rehash
+
 which ber -all
 which run_ber_loopback -all
+which run_ber_loopback_chunk_group -all
 which load_tx_truth_json -all
 ```
 
@@ -84,17 +99,17 @@ which load_tx_truth_json -all
 
 ### 3. 在 MATLAB 中运行分析
 
-**Windows 宿主机 MATLAB：**
+**Windows 主力机 MATLAB：**
 
 ```matlab
-cd('C:\VMwareVirtualMachines\GongXiangDocument\GNSS_RX_matlab')
+cd('E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab')
 result = run_capture_analysis();          % 自动分析最新文件
 ```
 
 **Linux 本机 MATLAB：**
 
 ```matlab
-cd('/home/shen/projects/GNSS_RX/matlab')
+cd('/home/shenao/projects/GNSS_RX/matlab')
 result = run_capture_analysis();
 ```
 
@@ -123,14 +138,14 @@ result = run_capture_analysis();
 
 这样在 MATLAB 中通常只需要设置 `CAPTURE_PATH`，`ber` 就会自动优先加载 sidecar truth。
 
-**Windows 宿主机 MATLAB：**
+**Windows 主力机 MATLAB：**
 
 ```matlab
-cd('C:\VMwareVirtualMachines\GongXiangDocument\GNSS_RX_matlab')
+cd('E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab')
 clear functions
 rehash
 
-CAPTURE_PATH = ['F:\GNSS_RX_Data_baremetal\2026\2026_03_30\' ...
+CAPTURE_PATH = ['E:\MATLAB_code_Gongwei_Local\GNSS_RX_Data_local\2026\2026_03_30\' ...
     '20260330_025519_rawiq_sc16_zeroif_prn1_spread_sr4092000_' ...
     'cf100000000_dur300p0s\20260330_025519_rawiq_sc16_zeroif_' ...
     'prn1_spread_sr4092000_cf100000000_dur300p0s.json'];
@@ -145,13 +160,13 @@ ber
 **分析指定文件（stem 路径，stem 在路径中出现两次）：**
 
 ```matlab
-% Windows 宿主机
+% Windows 主力机
 result = run_capture_analysis( ...
-  'C:\VMwareVirtualMachines\GongXiangDocument\GNSS_RX_Data\2026\2026_03_26\<stem>\<stem>');
+  'E:\MATLAB_code_Gongwei_Local\GNSS_RX_Data_local\2026\2026_03_26\<stem>\<stem>');
 
-% Linux VM
+% Linux 本机
 result = run_capture_analysis( ...
-  '/mnt/hgfs/GongXiangDocument/GNSS_RX_Data/2026/2026_03_26/<stem>/<stem>');
+  '/home/shenao/GNSS_RX_Data_local/2026/2026_03_26/<stem>/<stem>');
 ```
 
 ### 4. 启用 MATLAB 离线分析加速
@@ -182,6 +197,33 @@ ber
 - `precision='single'`：优先降低长采集内存压力，推荐用于 `250 s / 1 h`
 - `use_parfor=true`：仅在 CPU 路径下用于天然可并行的批量扫描场景
 - `track_nav_bits` 的 tracking 主循环在当前版本仍保持 CPU 执行
+- GPU 加速不改变 `load_gnss_rx_capture` 的整文件读入行为；对超大 `single` 文件，仍可能在 Step 1 加载阶段因一次性 `fread(..., inf, ...)` 触发 OOM
+- 对 `30 min / 45 min / 60 min` 这类长时正式 BER，优先使用 `chunked` 分析路径，而不是依赖 GPU 去硬扛 `single` 大文件加载
+
+长时 `chunked` 正式 BER 入口：
+
+```matlab
+batch_result = run_ber_loopback_chunk_group(CAPTURE_DIR);
+```
+
+若只想对单个 chunk 跑同一入口：
+
+```matlab
+single_chunk_result = run_ber_loopback_chunk_group(CAPTURE_PATH_1);
+```
+
+说明：
+
+- 传入 `CAPTURE_DIR` 时，会逐个 chunk 执行 `tracked_truth` 并汇总 `aggregate_errors / aggregate_bits / aggregate_ber`
+- 传入单个 `CAPTURE_PATH_1` 时，会退化成“只分析这一段 chunk”
+- 推荐正式 GPU 配置：
+
+```matlab
+ACCEL_OPTIONS = struct( ...
+    'backend', 'gpu', ...
+    'precision', 'single', ...
+    'batch_ms', 2000);
+```
 
 ---
 
@@ -252,11 +294,11 @@ acq_result = run_prn1_acquisition(samples, meta, cfg);
 
 ```bash
 # Ubuntu 中生成合成数据并同步 MATLAB 代码
-cd /home/shen/projects/GNSS_RX
-PYTHONPATH=/home/shen/projects/gnss_tx/src:src \
+cd /home/shenao/projects/GNSS_RX
+PYTHONPATH=/home/shenao/projects/gnss_tx/src:src \
     python3 scripts/gen_synthetic_capture.py --snr-db 10 --duration 2
-/home/shen/projects/GNSS_RX/scripts/sync_matlab.sh \
-    /mnt/hgfs/GongXiangDocument/GNSS_RX_matlab
+/home/shenao/projects/GNSS_RX/scripts/sync_matlab.sh \
+    ~/GNSS_RX_matlab_share
 ```
 
 ```matlab
@@ -268,6 +310,6 @@ run_capture_analysis
 
 ```bash
 PYTHONPATH=src python3 scripts/record_rx.py --config configs/rx_prn1_capture.yaml
-/home/shen/projects/GNSS_RX/scripts/sync_matlab.sh \
-    /mnt/hgfs/GongXiangDocument/GNSS_RX_matlab
+/home/shenao/projects/GNSS_RX/scripts/sync_matlab.sh \
+    ~/GNSS_RX_matlab_share
 ```

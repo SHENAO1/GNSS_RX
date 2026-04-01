@@ -22,6 +22,7 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SRC="$SCRIPT_DIR/../matlab"
 ROOT_ENTRY="$SRC/ber.m"
+CHUNK_GROUP_ENTRY="$SRC/run_ber_loopback_chunk_group.m"
 
 echo "同步 MATLAB 工作区"
 echo "  来源：$SRC"
@@ -34,4 +35,5 @@ rsync -av "$SRC/README.md" "$DEST/README.md"
 rsync -av "$SRC/architecture.drawio" "$DEST/architecture.drawio"
 rsync -av "$SRC/gnss_rx_user_paths.m.example" "$DEST/gnss_rx_user_paths.m.example"
 rsync -av "$ROOT_ENTRY" "$DEST/ber.m"
+rsync -av "$CHUNK_GROUP_ENTRY" "$DEST/run_ber_loopback_chunk_group.m"
 echo "同步完成。"
