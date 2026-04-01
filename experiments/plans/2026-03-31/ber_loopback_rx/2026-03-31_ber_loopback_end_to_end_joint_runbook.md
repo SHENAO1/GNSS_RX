@@ -4,9 +4,11 @@
 > 适用场景：从一台全新裸机 Ubuntu 笔记本开始，完成 B210 线缆回环采集，并在主力机 MATLAB 上做正式 BER 分析
 > 存放策略：本文件在 `gnss_tx` 与 `GNSS_RX` 各保留一份，内容必须保持一致
 > 整合来源：
+>
 > - `gnss_tx/experiments/plans/2026-03-29/baremetal_capture/2026-03-29_baremetal_capture_runbook.md`
 > - `GNSS_RX/experiments/plans/2026-03-30/ber_loopback_rx/2026-03-30_existing_capture_ber_analysis_runbook.md`
 > - `GNSS_RX/experiments/plans/2026-03-28/ber_loopback_rx/2026-03-28_ber_loopback_joint_runbook.md`
+>
 > 正式 MATLAB BER 入口：`GNSS_RX/matlab/ber.m`
 > 正式 BER 主脚本：`GNSS_RX/matlab/scripts/run_ber_loopback.m`
 > 快速体检入口：`GNSS_RX/matlab/scripts/run_capture_analysis.m`
