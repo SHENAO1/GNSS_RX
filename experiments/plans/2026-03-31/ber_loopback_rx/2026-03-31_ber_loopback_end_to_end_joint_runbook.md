@@ -593,7 +593,7 @@ deactivate
 当前唯一推荐同步方式是“两段式同步”：
 
 1. Ubuntu 端把 `GNSS_RX/matlab/` 镜像到本机共享目录 `~/GNSS_RX_matlab_share`
-2. Windows 主力机从已挂载网络盘 `Z:`（`\\192.168.100.86\gnss_rx_matlab`）同步到本地分析目录 `E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab`
+2. Windows 主力机从已挂载网络盘 `Z:`（`\\100.65.171.95\gnss_rx_matlab`）同步到本地分析目录 `E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab`
 
 Ubuntu 端执行：
 
@@ -608,13 +608,36 @@ Windows PowerShell 执行：
 robocopy Z:\ E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab /MIR
 ```
 
+若 Ubuntu 主机重启后 Windows 上的 `Z:` 断开，先重新挂载网络盘，再执行 `robocopy`：
+
+```powershell
+net use Z: /delete
+net use Z: \\100.65.171.95\gnss_rx_matlab /persistent:yes
+dir Z:\
+robocopy Z:\ E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab /MIR
+```
+
+若你同时希望 Windows 端自动访问 Ubuntu 开发目录，建议额外挂载：
+
+```powershell
+net use Y: \\100.65.171.95\projects /persistent:yes
+```
+
+其中：
+
+- `Z:` 只用于 MATLAB 镜像共享 `gnss_rx_matlab`
+- `Y:` 只用于 Ubuntu 项目目录共享 `projects`
+
+若当前 Tailscale IPv4 不是 `100.65.171.95`，先在 Ubuntu 执行 `tailscale ip -4`，再把上面命令里的 IP 替换成当前值。
+
 若这里直接运行 `./scripts/sync_matlab.sh ...` 出现“权限不够”，通常只是脚本暂时没有执行位；优先改用 `bash ./scripts/sync_matlab.sh ...` 即可继续。
 
 注意：
 
 - 文档中的 `<...>` 只表示“这里需要替换成实际路径”的占位符，不能原样粘贴进 Bash
-- 不再推荐 `/mnt/hgfs/...` 或 VMware 共享目录；当前文档后续均以网络盘 `Z:` 和本地目录 `E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab` 为准
+- 不再推荐 `/mnt/hgfs/...` 或 VMware 共享目录；当前文档后续均以 Tailscale 网络盘 `Z:` 和本地目录 `E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab` 为准
 - `~/GNSS_RX_matlab_share` 只是 Ubuntu 侧待同步镜像，不应手工改代码；源码真相源仍是仓库里的 `GNSS_RX/matlab/`
+- 若还需要从 Windows 访问 Ubuntu 仓库根目录，统一走 `Y:`，不要把 `projects` 共享并入 `Z:`
 
 同步内容包括：
 
@@ -1457,13 +1480,13 @@ MATLAB 端本章统一给出 3 类命令：
 
 #### 17.5.1 变量块
 
-本轮正式推荐：`30 min` 默认只采 `chunked`，并把每个 chunk 固定为 `5 min = 300 s`。先统一定义变量：
+本轮正式推荐：`30 min` 默认只采 `chunked`，并把每个 chunk 固定为 `2 min = 120 s`。先统一定义变量：
 
 ```bash
 RUN_TS=$(date +%Y%m%d_%H%M%S)
 TODAY_YEAR=$(date +%Y)
 TODAY_DIR=$(date +%Y_%m_%d)
-CHUNK_DURATION_S=300
+CHUNK_DURATION_S=120
 TOTAL_DURATION_S=1800
 
 CAPTURE_GROUP_ID_CHUNK=${RUN_TS}_ber30min_chunked_prn1_spread_sr4p092e6_cf100e6_d1800s
@@ -1484,8 +1507,8 @@ printf 'TOTAL_DURATION_S=%s, CHUNK_DURATION_S=%s, EXPECTED_CHUNKS=%s\n' \
 说明：
 
 - 当前正式 30 min BER 主路径默认使用 `chunked`
-- `CHUNK_DURATION_S=300` 表示每个 chunk 为 `5 min`
-- `TOTAL_DURATION_S=1800` 且 `CHUNK_DURATION_S=300` 时，预期得到 `chunk0001of0006 ... chunk0006of0006`
+- `CHUNK_DURATION_S=120` 表示每个 chunk 为 `2 min`
+- `TOTAL_DURATION_S=1800` 且 `CHUNK_DURATION_S=120` 时，预期得到 `chunk0001of0015 ... chunk0015of0015`
 - `single` 变量继续保留，仅用于兼容留样；若本轮不采 `single`，后续 `17.5.5 / 17.5.6` 会自动跳过它
 
 #### 17.5.2 TX 端命令
@@ -1514,7 +1537,7 @@ sudo chrt -f 50 env PYTHONPATH=src python3 scripts/record_rx.py \
     --output-stem "$LOCAL_STEM_CHUNK"
 ```
 
-说明：该命令会在 `30 min` 总时长内生成 `6` 个 `5 min` chunk。
+说明：该命令会在 `30 min` 总时长内生成 `15` 个 `2 min` chunk。
 
 #### 17.5.4 RX 端命令：single 版本
 
@@ -1621,9 +1644,9 @@ rehash
 CAPTURE_GROUP_ID = '20260331_190530_ber30min_chunked_prn1_spread_sr4p092e6_cf100e6_d1800s';
 CAPTURE_DIR = fullfile('E:\MATLAB_code_Gongwei_Local\GNSS_RX_Data_local\2026\2026_03_31', CAPTURE_GROUP_ID);
 
-CAPTURE_PATH_1 = fullfile(CAPTURE_DIR, [CAPTURE_GROUP_ID '_chunk0001of0006']);
-CAPTURE_PATH_3 = fullfile(CAPTURE_DIR, [CAPTURE_GROUP_ID '_chunk0003of0006']);
-CAPTURE_PATH_6 = fullfile(CAPTURE_DIR, [CAPTURE_GROUP_ID '_chunk0006of0006']);
+CAPTURE_PATH_1  = fullfile(CAPTURE_DIR, [CAPTURE_GROUP_ID '_chunk0001of0015']);
+CAPTURE_PATH_8  = fullfile(CAPTURE_DIR, [CAPTURE_GROUP_ID '_chunk0008of0015']);
+CAPTURE_PATH_15 = fullfile(CAPTURE_DIR, [CAPTURE_GROUP_ID '_chunk0015of0015']);
 ```
 
 快速体检：
@@ -1651,13 +1674,13 @@ run('scripts/run_ber_loopback.m')
 建议顺序：
 
 - 先跑 `CAPTURE_PATH_1`
-- 再把 `CAPTURE_PATH` 改成 `CAPTURE_PATH_3`
-- 最后改成 `CAPTURE_PATH_6`
+- 再把 `CAPTURE_PATH` 改成 `CAPTURE_PATH_8`
+- 最后改成 `CAPTURE_PATH_15`
 
 说明：
 
-- 上述 `CAPTURE_PATH_1 / _3 / _6` 仍是**单个 chunk 抽查**
-- 若要对单个 `chunked` 或整组 `chunk0001of0006 ... chunk0006of0006` 给出 BER 结论，应使用下面的统一入口
+- 上述 `CAPTURE_PATH_1 / _8 / _15` 仍是**单个 chunk 抽查**
+- 若要对单个 `chunked` 或整组 `chunk0001of0015 ... chunk0015of0015` 给出 BER 结论，应使用下面的统一入口
 
 统一 chunked BER 入口：
 
@@ -2381,6 +2404,12 @@ sync
 df -h /
 du -sh /home/$USER/GNSS_RX_Data_local
 ```
+
+如果你已经在 Windows / 移动硬盘上确认过副本完整，也可以只删除本轮一个 `chunked` 目录后立刻开始下一轮采集；此时建议：
+
+1. Windows 侧先从移动硬盘或已同步目录启动 MATLAB 分析
+2. Ubuntu 侧删除本地旧轮次目录，回收空间
+3. Ubuntu 侧重新设定新的 `RUN_TS`，开始下一轮采集
 
 若删除后 `df -h /` 的可用空间没有明显回升，通常说明仍有进程占着已删除文件，可继续检查：
 

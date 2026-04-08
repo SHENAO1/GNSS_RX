@@ -1,6 +1,6 @@
 <mxfile host="65bd71144e">
     <diagram id="matlab-analysis" name="MATLAB Analysis">
-        <mxGraphModel dx="2125" dy="784" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1000" math="0" shadow="0" adaptiveColors="auto">
+        <mxGraphModel dx="1977" dy="850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1000" math="0" shadow="0" adaptiveColors="auto">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -41,7 +41,7 @@
                     <mxGeometry x="1660" y="820" width="250" height="120" as="geometry"/>
                 </mxCell>
                 <mxCell id="deprecated" value="兼容包装&#xa;run_prn1_acquisition()&#xa;内部只是在 meta 上强制 prn_id=1 后转调 run_prn_acquisition()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#999999;fontColor=#999999;dashed=1;" parent="1" vertex="1">
-                    <mxGeometry x="50" y="790" width="360" height="90" as="geometry"/>
+                    <mxGeometry x="80" y="790" width="360" height="90" as="geometry"/>
                 </mxCell>
                 <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;html=1;" parent="1" source="cfg" target="resolve" edge="1">
                     <mxGeometry relative="1" as="geometry"/>

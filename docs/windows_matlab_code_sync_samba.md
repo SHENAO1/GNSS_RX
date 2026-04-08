@@ -75,7 +75,7 @@ sync_matlab.sh
     ↓
 Ubuntu 共享目录：~/GNSS_RX_matlab_share
     ↓
-Samba 暴露为 \\<UBUNTU_IP>\gnss_rx_matlab
+Samba 暴露为 \\<TAILSCALE_IP>\gnss_rx_matlab
     ↓
 Windows 挂载为 Z:
     ↓
@@ -192,39 +192,26 @@ New SMB password:
 sudo ufw allow samba
 ```
 
-### 5.5 Ubuntu 端：确认本机 IP
+### 5.5 Ubuntu 端：确认 Tailscale IPv4
 
 ```bash
-hostname -I
+tailscale ip -4
 ```
 
-本轮 `hostname -I` 输出了多个地址：
-
-- `192.168.100.86`
-- `100.65.171.95`
-- `198.18.0.1`
-- 以及若干 IPv6 地址
-
-当前应优先使用同一家庭/办公室局域网里的 IPv4 地址：
+当前推荐优先使用 Tailscale IPv4。本轮固定口径为：
 
 ```text
-192.168.100.86
+100.65.171.95
 ```
 
-不要优先使用：
-
-- `100.65.171.95` 这类 Tailscale / overlay 网络地址
-- `198.18.0.1` 这类测试或虚拟接口地址
-- IPv6 地址（除非 Windows 端已明确验证可达）
-
-因此后续 Windows 端挂载命令里的 `<UBUNTU_IP>`，本轮先替换为 `192.168.100.86`。
+若后续 `tailscale ip -4` 输出变化，再把下面命令里的 IP 一并替换。
 
 ### 5.6 Windows 端：映射网络驱动器
 
 在 PowerShell 中执行：
 
 ```powershell
-net use Z: \\192.168.100.86\gnss_rx_matlab /user:shenao <SAMBA_PASSWORD> /persistent:yes
+net use Z: \\100.65.171.95\gnss_rx_matlab /user:shenao <SAMBA_PASSWORD> /persistent:yes
 ```
 
 注意：
@@ -233,7 +220,7 @@ net use Z: \\192.168.100.86\gnss_rx_matlab /user:shenao <SAMBA_PASSWORD> /persis
 - 在 PowerShell 中，更稳妥的方式是直接用 `*` 让系统现场提示输入密码：
 
 ```powershell
-net use Z: \\192.168.100.86\gnss_rx_matlab /user:shenao * /persistent:yes
+net use Z: \\100.65.171.95\gnss_rx_matlab /user:shenao * /persistent:yes
 ```
 
 - 若你确定要把密码直接写在命令行里，也应写成真实密码本身，例如 `123`，而不是 `<123>`
@@ -244,6 +231,18 @@ net use Z: \\192.168.100.86\gnss_rx_matlab /user:shenao * /persistent:yes
 net use
 dir Z:\
 ```
+
+若还希望 Windows 自动访问 Ubuntu 开发目录，再执行：
+
+```powershell
+net use Y: \\100.65.171.95\projects /persistent:yes
+dir Y:\
+```
+
+建议固定约定：
+
+- `Z:` 只用于 `\\100.65.171.95\gnss_rx_matlab`
+- `Y:` 只用于 `\\100.65.171.95\projects`
 
 预期至少能看到：
 

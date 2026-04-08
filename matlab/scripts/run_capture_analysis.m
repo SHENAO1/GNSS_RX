@@ -36,6 +36,8 @@ if nargin < 1
 end
 if nargin < 2 || isempty(cfg)
     cfg = build_default_cfg();
+else
+    cfg = merge_cfg_with_defaults(cfg, build_default_cfg());
 end
 if ~isfield(cfg, 'accel_options') || isempty(cfg.accel_options)
     cfg.accel_options = struct();
@@ -137,4 +139,25 @@ cfg.save_png             = true;        % 是否保存 PNG 图片
 cfg.save_json_summary    = true;        % 是否保存 JSON 摘要
 cfg.save_mat_summary     = true;        % 是否保存 MAT 摘要
 cfg.accel_options        = struct();    % 可选：统一离线分析加速配置
+end
+
+
+function cfg = merge_cfg_with_defaults(cfg_override, cfg_defaults)
+%MERGE_CFG_WITH_DEFAULTS 允许调用方只传想覆盖的 cfg 字段。
+%
+%   run_capture_analysis(..., cfg) 的约定是：
+%   - 未传的字段继续沿用默认值
+%   - 仅调用方显式提供且非空的字段才覆盖默认值
+cfg = cfg_defaults;
+if nargin < 1 || isempty(cfg_override)
+    return;
+end
+
+override_fields = fieldnames(cfg_override);
+for idx = 1:numel(override_fields)
+    field_name = override_fields{idx};
+    if ~isempty(cfg_override.(field_name))
+        cfg.(field_name) = cfg_override.(field_name);
+    end
+end
 end

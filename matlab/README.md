@@ -20,6 +20,37 @@
 | `functions/plot_multi_prn_survey.m` | 绘制多星次峰比柱状图 |
 | `functions/save_analysis_artifacts.m` | 保存图片、`.json` 摘要和 `.mat` 结果 |
 | `gnss_rx_user_paths.m.example` | 用户本地路径配置模板 |
+| `run_capture_iq_diagnostic.m` | 原始 IQ 诊断入口：去均值、BPSK 粗相位校正、sample-phase 分组散点图 |
+| `run_ber_loopback_chunk_group.m` | chunked BER 汇总入口：对单个 chunk 或整组 chunk 运行正式 BER 并汇总 |
+| `run_ber_loopback_chunk_selection.m` | chunked BER 逐段入口：按 chunk 序号依次运行 BER，并输出每段结果 |
+| `run_capture_analysis_chunk_group.m` | chunked 快速体检入口：枚举目录中的 chunk，并按序号批量调用 `run_capture_analysis` |
+
+---
+
+## 入口对比
+
+下面这 4 个入口最容易混淆，可以按“快速体检”与“正式 BER”两类来记。
+
+| 文件 | 类型 | 主要用途 | 输入方式 | 典型输出 | 适用场景 |
+|------|------|----------|----------|----------|----------|
+| `run_capture_analysis_chunk_group.m` | 快速体检 | 对 chunk 调用 `run_capture_analysis(...)`，看加载、频谱、IQ、捕获、多星扫描 | `CAPTURE_DIR` 或指定 chunk 序号 | `overview_time / overview_spectrum / iq_scatter / acquisition / survey` | 想先确认样本是否正常、PRN1 是否能稳定捕获 |
+| `run_capture_iq_diagnostic.m` | IQ 诊断 | 专门检查 IQ 散点为什么“看起来不对”，包括去均值、粗相位校正、sample-phase 分组 | 单个 `CAPTURE_PATH` | `iq_diagnostic_compare.png`、`iq_diagnostic_sample_phase.png`、诊断统计量 | 怀疑 `Q` 偏大、散点图歪斜、存在 DC / 相位旋转 / sample-phase 过渡现象 |
+| `run_ber_loopback_chunk_group.m` | 正式 BER | 对单个 chunk 或整组 chunk 运行 `tracked_truth` BER，并给出整组汇总 | 单个 `CAPTURE_PATH` 或 `CAPTURE_DIR` | `aggregate_errors / aggregate_bits / aggregate_ber` | 想得到正式 BER 结论，尤其是整组 15 个 chunk 的总 BER |
+| `run_ber_loopback_chunk_selection.m` | 正式 BER | 按指定 chunk 序号逐段运行 BER，并把每段 BER 依次打印、汇总返回 | `CAPTURE_DIR` + `2:15`、`[1 8 15]` 等 | 每段 `errors / total_bits / ber`，外加所选 chunk 汇总 | 想定位“哪一段 BER 变差了”，而不只看整组 aggregate |
+
+一句话区分：
+
+- `run_capture_analysis_chunk_group`：先看图、看捕获、看体检
+- `run_capture_iq_diagnostic`：专门查 IQ 几何为什么怪
+- `run_ber_loopback_chunk_group`：正式 BER，看单段或整组总结果
+- `run_ber_loopback_chunk_selection`：正式 BER，但把指定 chunk 挨个展开看
+
+推荐顺序：
+
+1. 先用 `run_capture_analysis_chunk_group(CAPTURE_DIR, [1 8 15])` 抽查代表 chunk
+2. 若 IQ 散点可疑，再对单个可疑 chunk 跑 `run_capture_iq_diagnostic(CAPTURE_PATH)`
+3. 想看整组正式结论，用 `run_ber_loopback_chunk_group(CAPTURE_DIR)`
+4. 想定位异常区段，用 `run_ber_loopback_chunk_selection(CAPTURE_DIR, 2:15)`
 
 ---
 
@@ -58,7 +89,7 @@ GNSS_RX_DATA_DIR = '/home/shenao/GNSS_RX_Data_local';
 推荐固定采用“两段式同步”：
 
 1. Ubuntu 端同步到 `~/GNSS_RX_matlab_share`
-2. Windows 主力机从已挂载网络盘 `Z:`（`\\192.168.100.86\gnss_rx_matlab`）镜像到 `E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab`
+2. Windows 主力机从已挂载网络盘 `Z:`（`\\100.65.171.95\gnss_rx_matlab`）镜像到 `E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab`
 
 同步脚本会保留共享根目录中的运行期文件，例如 `tx_truth.json`。
 采集目录中的 sidecar truth（如 `<capture_stem>_tx_truth.json`）属于数据，不属于 MATLAB 代码镜像，不会由同步脚本搬运。
@@ -74,12 +105,34 @@ GNSS_RX_DATA_DIR = '/home/shenao/GNSS_RX_Data_local';
 robocopy Z:\ E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab /MIR
 ```
 
+若 Ubuntu 主机重启后 `Z:` 断开，先重新挂载，再执行 `robocopy`：
+
+```powershell
+net use Z: /delete
+net use Z: \\100.65.171.95\gnss_rx_matlab /persistent:yes
+dir Z:\
+robocopy Z:\ E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab /MIR
+```
+
+若同时需要从 Windows 自动访问 Ubuntu 开发目录，可额外挂载：
+
+```powershell
+net use Y: \\100.65.171.95\projects /persistent:yes
+```
+
+其中 `Z:` 只用于 `gnss_rx_matlab`，`Y:` 只用于 `projects`。
+
+若 Ubuntu 当前 Tailscale IPv4 变化，先在 Ubuntu 执行 `tailscale ip -4`，再把命令中的 IP 替换为当前值。
+
 同步结果包含：
 
 - `functions/`
 - `scripts/`
 - `README.md`
 - 根目录快捷入口脚本 `ber.m`
+- 根目录 IQ 诊断入口 `run_capture_iq_diagnostic.m`
+- 根目录 chunked 逐段 BER 入口 `run_ber_loopback_chunk_selection.m`
+- 根目录 chunked 快速体检入口 `run_capture_analysis_chunk_group.m`
 - 根目录 chunked 汇总入口 `run_ber_loopback_chunk_group.m`
 
 每次 Ubuntu 端修改 MATLAB 代码后，统一执行上面的同步命令；随后在主力机 MATLAB 中执行：
@@ -90,6 +143,9 @@ clear functions
 rehash
 
 which ber -all
+which run_capture_iq_diagnostic -all
+which run_ber_loopback_chunk_selection -all
+which run_capture_analysis_chunk_group -all
 which run_ber_loopback -all
 which run_ber_loopback_chunk_group -all
 which load_tx_truth_json -all
@@ -212,10 +268,43 @@ batch_result = run_ber_loopback_chunk_group(CAPTURE_DIR);
 single_chunk_result = run_ber_loopback_chunk_group(CAPTURE_PATH_1);
 ```
 
+若只想先做 chunked 快速体检，并支持按 chunk 序号挑选：
+
+```matlab
+analysis_result = run_capture_analysis_chunk_group(CAPTURE_DIR);
+```
+
+```matlab
+analysis_result = run_capture_analysis_chunk_group(CAPTURE_DIR, [1 8 15]);
+```
+
+若想专门检查“为什么 IQ 散点不对、为什么 Q 看起来偏大”，可直接运行：
+
+```matlab
+iq_diag = run_capture_iq_diagnostic(CAPTURE_PATH_1);
+```
+
+也支持不传路径，自动诊断最新一组 capture：
+
+```matlab
+iq_diag = run_capture_iq_diagnostic();
+```
+
+若想把 `2:15` 号 chunk 挨个跑 BER，并打印每段误码率：
+
+```matlab
+ber_seq = run_ber_loopback_chunk_selection(CAPTURE_DIR, 2:15);
+```
+
 说明：
 
-- 传入 `CAPTURE_DIR` 时，会逐个 chunk 执行 `tracked_truth` 并汇总 `aggregate_errors / aggregate_bits / aggregate_ber`
-- 传入单个 `CAPTURE_PATH_1` 时，会退化成“只分析这一段 chunk”
+- `run_ber_loopback_chunk_group(CAPTURE_DIR)` 会逐个 chunk 执行 `tracked_truth` 并汇总 `aggregate_errors / aggregate_bits / aggregate_ber`
+- `run_ber_loopback_chunk_group(CAPTURE_PATH_1)` 会退化成“只分析这一段 chunk”
+- `run_ber_loopback_chunk_selection(CAPTURE_DIR, 2:15)` 会按顺序对选中的 chunk 单独跑 BER，并返回每段 `errors / total_bits / ber`
+- `run_capture_iq_diagnostic(CAPTURE_PATH_1)` 会生成原始 IQ、去均值 + 去相位后的 IQ、按 sample phase 分组的散点图
+- 诊断结果默认写入 `<capture_dir>/analysis/<stem>/iq_diagnostic_*.png` 与 `iq_diagnostic_summary.*`
+- `run_capture_analysis_chunk_group(CAPTURE_DIR)` 会先打印目录里一共有多少个 chunk，再逐个调用 `run_capture_analysis(...)`
+- `run_capture_analysis_chunk_group(CAPTURE_DIR, [1 8 15])` 只分析指定序号的 chunk
 - 推荐正式 GPU 配置：
 
 ```matlab
@@ -271,10 +360,14 @@ acq_result = run_prn1_acquisition(samples, meta, cfg);
 | `overview_time.png` | 时域波形图 |
 | `overview_spectrum.png` | 频谱图 |
 | `iq_scatter.png` | IQ 散点图 |
+| `iq_diagnostic_compare.png` | 原始 IQ 与去均值 + 去相位后 IQ 的对比图 |
+| `iq_diagnostic_sample_phase.png` | 按 sample phase 分组的 IQ 散点图 |
 | `prn<N>_acquisition.png` | 目标 PRN 的二维捕获搜索图 |
 | `multi_prn_survey.png` | PRN1~32 次峰比柱状图 |
 | `analysis_summary.json` | 分析摘要（JSON） |
 | `analysis_summary.mat` | 分析摘要（MAT） |
+| `iq_diagnostic_summary.json` | IQ 诊断摘要（JSON） |
+| `iq_diagnostic_summary.mat` | IQ 诊断摘要（MAT） |
 
 ### 多星捕获对比图（multi_prn_survey.png）
 
