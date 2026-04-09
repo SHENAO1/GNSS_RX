@@ -38,6 +38,7 @@
 
 | 序号 | 文档 | 内容概括 | 阅读时长 | 前置条件 |
 |:---:|:---|:---|:---|:---|
+| 0 | **[introduction_guide.md](introduction_guide.md)** | 向他人介绍整套系统的讲解导引；含 RX 链路、数据格式、实验工作流、代码结构四个部分；配合 Draw.io 图表使用 | 10-15 min | 无 |
 | 1 | **[receiver_overview.md](receiver_overview.md)** | 系统架构总览；Python 模块设计；GNU Radio 流图与 MATLAB 分析链的映射关系 | 20-30 min | 无 |
 | 2 | **[experiment_workflow.md](experiment_workflow.md)** | 完整操作流程；采集配置清单；硬件调试步骤；数据分析工作流 | 30-45 min | 完成文档 1 |
 | 3 | **[system_architecture.drawio](system_architecture.drawio)** | 系统总体架构可视化；闭环链路示意 | 10-15 min | 配合文档 1 |

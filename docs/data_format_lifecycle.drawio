@@ -1,0 +1,230 @@
+<mxfile host="app.diagrams.net" modified="2026-04-08T00:00:00.000Z" agent="Claude" version="24.7.17">
+  <diagram id="data-format-lifecycle" name="数据格式演变图">
+    <mxGraphModel dx="1900" dy="1060" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2400" pageHeight="900" math="0" shadow="0" adaptiveColors="auto">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- Title -->
+        <mxCell id="title" value="GNSS TX/RX 数据格式演变图（Data Format Lifecycle）" style="text;html=1;fontStyle=1;fontSize=20;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="300" y="15" width="1800" height="35" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== SWIMLANE 1: TX Software ===== -->
+        <mxCell id="lane_tx" value="TX 软件层（gnss_tx）" style="swimlane;html=1;whiteSpace=wrap;rounded=1;horizontal=1;startSize=35;container=1;collapsible=0;recursiveResize=0;strokeColor=#6C8EBF;fillColor=#DAE8FC;fontStyle=1;fontSize=13;pointerEvents=0;" vertex="1" parent="1">
+          <mxGeometry x="20" y="65" width="2340" height="200" as="geometry"/>
+        </mxCell>
+
+        <!-- TX nodes -->
+        <mxCell id="tx_ca" value="C/A 码 (PRN)&#xa;int8 (±1)&#xa;1023 chips/ms" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontStyle=1;fontSize=11;" vertex="1" parent="lane_tx">
+          <mxGeometry x="30" y="65" width="170" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="tx_nav" value="导航比特&#xa;int8 (±1)&#xa;50 bps" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontStyle=1;fontSize=11;" vertex="1" parent="lane_tx">
+          <mxGeometry x="240" y="65" width="150" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="tx_bpsk" value="BPSK 扩频&#xa;nav_bit × C/A&#xa;int8 (±1) chips" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#6C8EBF;strokeColor=#4E6E9C;fontColor=#ffffff;fontStyle=1;fontSize=11;" vertex="1" parent="lane_tx">
+          <mxGeometry x="450" y="65" width="175" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="tx_complex" value="Complex 扩展&#xa;complex64 (fc32)&#xa;I=chip, Q=0" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#6C8EBF;strokeColor=#4E6E9C;fontColor=#ffffff;fontStyle=1;fontSize=11;" vertex="1" parent="lane_tx">
+          <mxGeometry x="680" y="65" width="175" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="tx_multisat" value="多星叠加（可选）&#xa;complex64 × N&#xa;/ √N 归一化" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#6C8EBF;strokeColor=#4E6E9C;fontColor=#ffffff;fontStyle=1;fontSize=11;" vertex="1" parent="lane_tx">
+          <mxGeometry x="910" y="65" width="175" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="tx_scale" value="幅度缩放&#xa;× amplitude (0.25)&#xa;complex64 → UHD" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#82B366;strokeColor=#5A8040;fontColor=#ffffff;fontStyle=1;fontSize=11;" vertex="1" parent="lane_tx">
+          <mxGeometry x="1140" y="65" width="175" height="85" as="geometry"/>
+        </mxCell>
+
+        <!-- TX format badges -->
+        <mxCell id="b_int8" value="int8" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontStyle=1;fontSize=10;" vertex="1" parent="lane_tx">
+          <mxGeometry x="100" y="155" width="50" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="b_int8b" value="int8" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontStyle=1;fontSize=10;" vertex="1" parent="lane_tx">
+          <mxGeometry x="300" y="155" width="50" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="b_int8c" value="int8" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontStyle=1;fontSize=10;" vertex="1" parent="lane_tx">
+          <mxGeometry x="520" y="155" width="50" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="b_fc32a" value="fc32" style="ellipse;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontStyle=1;fontSize=10;" vertex="1" parent="lane_tx">
+          <mxGeometry x="750" y="155" width="50" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="b_fc32b" value="fc32" style="ellipse;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontStyle=1;fontSize=10;" vertex="1" parent="lane_tx">
+          <mxGeometry x="985" y="155" width="50" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="b_fc32c" value="fc32" style="ellipse;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontStyle=1;fontSize=10;" vertex="1" parent="lane_tx">
+          <mxGeometry x="1215" y="155" width="50" height="30" as="geometry"/>
+        </mxCell>
+
+        <!-- TX edges -->
+        <mxCell id="et1" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;" edge="1" parent="lane_tx" source="tx_ca" target="tx_bpsk">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="et2" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;" edge="1" parent="lane_tx" source="tx_nav" target="tx_bpsk">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="et3" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;" edge="1" parent="lane_tx" source="tx_bpsk" target="tx_complex">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="et4" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;" edge="1" parent="lane_tx" source="tx_complex" target="tx_multisat">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="et5" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;" edge="1" parent="lane_tx" source="tx_multisat" target="tx_scale">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== SWIMLANE 2: Hardware ===== -->
+        <mxCell id="lane_hw" value="硬件层（USRP B210 + RF 信道）" style="swimlane;html=1;whiteSpace=wrap;rounded=1;horizontal=1;startSize=35;container=1;collapsible=0;recursiveResize=0;strokeColor=#D79B00;fillColor=#FFE6CC;fontStyle=1;fontSize=13;pointerEvents=0;" vertex="1" parent="1">
+          <mxGeometry x="20" y="285" width="2340" height="200" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="hw_uhd_tx" value="UHD TX 驱动&#xa;cpu_format=fc32&#xa;otw_format=sc16" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#D79B00;fontStyle=1;fontSize=11;" vertex="1" parent="lane_hw">
+          <mxGeometry x="1140" y="65" width="175" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="hw_dac" value="B210 DAC&#xa;sc16 → 模拟 IQ&#xa;上变频 → RF" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D79B00;strokeColor=#B07800;fontColor=#ffffff;fontStyle=1;fontSize=11;" vertex="1" parent="lane_hw">
+          <mxGeometry x="1360" y="65" width="175" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="hw_rf" value="RF 信道传播&#xa;有线回环 / OTA&#xa;中心频率 100 MHz" style="ellipse;whiteSpace=wrap;html=1;fillColor=#D79B00;strokeColor=#B07800;fontColor=#ffffff;fontStyle=1;fontSize=11;" vertex="1" parent="lane_hw">
+          <mxGeometry x="1590" y="55" width="190" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="hw_adc" value="B210 ADC&#xa;RF → 下变频&#xa;模拟 IQ → sc16" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D79B00;strokeColor=#B07800;fontColor=#ffffff;fontStyle=1;fontSize=11;" vertex="1" parent="lane_hw">
+          <mxGeometry x="1830" y="65" width="175" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="hw_uhd_rx" value="UHD RX 驱动&#xa;otw_format=sc16&#xa;cpu_format=fc32" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#D79B00;fontStyle=1;fontSize=11;" vertex="1" parent="lane_hw">
+          <mxGeometry x="2050" y="65" width="175" height="85" as="geometry"/>
+        </mxCell>
+
+        <!-- HW badges -->
+        <mxCell id="b_sc16a" value="sc16" style="ellipse;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontStyle=1;fontSize=10;" vertex="1" parent="lane_hw">
+          <mxGeometry x="1210" y="155" width="50" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="b_rf" value="RF" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#D79B00;fontStyle=1;fontSize=10;" vertex="1" parent="lane_hw">
+          <mxGeometry x="1670" y="155" width="50" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="b_sc16b" value="sc16" style="ellipse;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontStyle=1;fontSize=10;" vertex="1" parent="lane_hw">
+          <mxGeometry x="1900" y="155" width="50" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="b_fc32d" value="fc32" style="ellipse;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontStyle=1;fontSize=10;" vertex="1" parent="lane_hw">
+          <mxGeometry x="2120" y="155" width="50" height="30" as="geometry"/>
+        </mxCell>
+
+        <!-- HW edges -->
+        <mxCell id="eh1" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;" edge="1" parent="lane_hw" source="hw_uhd_tx" target="hw_dac">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="eh2" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;" edge="1" parent="lane_hw" source="hw_dac" target="hw_rf">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="eh3" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;" edge="1" parent="lane_hw" source="hw_rf" target="hw_adc">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="eh4" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;" edge="1" parent="lane_hw" source="hw_adc" target="hw_uhd_rx">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== SWIMLANE 3: RX Software ===== -->
+        <mxCell id="lane_rx" value="RX 软件层（GNSS_RX + MATLAB）" style="swimlane;html=1;whiteSpace=wrap;rounded=1;horizontal=1;startSize=35;container=1;collapsible=0;recursiveResize=0;strokeColor=#82B366;fillColor=#D5E8D4;fontStyle=1;fontSize=13;pointerEvents=0;" vertex="1" parent="1">
+          <mxGeometry x="20" y="505" width="2340" height="200" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="rx_fc32in" value="fc32 流输入&#xa;complex64&#xa;4.092 MHz" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontStyle=1;fontSize=11;" vertex="1" parent="lane_rx">
+          <mxGeometry x="2050" y="65" width="175" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="rx_head" value="head block&#xa;样本门控&#xa;duration × fs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontStyle=1;fontSize=11;" vertex="1" parent="lane_rx">
+          <mxGeometry x="1830" y="65" width="175" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="rx_quant" value="SC16 量化&#xa;clip[-1,1]×32767&#xa;→ int16 交织&#xa;4 bytes/sample" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#82B366;strokeColor=#5A8040;fontColor=#ffffff;fontStyle=1;fontSize=11;" vertex="1" parent="lane_rx">
+          <mxGeometry x="1590" y="55" width="190" height="105" as="geometry"/>
+        </mxCell>
+        <mxCell id="rx_file" value=".sc16 文件&#xa;IQ 交织小端&#xa;4 MB/s @ 4.092 MHz" style="shape=document;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontStyle=1;fontSize=11;" vertex="1" parent="lane_rx">
+          <mxGeometry x="1360" y="60" width="190" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="rx_json" value=".json 元数据&#xa;采样率/频率/PRN&#xa;时间戳/硬件信息" style="shape=document;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontStyle=1;fontSize=11;" vertex="1" parent="lane_rx">
+          <mxGeometry x="1140" y="60" width="180" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="rx_matlab_load" value="MATLAB 加载&#xa;load_gnss_rx_capture()&#xa;SC16÷32767→fc32 恢复" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontStyle=1;fontSize=11;" vertex="1" parent="lane_rx">
+          <mxGeometry x="910" y="65" width="185" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="rx_acq" value="PRN 捕获&#xa;码相位 + 多普勒&#xa;相关峰检测" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontStyle=1;fontSize=11;" vertex="1" parent="lane_rx">
+          <mxGeometry x="680" y="65" width="185" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="rx_track" value="DLL/PLL 跟踪&#xa;导航比特恢复&#xa;码/载波同步" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontStyle=1;fontSize=11;" vertex="1" parent="lane_rx">
+          <mxGeometry x="450" y="65" width="185" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="rx_ber" value="BER 评估&#xa;对比 TX truth&#xa;输出误码率" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#9673A6;strokeColor=#7050A0;fontColor=#ffffff;fontStyle=1;fontSize=11;" vertex="1" parent="lane_rx">
+          <mxGeometry x="220" y="65" width="185" height="85" as="geometry"/>
+        </mxCell>
+
+        <!-- RX badges -->
+        <mxCell id="b_fc32e" value="fc32" style="ellipse;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontStyle=1;fontSize=10;" vertex="1" parent="lane_rx">
+          <mxGeometry x="2120" y="155" width="50" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="b_fc32f" value="fc32" style="ellipse;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontStyle=1;fontSize=10;" vertex="1" parent="lane_rx">
+          <mxGeometry x="1895" y="155" width="50" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="b_sc16c" value="sc16" style="ellipse;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontStyle=1;fontSize=10;" vertex="1" parent="lane_rx">
+          <mxGeometry x="1665" y="165" width="50" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="b_sc16d" value="sc16" style="ellipse;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontStyle=1;fontSize=10;" vertex="1" parent="lane_rx">
+          <mxGeometry x="1435" y="155" width="50" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="b_fc32g" value="fc32" style="ellipse;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontStyle=1;fontSize=10;" vertex="1" parent="lane_rx">
+          <mxGeometry x="985" y="155" width="50" height="30" as="geometry"/>
+        </mxCell>
+
+        <!-- RX edges (right to left flow) -->
+        <mxCell id="er1" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;" edge="1" parent="lane_rx" source="rx_fc32in" target="rx_head">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="er2" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;" edge="1" parent="lane_rx" source="rx_head" target="rx_quant">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="er3" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;" edge="1" parent="lane_rx" source="rx_quant" target="rx_file">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="er3b" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;dashed=1;" edge="1" parent="lane_rx" source="rx_quant" target="rx_json">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="er4" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;" edge="1" parent="lane_rx" source="rx_file" target="rx_matlab_load">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="er4b" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;dashed=1;" edge="1" parent="lane_rx" source="rx_json" target="rx_matlab_load">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="er5" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;" edge="1" parent="lane_rx" source="rx_matlab_load" target="rx_acq">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="er6" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;" edge="1" parent="lane_rx" source="rx_acq" target="rx_track">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="er7" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;" edge="1" parent="lane_rx" source="rx_track" target="rx_ber">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== VERTICAL CONNECTORS (between swimlanes) ===== -->
+        <!-- TX scale → HW UHD TX -->
+        <mxCell id="ev1" value="fc32" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;strokeColor=#6C8EBF;strokeWidth=2;fontStyle=1;fontSize=10;" edge="1" parent="1" source="tx_scale" target="hw_uhd_tx">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <!-- HW UHD RX → RX fc32in -->
+        <mxCell id="ev2" value="fc32" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;strokeColor=#82B366;strokeWidth=2;fontStyle=1;fontSize=10;" edge="1" parent="1" source="hw_uhd_rx" target="rx_fc32in">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Key conversion annotations -->
+        <mxCell id="ann1" value="格式转换：int8 → complex64&#xa;每 chip 扩展为 8 bytes 复数样本" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFACD;strokeColor=#D6B656;fontSize=10;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="650" y="735" width="220" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="ann2" value="UHD 内部转换：fc32 → sc16&#xa;减少 USB 3.0 带宽占用 50%" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFACD;strokeColor=#D79B00;fontSize=10;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1310" y="735" width="230" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="ann3" value="SC16 量化：clip[-1,1]×32767→int16&#xa;存储率：4 MB/s @ 4.092 MHz" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFACD;strokeColor=#82B366;fontSize=10;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1545" y="735" width="240" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="ann4" value="MATLAB 恢复：sc16÷32767→fc32&#xa;精度损失极小（16-bit 量化）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFACD;strokeColor=#9673A6;fontSize=10;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="900" y="735" width="240" height="50" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
