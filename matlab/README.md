@@ -20,10 +20,10 @@
 | `functions/plot_multi_prn_survey.m` | 绘制多星次峰比柱状图 |
 | `functions/save_analysis_artifacts.m` | 保存图片、`.json` 摘要和 `.mat` 结果 |
 | `gnss_rx_user_paths.m.example` | 用户本地路径配置模板 |
-| `run_capture_iq_diagnostic.m` | 原始 IQ 诊断入口：去均值、BPSK 粗相位校正、sample-phase 分组散点图 |
-| `run_ber_loopback_chunk_group.m` | chunked BER 汇总入口：对单个 chunk 或整组 chunk 运行正式 BER 并汇总 |
-| `run_ber_loopback_chunk_selection.m` | chunked BER 逐段入口：按 chunk 序号依次运行 BER，并输出每段结果 |
-| `run_capture_analysis_chunk_group.m` | chunked 快速体检入口：枚举目录中的 chunk，并按序号批量调用 `run_capture_analysis` |
+| `scripts/run_capture_iq_diagnostic.m` | 原始 IQ 诊断入口：去均值、BPSK 粗相位校正、sample-phase 分组散点图 |
+| `scripts/run_ber_loopback_chunk_group.m` | chunked BER 汇总入口：对单个 chunk 或整组 chunk 运行正式 BER 并汇总 |
+| `scripts/run_ber_loopback_chunk_selection.m` | chunked BER 逐段入口：按 chunk 序号依次运行 BER，并输出每段结果 |
+| `scripts/run_capture_analysis_chunk_group.m` | chunked 快速体检入口：枚举目录中的 chunk，并按序号批量调用 `run_capture_analysis` |
 
 ---
 
@@ -58,8 +58,8 @@
 
 | 文件 | 说明 |
 |------|------|
-| `architecture.drawio` | `run_capture_analysis` 主链：加载、总览、PRN 捕获、多星扫描、归档 |
-| `ber_loopback.drawio` | `run_ber_loopback` 诊断链：truth 读取、open-loop 基线、tracked BER 主链 |
+| `../docs/diagrams/matlab_architecture.drawio` | `run_capture_analysis` 主链：加载、总览、PRN 捕获、多星扫描、归档 |
+| `../docs/diagrams/ber_loopback.drawio` | `run_ber_loopback` 诊断链：truth 读取、open-loop 基线、tracked BER 主链 |
 
 ---
 
@@ -127,13 +127,9 @@ net use Y: \\100.65.171.95\projects /persistent:yes
 同步结果包含：
 
 - `functions/`
-- `scripts/`
+- `scripts/`（含所有入口脚本：`ber.m`、`run_capture_analysis.m`、`run_ber_loopback.m`、`run_capture_iq_diagnostic.m`、`run_ber_loopback_chunk_group.m`、`run_ber_loopback_chunk_selection.m`、`run_capture_analysis_chunk_group.m`）
 - `README.md`
-- 根目录快捷入口脚本 `ber.m`
-- 根目录 IQ 诊断入口 `run_capture_iq_diagnostic.m`
-- 根目录 chunked 逐段 BER 入口 `run_ber_loopback_chunk_selection.m`
-- 根目录 chunked 快速体检入口 `run_capture_analysis_chunk_group.m`
-- 根目录 chunked 汇总入口 `run_ber_loopback_chunk_group.m`
+- `gnss_rx_user_paths.m.example`
 
 每次 Ubuntu 端修改 MATLAB 代码后，统一执行上面的同步命令；随后在主力机 MATLAB 中执行：
 

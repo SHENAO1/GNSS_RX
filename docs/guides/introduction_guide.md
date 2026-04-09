@@ -1,7 +1,7 @@
 # GNSS_RX 介绍指南
 
 > **文档用途**：向他人介绍接收端及完整系统时的讲解导引，配合 Draw.io 图表按顺序展示。
-> 发射端专项介绍见 [`gnss_tx/docs/introduction_guide.md`](../../gnss_tx/docs/introduction_guide.md)。
+> 发射端专项介绍见 [`gnss_tx/docs/introduction_guide.md`](../../../gnss_tx/docs/introduction_guide.md)。
 
 ---
 
@@ -13,7 +13,7 @@
 
 ## 第三步：接收链与数据存储（8 分钟）
 
-**图表**：[`system_architecture.drawio`](system_architecture.drawio)
+**图表**：[`system_architecture.drawio`](../diagrams/system_architecture.drawio)
 
 讲解接收端的三个关键设计决策：
 
@@ -57,7 +57,7 @@ uhd.usrp_source → head block → Sc16CaptureSink → .sc16 文件
 
 ## 第四步：数据格式全链路追踪（5 分钟）
 
-**图表**：[`data_format_lifecycle.drawio`](data_format_lifecycle.drawio)
+**图表**：[`data_format_lifecycle.drawio`](../diagrams/data_format_lifecycle.drawio)
 
 三泳道图展示数据格式在整个系统中的演变：
 
@@ -82,7 +82,7 @@ RX 软件层：  fc32 → SC16(int16) → .sc16 → MATLAB fc32 → BER
 
 ## 第五步：实验工作流（5 分钟）
 
-**图表**：[`experiment_workflow.drawio`](experiment_workflow.drawio)
+**图表**：[`experiment_workflow.drawio`](../diagrams/experiment_workflow.drawio)
 
 展示工程师如何使用这套系统进行实验：
 
@@ -119,7 +119,7 @@ PYTHONPATH=/home/shenao/projects/gnss_tx/src:src \
 
 ## 第六步：代码结构（按需，面向软件工程师）
 
-**图表**：[`software_module_dependency.drawio`](software_module_dependency.drawio)
+**图表**：[`software_module_dependency.drawio`](../diagrams/software_module_dependency.drawio)
 
 两个子项目的分层模块依赖关系：
 
@@ -217,13 +217,13 @@ A：可研究 GPS 接收机算法（捕获、跟踪、定位）、抗干扰技�
 
 | 图表 | 文件 | 展示重点 |
 |------|------|---------|
-| 系统总架构 | [`gnss_tx/docs/system_architecture.drawio`](../../gnss_tx/docs/system_architecture.drawio) | 全局4泳道，开场首选 |
-| TX 信号链 | [`gnss_tx/docs/gnss_tx_signal_chain.drawio`](../../gnss_tx/docs/gnss_tx_signal_chain.drawio) | C/A码→扩频→GNU Radio |
-| 端到端信号链 | [`tx_rx_end_to_end_signal_chain.drawio`](tx_rx_end_to_end_signal_chain.drawio) | 跨两项目完整链路 |
-| RX 系统架构 | [`system_architecture.drawio`](system_architecture.drawio) | 接收/落盘/MATLAB |
-| 数据格式演变 | [`data_format_lifecycle.drawio`](data_format_lifecycle.drawio) | int8→fc32→sc16→fc32 |
-| 软件模块依赖 | [`software_module_dependency.drawio`](software_module_dependency.drawio) | 两项目代码层次结构 |
-| 实验工作流 | [`experiment_workflow.drawio`](experiment_workflow.drawio) | 操作步骤与决策分支 |
+| 系统总架构 | [`gnss_tx/docs/system_architecture.drawio`](../../../gnss_tx/docs/system_architecture.drawio) | 全局4泳道，开场首选 |
+| TX 信号链 | [`gnss_tx/docs/gnss_tx_signal_chain.drawio`](../../../gnss_tx/docs/gnss_tx_signal_chain.drawio) | C/A码→扩频→GNU Radio |
+| 端到端信号链 | [`tx_rx_end_to_end_signal_chain.drawio`](../diagrams/tx_rx_end_to_end_signal_chain.drawio) | 跨两项目完整链路 |
+| RX 系统架构 | [`system_architecture.drawio`](../diagrams/system_architecture.drawio) | 接收/落盘/MATLAB |
+| 数据格式演变 | [`data_format_lifecycle.drawio`](../diagrams/data_format_lifecycle.drawio) | int8→fc32→sc16→fc32 |
+| 软件模块依赖 | [`software_module_dependency.drawio`](../diagrams/software_module_dependency.drawio) | 两项目代码层次结构 |
+| 实验工作流 | [`experiment_workflow.drawio`](../diagrams/experiment_workflow.drawio) | 操作步骤与决策分支 |
 
 ---
 
@@ -231,8 +231,8 @@ A：可研究 GPS 接收机算法（捕获、跟踪、定位）、抗干扰技�
 
 | 文档 | 内容 |
 |------|------|
-| [`README.md`](README.md) | 完整技术参考，含信号处理公式和数据格式规范 |
-| [`receiver_overview.md`](receiver_overview.md) | Python 包结构与数据流设计 |
+| [`README.md`](../README.md) | 完整技术参考，含信号处理公式和数据格式规范 |
+| [`receiver_overview.md`](../reference/receiver_overview.md) | Python 包结构与数据流设计 |
 | [`experiment_workflow.md`](experiment_workflow.md) | 逐步操作手册 |
-| [`capture_data_format.md`](capture_data_format.md) | SC16/fc32 格式详解 |
-| [`gnss_tx/docs/introduction_guide.md`](../../gnss_tx/docs/introduction_guide.md) | 发射端专项介绍 |
+| [`capture_data_format.md`](../reference/capture_data_format.md) | SC16/fc32 格式详解 |
+| [`gnss_tx/docs/introduction_guide.md`](../../../gnss_tx/docs/introduction_guide.md) | 发射端专项介绍 |

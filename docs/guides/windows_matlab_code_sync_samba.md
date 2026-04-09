@@ -50,10 +50,15 @@
 /home/<USER>/GNSS_RX_matlab_share/
 ├── functions/
 ├── scripts/
+│   ├── ber.m
+│   ├── run_capture_analysis.m
+│   ├── run_ber_loopback.m
+│   ├── run_capture_iq_diagnostic.m
+│   ├── run_ber_loopback_chunk_group.m
+│   ├── run_ber_loopback_chunk_selection.m
+│   └── run_capture_analysis_chunk_group.m
 ├── README.md
-├── architecture.drawio
-├── gnss_rx_user_paths.m.example
-└── ber.m
+└── gnss_rx_user_paths.m.example
 ```
 
 这个目录由 Ubuntu 端的 `scripts/sync_matlab.sh` 生成和更新。
@@ -100,14 +105,14 @@ ls -lh ~/GNSS_RX_matlab_share
 预期结果：
 
 - `~/GNSS_RX_matlab_share` 被创建
-- 目录下出现 `functions/`、`scripts/`、`ber.m`
+- 目录下出现 `functions/`、`scripts/`
 - 这一步只同步代码，不会复制采集数据
 
 本轮已实测通过，终端输出表明：
 
 - `sync_matlab.sh` 已成功把 `matlab/` 镜像到 `/home/shenao/GNSS_RX_matlab_share`
 - 已创建 `functions/`、`scripts/`
-- 根目录文件已出现：`architecture.drawio`、`ber.m`、`gnss_rx_user_paths.m.example`、`README.md`
+- 根目录文件已出现：`gnss_rx_user_paths.m.example`、`README.md`
 
 这说明“MATLAB 代码镜像目录”这一步已经完成，后续可以直接进入 Samba 安装与共享配置。
 
@@ -248,14 +253,13 @@ dir Y:\
 
 - `functions`
 - `scripts`
-- `ber.m`
 - `README.md`
 
 本轮已实测通过，Windows 端已成功显示：
 
 - `Z:` 已映射到 `\\192.168.100.86\gnss_rx_matlab`
 - `dir Z:\` 能看到 `functions/`、`scripts/`
-- 根目录文件已可见：`architecture.drawio`、`ber.m`、`gnss_rx_user_paths.m.example`、`README.md`
+- 根目录文件已可见：`gnss_rx_user_paths.m.example`、`README.md`
 
 这说明 Ubuntu → Samba → Windows 的 MATLAB 代码同步链路已经打通。
 
@@ -269,7 +273,7 @@ dir Z:\
 预期结果：
 
 - `Z:` 成功映射
-- 能看到 `functions\`、`scripts\`、`ber.m`
+- 能看到 `functions\`、`scripts\`
 
 ### 5.7 Windows MATLAB 端：两种使用方式
 
@@ -320,8 +324,6 @@ E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab
 - 随后 `dir E:\MATLAB_code_Gongwei_Local` 已能看到：
   - `functions/`
   - `scripts/`
-  - `architecture.drawio`
-  - `ber.m`
   - `gnss_rx_user_paths.m.example`
   - `README.md`
 
@@ -364,7 +366,7 @@ Windows MATLAB 代码正式目录 = E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab
 robocopy Z:\ E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab /MIR
 ```
 
-- `E:\MATLAB_code_Gongwei_Local` 根目录下那套 `functions/`、`scripts/`、`ber.m`、`README.md` 等文件，属于误同步残留
+- `E:\MATLAB_code_Gongwei_Local` 根目录下那套 `functions/`、`scripts/`、`README.md` 等文件，属于误同步残留
 - 在确认 MATLAB 已切到 `GNSS_RX_matlab` 子目录运行后，可将根目录那套残留文件手工清理
 
 建议的清理顺序：
@@ -395,7 +397,7 @@ which gnss_rx_resolve_accel_options -all
 得到的关键结果为：
 
 - 父目录 `E:\MATLAB_code_Gongwei_Local` 下当前只保留了 `GNSS_RX_matlab` 子目录
-- `ber` 指向 `E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab\ber.m`
+- `ber` 指向 `E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab\scripts\ber.m`
 - `run_ber_loopback` 指向 `E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab\scripts\run_ber_loopback.m`
 - `run_prn_acquisition` 指向 `E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab\functions\run_prn_acquisition.m`
 - `recover_nav_bits` 指向 `E:\MATLAB_code_Gongwei_Local\GNSS_RX_matlab\functions\recover_nav_bits.m`

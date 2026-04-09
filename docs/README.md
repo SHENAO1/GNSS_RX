@@ -38,16 +38,16 @@
 
 | 序号 | 文档 | 内容概括 | 阅读时长 | 前置条件 |
 |:---:|:---|:---|:---|:---|
-| 0 | **[introduction_guide.md](introduction_guide.md)** | 向他人介绍整套系统的讲解导引；含 RX 链路、数据格式、实验工作流、代码结构四个部分；配合 Draw.io 图表使用 | 10-15 min | 无 |
-| 1 | **[receiver_overview.md](receiver_overview.md)** | 系统架构总览；Python 模块设计；GNU Radio 流图与 MATLAB 分析链的映射关系 | 20-30 min | 无 |
-| 2 | **[experiment_workflow.md](experiment_workflow.md)** | 完整操作流程；采集配置清单；硬件调试步骤；数据分析工作流 | 30-45 min | 完成文档 1 |
-| 3 | **[system_architecture.drawio](system_architecture.drawio)** | 系统总体架构可视化；闭环链路示意 | 10-15 min | 配合文档 1 |
+| 0 | **[introduction_guide.md](guides/introduction_guide.md)** | 向他人介绍整套系统的讲解导引；含 RX 链路、数据格式、实验工作流、代码结构四个部分；配合 Draw.io 图表使用 | 10-15 min | 无 |
+| 1 | **[receiver_overview.md](reference/receiver_overview.md)** | 系统架构总览；Python 模块设计；GNU Radio 流图与 MATLAB 分析链的映射关系 | 20-30 min | 无 |
+| 2 | **[experiment_workflow.md](guides/experiment_workflow.md)** | 完整操作流程；采集配置清单；硬件调试步骤；数据分析工作流 | 30-45 min | 完成文档 1 |
+| 3 | **[system_architecture.drawio](diagrams/system_architecture.drawio)** | 系统总体架构可视化；闭环链路示意 | 10-15 min | 配合文档 1 |
 
 #### 参考文档（深入学习）
 
 | 文档 | 覆盖范围 | 应用场景 |
 |:---|:---|:---|
-| **[tx_rx_end_to_end_signal_chain.drawio](tx_rx_end_to_end_signal_chain.drawio)** | 跨发端与收端的完整信号流可视化；涵盖数字信号生成 → 扩频 → UHD 驱动 → 数据落盘 → MATLAB 分析全过程 | 理解系统端到端的数据变换过程；信号路径问题诊断 |
+| **[tx_rx_end_to_end_signal_chain.drawio](diagrams/tx_rx_end_to_end_signal_chain.drawio)** | 跨发端与收端的完整信号流可视化；涵盖数字信号生成 → 扩频 → UHD 驱动 → 数据落盘 → MATLAB 分析全过程 | 理解系统端到端的数据变换过程；信号路径问题诊断 |
 | **本文档 § 3** | 系统端到端信号流详细说明；各处理阶段的算法与数据转换 | 深入学习信号处理链的实现细节 |
 | **本文档 § 4** | 系统全链路的数据类型、文件格式、存储规范 | 开发新模块时的接口参考；数据格式验证 |
 
@@ -55,9 +55,9 @@
 
 | 模块 | 位置 | 研究内容 | 适用场景 |
 |:---|:---|:---|:---|
-| **Python 核心模块** | `../src/gnss_rx/*.drawio` | 各子模块架构：`runtime`、`flowgraph`、`writer`、`metadata`、`utils` | 需要修改或扩展特定功能模块 |
-| **MATLAB 主分析链** | `../matlab/architecture.drawio` | MATLAB 信号处理流程；捕获、追踪、解调算法 | 离线数据分析与算法开发 |
-| **MATLAB BER 诊断链** | `../matlab/ber_loopback.drawio` | 误码率（BER）测试框架；性能评估逻辑 | 系统性能验证与故障诊断 |
+| **Python 核心模块** | `python_modules/` | 各子模块架构：`runtime`、`flowgraph`、`writer`、`metadata`、`utils` | 需要修改或扩展特定功能模块 |
+| **MATLAB 主分析链** | `diagrams/matlab_architecture.drawio` | MATLAB 信号处理流程；捕获、追踪、解调算法 | 离线数据分析与算法开发 |
+| **MATLAB BER 诊断链** | `diagrams/ber_loopback.drawio` | 误码率（BER）测试框架；性能评估逻辑 | 系统性能验证与故障诊断 |
 | **工程配置参考** | `../configs/README.md` | 配置文件说明；参数含义；预设场景 | 配置系统运行参数；切换实验场景 |
 
 ---
@@ -66,7 +66,7 @@
 
 ### § 3.1 系统架构总体概览
 
-> **参考资源**：`tx_rx_end_to_end_signal_chain.drawio`、`system_architecture.drawio`
+> **参考资源**：`diagrams/tx_rx_end_to_end_signal_chain.drawio`、`diagrams/system_architecture.drawio`
 
 GNSS_RX 系统遵循发端 (TX) - 硬件链路 (RF) - 收端 (RX) - 后处理 (MATLAB) 的闭环设计。信号经历从数字生成、无线传输、数据采集、到离线分析的完整变换流程。
 
@@ -450,9 +450,9 @@ run_capture_analysis()
 按以下顺序逐步理解系统框架，无需运行代码：
 
 1. **阅读本文档 § 1-2** — 快速了解文档结构和项目目标
-2. **阅读 [receiver_overview.md](receiver_overview.md)** — 掌握 Python 包结构、模块划分、数据流设计
-3. **查看 [system_architecture.drawio](system_architecture.drawio)** — 建立可视化认知
-4. **查看 [tx_rx_end_to_end_signal_chain.drawio](tx_rx_end_to_end_signal_chain.drawio)** — 理解端到端信号链
+2. **阅读 [receiver_overview.md](reference/receiver_overview.md)** — 掌握 Python 包结构、模块划分、数据流设计
+3. **查看 [system_architecture.drawio](diagrams/system_architecture.drawio)** — 建立可视化认知
+4. **查看 [tx_rx_end_to_end_signal_chain.drawio](diagrams/tx_rx_end_to_end_signal_chain.drawio)** — 理解端到端信号链
 
 **检验点**：能够清晰说明“信号从生成到分析的完整路径”
 
@@ -462,7 +462,7 @@ run_capture_analysis()
 
 1. **运行自检命令** (§ 5.1) — 验证环境就绪
 2. **运行合成数据采集** (§ 5.3) — 熟悉采集流程（无硬件开发友好）
-3. **阅读 [experiment_workflow.md](experiment_workflow.md)** — 掌握完整操作流程
+3. **阅读 [experiment_workflow.md](guides/experiment_workflow.md)** — 掌握完整操作流程
 4. **执行 MATLAB 分析** (§ 5.4) — 观察输出和诊断报告
 
 **检验点**：能够独立完成“采集→分析→结果验证”的完整链路
@@ -471,8 +471,8 @@ run_capture_analysis()
 
 针对特定模块进行专项研究：
 
-- 需要修改 Python 采集模块？→ 查阅 `../src/gnss_rx/*.drawio` 和对应模块源码
-- 需要优化信号处理算法？→ 查阅 `../matlab/architecture.drawio` 和 MATLAB 函数库
+- 需要修改 Python 采集模块？→ 查阅 `python_modules/` 和对应模块源码
+- 需要优化信号处理算法？→ 查阅 `diagrams/matlab_architecture.drawio` 和 MATLAB 函数库
 - 需要增加新的配置场景？→ 参考 `../configs/README.md`
 
 ### § 6.2 常见问题与快速排查
