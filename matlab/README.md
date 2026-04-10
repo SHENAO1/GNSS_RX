@@ -347,6 +347,218 @@ acq_result = run_prn1_acquisition(samples, meta, cfg);
 
 ---
 
+## 捕获与跟踪方法解析
+
+这一节面向“想知道代码具体怎么做”的读者。结论先说：
+
+- 捕获采用 `1 ms` 相干相关，加默认 `10 ms` 非相干累加，执行 `Doppler × 码相位` 二维搜索
+- 跟踪链确实存在，结构是“码跟踪 + 载波跟踪 + bit 对齐 + 20 ms 比特积分”
+- 码跟踪更像 `DLL-like` 的离散采样点调整，而不是标准连续二阶 DLL
+- 载波跟踪采用 `FLL-assisted PLL`，但实现是偏简化、偏诊断型的工程版本
+
+### 总体链路
+
+正式 BER 主链可概括为：
+
+```text
+acquisition
+  -> code tracking
+  -> carrier tracking
+  -> bit alignment
+  -> bit timing stability check
+  -> 20 ms bit integration
+  -> BER
+```
+
+在 `run_ber_loopback_capture(...)` 中，流程是：
+
+1. 先从整段采集中取前 `0.1 s` 做捕获
+2. 用捕获得到的粗 Doppler 和粗码相位初始化 tracking
+3. 在 tracking 稳定后做导航 bit 恢复与 BER 统计
+
+因此它不是“只做一次捕获然后开环解调”，而是一条简化接收机链路。
+
+### 捕获方法
+
+`run_prn_acquisition(...)` 的捕获逻辑可以拆成 5 步：
+
+1. 按采样率计算每个 `1 ms` C/A 码周期对应多少采样点
+2. 取前 `noncoherent_ms` 个 `1 ms` 片段作为搜索窗口
+3. 对每个 Doppler 分格进行去载波
+4. 与本地 PRN 码做 FFT 循环相关，得到每个码相位上的相关值
+5. 对多个 `1 ms` 相关功率做非相干累加，形成二维搜索图
+
+这里要注意“相干”和“非相干”的边界：
+
+- 单个 `1 ms` 内，代码是在复相关层面完成相关，因此这是 `1 ms` 相干积分
+- 多个毫秒之间，代码对 `abs(correlation).^2` 求和，因此这是非相干累加
+
+所以当前默认捕获参数下，真实积分结构是：
+
+- 相干积分时间：`1 ms`
+- 非相干累加时间：`10 ms`
+- 总搜索维度：`Doppler × code phase`
+
+捕获判决不是单纯取最大峰值，而是使用“主峰 / 次峰比”：
+
+- 先找到全局最大峰值
+- 再把主峰附近约 `1 chip` 范围屏蔽掉
+- 在剩余区域中找次峰
+- 若 `second_peak_ratio >= detection_threshold`，则认为捕获成功
+
+这种做法比单看峰值更稳，能更好区分“真峰”与噪声或旁瓣假峰。
+
+### 跟踪方法
+
+`track_nav_bits(...)` 的跟踪主链分成 5 个阶段。
+
+#### 1. 码跟踪
+
+每 `1 ms`，代码都会生成一段去 Doppler 的输入片段，并分别与：
+
+- `prompt` 本地码
+- `early` 本地码
+- `late` 本地码
+
+做相关。
+
+然后根据 `early / prompt / late` 的幅度关系，决定下一毫秒是否把码指针调整 `-1 sample / +1 sample / 0`。
+
+这说明当前实现虽然遵循 DLL 思想，但它不是经典连续环路滤波器结构，而更像：
+
+- 基于 `early-late` 判决的离散 cursor 调整
+- 每次调整量固定为 `1 sample`
+- 每隔一定时间，或者锁定度下降时，再做一次局部小范围码相位重搜
+
+这个“局部重搜”只在当前估计点附近扫描 `±code_search_half_span_samples`，目的是避免整段重新 acquisition 的高成本。
+
+#### 2. 载波跟踪
+
+载波跟踪在 prompt 相关序列上完成，分两步：
+
+1. `FLL`：对 `prompt_ms^2` 的相邻相位差求频偏估计，并做滑动平均平滑
+2. `PLL`：在 FLL 初步拉稳后，再用比例型 PLL 修正剩余相位误差
+
+这就是典型的 `FLL-assisted PLL` 思路：
+
+- FLL 解决“相位一直旋转、频率还没稳住”的问题
+- PLL 解决“频率基本对了，但点云还没贴近实轴”的问题
+
+需要注意的是，这里的 PLL 实现比较简化，只有比例更新，没有完整高阶环路滤波器参数设计，因此更适合作为离线 BER 分析链，而不是严格 textbook 版接收机环路。
+
+#### 3. 初始 bit 对齐
+
+tracking 稳住后，代码不会直接盲判导航 bit，而是借助 truth：
+
+- 在前 `alignment_training_ms` 的训练段上
+- 遍历 `20` 种可能的 bit 边界
+- 同时搜索 pattern 偏移和极性
+- 选择匹配率最高的组合作为初始 bit 对齐结果
+
+因此这里的 bit 恢复是“tracking + truth-assisted alignment”，不是完全盲恢复。
+
+#### 4. bit 时序稳定性检查
+
+初始 bit 对齐不代表整段采集都一直对齐。代码会定期在滑动窗口中比较：
+
+- 当前 bit offset 的积分能量
+- 局部最优 bit offset 的积分能量
+
+如果当前边界明显不如局部最优边界，就记录 `bit_timing_watch` 事件，用于诊断 overflow、慢性漂移或重同步问题。
+
+#### 5. 20 ms 比特积分
+
+GPS L1 C/A 导航数据是 `20 ms / bit`。因此在最终判 bit 时，代码会把连续 `20` 个 `1 ms prompt` 相关结果积分成 1 个导航 bit 相关值，再做符号判决。
+
+所以导航比特阶段的有效积分时间是：
+
+- `20 ms / bit`
+
+### 捕获参数表
+
+| 参数 | 默认值 | 含义 | 调大/调小的典型影响 |
+|------|--------|------|----------------------|
+| `noncoherent_ms` | `10` | 非相干累加毫秒数 | 调大更灵敏但更慢；调小更快但弱信号更难捕获 |
+| `doppler_min_hz` | `-10000` | Doppler 搜索下限 | 过窄可能漏检，过宽会增加计算量 |
+| `doppler_max_hz` | `10000` | Doppler 搜索上限 | 同上 |
+| `doppler_step_hz` | `500` | Doppler 搜索步长 | 更小更精细但更慢；更大更快但粗糙 |
+| `detection_threshold` | `2.5` | 主峰/次峰比门限 | 调高更保守，调低更容易误检 |
+
+当前默认值偏向“先跑通、先出结果”。实际联调时，最常改的通常是：
+
+- `noncoherent_ms`
+- `doppler_min_hz / doppler_max_hz`
+- `doppler_step_hz`
+
+### 跟踪参数表
+
+| 参数 | 默认值 | 含义 | 典型影响 |
+|------|--------|------|----------|
+| `min_required_ms` | `200` | 至少需要多少 ms 才进入 tracking | 太短会直接报错 |
+| `early_late_spacing_samples` | `1` | early / late 与 prompt 的间隔 | 影响码跟踪灵敏度与稳健性 |
+| `code_switch_ratio` | `1.015` | 触发 `±1 sample` 码调整的门限 | 越低越敏感，越高越保守 |
+| `code_search_interval_ms` | `100` | 周期性局部码重搜间隔 | 越短越积极，越长越省算力 |
+| `code_search_half_span_samples` | `8` | 局部码重搜半宽 | 越大越能纠正较大偏移，但开销更大 |
+| `code_lock_threshold` | `0.08` | 码锁定质量门限 | 太高易误判失锁，太低则不敏感 |
+| `fll_smooth_ms` | `50` | FLL 平滑窗口长度 | 越大越稳，越小响应越快 |
+| `pll_gain` | `0.08` | PLL 比例增益 | 越大响应快但更易抖动，越小更稳但更慢 |
+| `alignment_training_ms` | `2000` | 初始 bit 对齐训练长度 | 越长越稳但更慢 |
+| `bit_timing_check_interval_ms` | `1000` | bit 时序检查周期 | 越短越敏感 |
+| `bit_timing_check_span_ms` | `2000` | 每次 bit 时序检查窗口 | 越大统计更稳，越小更灵活 |
+| `bit_timing_realign_margin` | `1.05` | 判定局部最优边界更优的门限 | 越大越保守 |
+| `window_ber_bits` | `100` | 局部 BER 窗口大小 | 影响 BER 曲线平滑度 |
+| `fll_jump_threshold_hz` | `10.0` | FLL 突变判据 | 用于检测 overflow / 失锁起点 |
+| `bit_match_rate_threshold` | `0.9` | bit 时序有效性门限 | 越高越严格 |
+
+### 最重要的两个问题
+
+#### 1. 相干积分时间是多少？
+
+分阶段看：
+
+- 捕获阶段：`1 ms` 相干积分
+- 捕获阶段默认累加：`10 ms` 非相干累加
+- 导航 bit 阶段：`20 ms` 积分形成 1 个 bit
+
+因此如果你问“当前 acquisition 的 coherent integration time 是多少”，答案是：
+
+- `1 ms`
+
+如果你问“当前 acquisition 总共积了多久”，默认答案是：
+
+- `10 × 1 ms` 的非相干累加
+
+#### 2. 是否使用了跟踪环？
+
+答案是“使用了”，但要准确描述：
+
+- 码跟踪：是 `DLL-like` 结构，基于 `early/prompt/late` 做离散 sample 级调整
+- 载波跟踪：是 `FLL-assisted PLL`
+- bit 级处理：还有额外的 bit 边界检查与失锁质量判定
+
+因此它不是纯 open-loop 流程。
+
+但同时也要看到，它并不是完整 textbook 版的高阶 GNSS tracking loop，而是更偏向：
+
+- 便于离线分析
+- 便于 BER 诊断
+- 便于观察失锁/重同步事件
+
+的一套简化工程实现。
+
+### 一句话结论
+
+这套 MATLAB 代码整体更像“用于离线 BER 与诊断的简化 GPS L1 C/A 接收机”：
+
+- acquisition 是标准的 FFT 二维搜索
+- code tracking 是离散 `DLL-like`
+- carrier tracking 是简化的 `FLL + PLL`
+- bit 恢复依赖 truth 做监督式对齐
+
+如果你的目标是“理解当前代码到底有没有接收机式 tracking”，答案是明确的：有。
+
+---
+
 ## 输出结果
 
 分析产物写入：`<capture_date_dir>/analysis/<stem>/`

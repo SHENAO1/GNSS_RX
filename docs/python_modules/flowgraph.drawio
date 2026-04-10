@@ -1,70 +1,91 @@
-<mxfile host="app.diagrams.net" modified="2026-03-29T00:00:00.000Z" agent="Codex" version="24.7.17">
-  <diagram id="flowgraph-module" name="flowgraph.py">
-    <mxGraphModel dx="1500" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1000" math="0" shadow="0" adaptiveColors="auto">
-      <root>
-        <mxCell id="0"/>
-        <mxCell id="1" parent="0"/>
-
-        <mxCell id="title" value="flowgraph.py：UHD 设备检测、USRP Source 配置与 Top Block 组装" style="text;html=1;fontStyle=1;fontSize=18;align=center;" parent="1" vertex="1">
-          <mxGeometry x="320" y="20" width="1160" height="30" as="geometry"/>
-        </mxCell>
-
-        <mxCell id="env" value="环境能力&#xa;HAVE_GNURADIO / HAVE_UHD&#xa;动态选择基类" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;" parent="1" vertex="1">
-          <mxGeometry x="70" y="110" width="220" height="90" as="geometry"/>
-        </mxCell>
-        <mxCell id="find_devices" value="uhd_find_devices_output()&#xa;subprocess.run('uhd_find_devices')" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;" parent="1" vertex="1">
-          <mxGeometry x="70" y="250" width="220" height="80" as="geometry"/>
-        </mxCell>
-        <mxCell id="dev_available" value="is_uhd_device_available()&#xa;解析输出判断当前是否有设备" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;" parent="1" vertex="1">
-          <mxGeometry x="70" y="370" width="220" height="80" as="geometry"/>
-        </mxCell>
-
-        <mxCell id="config" value="输入&#xa;RxRuntimeConfig" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;" parent="1" vertex="1">
-          <mxGeometry x="360" y="120" width="180" height="60" as="geometry"/>
-        </mxCell>
-        <mxCell id="create_src" value="create_usrp_source(config)&#xa;uhd.usrp_source(device_addr, stream_args)&#xa;设置 sample_rate / center_freq / gain / antenna / bandwidth / clock / time" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE5CD;strokeColor=#D79B00;" parent="1" vertex="1">
-          <mxGeometry x="600" y="100" width="330" height="100" as="geometry"/>
-        </mxCell>
-        <mxCell id="buffers" value="device_addr 额外参数&#xa;recv_frame_size / num_recv_frames / recv_buff_size&#xa;用于降低 host-side overflow 风险" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE5CD;strokeColor=#D79B00;" parent="1" vertex="1">
-          <mxGeometry x="980" y="105" width="300" height="90" as="geometry"/>
-        </mxCell>
-
-        <mxCell id="top" value="ZeroIfCaptureTopBlock(config, output_path, source_block=None, writer_sink=None)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontStyle=1;" parent="1" vertex="1">
-          <mxGeometry x="430" y="260" width="620" height="70" as="geometry"/>
-        </mxCell>
-        <mxCell id="source" value="source&#xa;真实 USRP Source&#xa;或测试注入 source_block" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE5CD;strokeColor=#D79B00;" parent="1" vertex="1">
-          <mxGeometry x="420" y="390" width="180" height="90" as="geometry"/>
-        </mxCell>
-        <mxCell id="head" value="blocks.head(gr.sizeof_gr_complex, config.capture_samples)&#xa;精确截断总样本数" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;" parent="1" vertex="1">
-          <mxGeometry x="650" y="395" width="180" height="80" as="geometry"/>
-        </mxCell>
-        <mxCell id="native_path" value="默认主路&#xa;complex_to_interleaved_short(False, SC16_SCALE)&#xa;→ blocks.file_sink()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;" parent="1" vertex="1">
-          <mxGeometry x="890" y="385" width="220" height="100" as="geometry"/>
-        </mxCell>
-        <mxCell id="custom_path" value="测试 / 注入路径&#xa;writer_sink != None&#xa;source → head → writer_sink" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;dashed=1;" parent="1" vertex="1">
-          <mxGeometry x="1160" y="385" width="220" height="100" as="geometry"/>
-        </mxCell>
-        <mxCell id="handle" value="CaptureSinkHandle&#xa;close_fn + samples_written_fn&#xa;统一 file_sink 与自定义 sink 的接口" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;" parent="1" vertex="1">
-          <mxGeometry x="980" y="550" width="250" height="90" as="geometry"/>
-        </mxCell>
-        <mxCell id="factory" value="build_capture_top_block()&#xa;返回 (tb, tb.capture_sink)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;" parent="1" vertex="1">
-          <mxGeometry x="560" y="560" width="240" height="80" as="geometry"/>
-        </mxCell>
-
-        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="env" target="find_devices" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="find_devices" target="dev_available" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="config" target="create_src" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="create_src" target="buffers" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="create_src" target="top" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="top" target="source" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="source" target="head" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e8" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="head" target="native_path" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e9" style="edgeStyle=orthogonalEdgeStyle;html=1;dashed=1;" edge="1" source="head" target="custom_path" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e10" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="native_path" target="handle" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e11" style="edgeStyle=orthogonalEdgeStyle;html=1;dashed=1;" edge="1" source="custom_path" target="handle" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e12" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="top" target="factory" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e13" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="handle" target="factory" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
-      </root>
-    </mxGraphModel>
-  </diagram>
+<mxfile host="65bd71144e">
+    <diagram id="flowgraph-module" name="flowgraph.py">
+        <mxGraphModel dx="1422" dy="474" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1000" math="0" shadow="0" adaptiveColors="auto">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="title" value="flowgraph.py：UHD 设备检测、USRP Source 配置与 Top Block 组装" style="text;html=1;fontStyle=1;fontSize=18;align=center;" parent="1" vertex="1">
+                    <mxGeometry x="320" y="20" width="1160" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="env" value="环境能力&#xa;HAVE_GNURADIO / HAVE_UHD&#xa;动态选择基类" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;" parent="1" vertex="1">
+                    <mxGeometry x="70" y="110" width="220" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="find_devices" value="uhd_find_devices_output()&#xa;subprocess.run(&#39;uhd_find_devices&#39;)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;" parent="1" vertex="1">
+                    <mxGeometry x="70" y="250" width="220" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="dev_available" value="is_uhd_device_available()&#xa;解析输出判断当前是否有设备" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;" parent="1" vertex="1">
+                    <mxGeometry x="70" y="370" width="220" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="config" value="输入&#xa;RxRuntimeConfig" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;" parent="1" vertex="1">
+                    <mxGeometry x="360" y="120" width="180" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="create_src" value="create_usrp_source(config)&#xa;uhd.usrp_source(device_addr, stream_args)&#xa;设置 sample_rate / center_freq / gain / antenna / bandwidth / clock / time" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE5CD;strokeColor=#D79B00;" parent="1" vertex="1">
+                    <mxGeometry x="600" y="100" width="330" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="buffers" value="device_addr 额外参数&#xa;recv_frame_size / num_recv_frames / recv_buff_size&#xa;用于降低 host-side overflow 风险" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE5CD;strokeColor=#D79B00;" parent="1" vertex="1">
+                    <mxGeometry x="980" y="105" width="300" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="top" value="ZeroIfCaptureTopBlock(config, output_path, source_block=None, writer_sink=None)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontStyle=1;" parent="1" vertex="1">
+                    <mxGeometry x="455" y="260" width="620" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="source" value="source&#xa;真实 USRP Source&#xa;或测试注入 source_block" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE5CD;strokeColor=#D79B00;" parent="1" vertex="1">
+                    <mxGeometry x="510" y="440" width="180" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="head" value="blocks.head(gr.sizeof_gr_complex, config.capture_samples)&#xa;精确截断总样本数" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;" parent="1" vertex="1">
+                    <mxGeometry x="790" y="445" width="180" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="native_path" value="默认主路&#xa;complex_to_interleaved_short(False, SC16_SCALE)&#xa;→ blocks.file_sink()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;" parent="1" vertex="1">
+                    <mxGeometry x="1075" y="345" width="220" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="custom_path" value="测试 / 注入路径&#xa;writer_sink != None&#xa;source → head → writer_sink" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;dashed=1;" parent="1" vertex="1">
+                    <mxGeometry x="1340" y="435" width="220" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="handle" value="CaptureSinkHandle&#xa;close_fn + samples_written_fn&#xa;统一 file_sink 与自定义 sink 的接口" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;" parent="1" vertex="1">
+                    <mxGeometry x="1060" y="580" width="250" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="factory" value="build_capture_top_block()&#xa;返回 (tb, tb.capture_sink)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;" parent="1" vertex="1">
+                    <mxGeometry x="645" y="585" width="240" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;html=1;" parent="1" source="env" target="find_devices" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;html=1;" parent="1" source="find_devices" target="dev_available" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;html=1;" parent="1" source="config" target="create_src" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;html=1;" parent="1" source="create_src" target="buffers" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;html=1;" parent="1" source="create_src" target="top" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;html=1;" parent="1" source="top" target="source" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;html=1;" parent="1" source="source" target="head" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e8" style="edgeStyle=orthogonalEdgeStyle;html=1;" parent="1" source="head" target="native_path" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e9" style="edgeStyle=orthogonalEdgeStyle;html=1;dashed=1;" parent="1" source="head" target="custom_path" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e10" style="edgeStyle=orthogonalEdgeStyle;html=1;" parent="1" source="native_path" target="handle" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e11" style="edgeStyle=orthogonalEdgeStyle;html=1;dashed=1;" parent="1" source="custom_path" target="handle" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e12" style="edgeStyle=orthogonalEdgeStyle;html=1;" parent="1" source="top" target="factory" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e13" style="edgeStyle=orthogonalEdgeStyle;html=1;" parent="1" source="handle" target="factory" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
 </mxfile>

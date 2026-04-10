@@ -1,85 +1,85 @@
 <mxfile host="65bd71144e">
     <diagram id="ber-loopback" name="BER Loopback">
-        <mxGraphModel dx="3723" dy="2557" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2200" pageHeight="1100" math="0" shadow="0" adaptiveColors="auto">
+        <mxGraphModel dx="2849" dy="2537" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2200" pageHeight="1100" math="0" shadow="0" adaptiveColors="auto">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
-                <mxCell id="title" value="run_ber_loopback.m：GPS L1 C/A IQ 采集 → 捕获 → 解调 → 误码统计（BER）完整信号处理链路" style="text;html=1;fontStyle=1;fontSize=16;align=center;" parent="1" vertex="1">
-                    <mxGeometry x="80" y="-50" width="2000" height="30" as="geometry"/>
+                <mxCell id="title" value="run_ber_loopback.m：GPS L1 C/A IQ 采集 → 捕获 → 解调 → 误码统计（BER）完整信号处理链路" style="text;html=1;fontStyle=1;fontSize=21;align=center;verticalAlign=middle;fontColor=#1F2937;" parent="1" vertex="1">
+                    <mxGeometry x="80" y="-54" width="2000" height="36" as="geometry"/>
                 </mxCell>
-                <mxCell id="entry" value="入口 (ber.m → run_ber_loopback.m)&#xa;CAPTURE_PATH · BER_MODE · ACCEL_OPTIONS · TRACKING_OPTIONS&#xa;clearvars / addpath / 解析加速配置" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11;" parent="1" vertex="1">
+                <mxCell id="entry" value="&lt;b&gt;入口（ber.m → run_ber_loopback.m）&lt;/b&gt;&#xa;CAPTURE_PATH · BER_MODE · ACCEL_OPTIONS · TRACKING_OPTIONS&#xa;clearvars / addpath / 解析加速配置" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#FFF2CC;strokeColor=#D6B656;strokeWidth=2;shadow=1;spacing=8;fontSize=11;" parent="1" vertex="1">
                     <mxGeometry x="20" y="76" width="340" height="82" as="geometry"/>
                 </mxCell>
-                <mxCell id="load" value="Step 1: 加载采集数据&#xa;load_gnss_rx_capture(CAPTURE_PATH, precision)&#xa;输出: samples（IQ 复数列）· meta（fs · prn_id 等）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;" parent="1" vertex="1">
+                <mxCell id="load" value="&lt;b&gt;Step 1: 加载采集数据&lt;/b&gt;&#xa;load_gnss_rx_capture(CAPTURE_PATH, precision)&#xa;输出: samples（IQ 复数列）· meta（fs · prn_id 等）" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#DAE8FC;strokeColor=#6C8EBF;strokeWidth=2;shadow=1;spacing=8;fontSize=11;" parent="1" vertex="1">
                     <mxGeometry x="410" y="76" width="310" height="82" as="geometry"/>
                 </mxCell>
-                <mxCell id="acq" value="Step 2: GPS L1 C/A 捕获&#xa;run_prn_acquisition(前 100ms, meta)&#xa;2D 相关搜索: Doppler × 码相位&#xa;输出: best_doppler_hz · best_code_phase · detected · second_peak_ratio" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" parent="1" vertex="1">
+                <mxCell id="acq" value="&lt;b&gt;Step 2: GPS L1 C/A 捕获&lt;/b&gt;&#xa;run_prn_acquisition(前 100ms, meta)&#xa;2D 相关搜索: Doppler × 码相位&#xa;输出: best_doppler_hz · best_code_phase · detected · second_peak_ratio" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#D5E8D4;strokeColor=#82B366;strokeWidth=2;shadow=1;spacing=8;fontSize=11;" parent="1" vertex="1">
                     <mxGeometry x="770" y="66" width="340" height="104" as="geometry"/>
                 </mxCell>
-                <mxCell id="truth" value="Step 2.5: TX truth 发现链&#xa;优先级（从高到低）：&#xa;① {stem}_tx_truth.json（sidecar）&#xa;② {stem}.truth.json（sidecar）&#xa;③ {capture_dir}/tx_truth.json&#xa;④ {capture_dir}/ber_truth.json&#xa;⑤ workspace fallback tx_truth.json&#xa;⑥ build_fallback_tx_truth（内置默认 pattern，仅限排障）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=11;" parent="1" vertex="1">
+                <mxCell id="truth" value="&lt;b&gt;Step 2.5: TX truth 发现链&lt;/b&gt;&#xa;优先级（从高到低）：&#xa;① {stem}_tx_truth.json（sidecar）&#xa;② {stem}.truth.json（sidecar）&#xa;③ {capture_dir}/tx_truth.json&#xa;④ {capture_dir}/ber_truth.json&#xa;⑤ workspace fallback tx_truth.json&#xa;⑥ build_fallback_tx_truth（内置默认 pattern，仅限排障）" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#E1D5E7;strokeColor=#9673A6;strokeWidth=2;shadow=1;spacing=8;fontSize=11;" parent="1" vertex="1">
                     <mxGeometry x="1190" width="400" height="196" as="geometry"/>
                 </mxCell>
-                <mxCell id="ol_outer" value="Step 3: Open-loop 诊断基线（recover_nav_bits）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#B85450;strokeWidth=2;dashed=1;verticalAlign=top;fontSize=13;fontStyle=1;align=left;" parent="1" vertex="1">
+                <mxCell id="ol_outer" value="Step 3: Open-loop 诊断基线（recover_nav_bits）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF8F7;strokeColor=#B85450;strokeWidth=3;dashed=1;dashPattern=12 6;verticalAlign=top;fontSize=14;fontStyle=1;align=left;spacingTop=10;spacingLeft=12;" parent="1" vertex="1">
                     <mxGeometry x="20" y="283" width="640" height="602" as="geometry"/>
                 </mxCell>
-                <mxCell id="ol_3a" value="① 逐 1ms 复相关  compute_ms_correlations&#xa;∀k:  corr_ms[k] = Σ { (samples[k] − μ) · PRN · e^{−j2π·f_d·t/fs} }&#xa;输出: corr_ms（复数序列，每 1ms 一个值，幅度=相关强度，相位=残余载波）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE6E6;strokeColor=#B85450;fontSize=11;" parent="1" vertex="1">
+                <mxCell id="ol_3a" value="&lt;b&gt;① 逐 1ms 复相关  compute_ms_correlations&lt;/b&gt;&#xa;∀k:  corr_ms[k] = Σ { (samples[k] − μ) · PRN · e^{−j2π·f_d·t/fs} }&#xa;输出: corr_ms（复数序列，每 1ms 一个值，幅度=相关强度，相位=残余载波）" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#FFE6E6;strokeColor=#B85450;strokeWidth=2;shadow=1;spacing=8;fontSize=11;" parent="1" vertex="1">
                     <mxGeometry x="35" y="336" width="610" height="72" as="geometry"/>
                 </mxCell>
-                <mxCell id="ol_3b" value="② 平方相位法估粗残余频偏（搜索前统一频补）&#xa;sq[k] = corr_ms[k]²      Δφ[k] = angle( sq[k+1] / sq[k] )&#xa;Δf_pre = median(Δφ) / (4π × 1ms)      corr_ms_fcorr = corr_ms · e^{−j2π·Δf_pre·t}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE6E6;strokeColor=#B85450;fontSize=11;" parent="1" vertex="1">
+                <mxCell id="ol_3b" value="&lt;b&gt;② 平方相位法估粗残余频偏（搜索前统一频补）&lt;/b&gt;&#xa;sq[k] = corr_ms[k]²      Δφ[k] = angle( sq[k+1] / sq[k] )&#xa;Δf_pre = median(Δφ) / (4π × 1ms)      corr_ms_fcorr = corr_ms · e^{−j2π·Δf_pre·t}" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#FFE6E6;strokeColor=#B85450;strokeWidth=2;shadow=1;spacing=8;fontSize=11;" parent="1" vertex="1">
                     <mxGeometry x="35" y="426" width="610" height="72" as="geometry"/>
                 </mxCell>
-                <mxCell id="ol_3c" value="③ 联合枚举搜索  joint_search_with_truth&#xa;遍历: bit_offset ∈ [0..19ms]  ×  pattern_offset ∈ [0..N−1]  ×  polarity ∈ {+1, −1}&#xa;每候选: 20ms 积分 → bit_corr，估 Δf_fine，旋转到实轴，判决 rx_bits = sign(real(·))" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11;" parent="1" vertex="1">
+                <mxCell id="ol_3c" value="&lt;b&gt;③ 联合枚举搜索  joint_search_with_truth&lt;/b&gt;&#xa;遍历: bit_offset ∈ [0..19ms]  ×  pattern_offset ∈ [0..N−1]  ×  polarity ∈ {+1, −1}&#xa;每候选: 20ms 积分 → bit_corr，估 Δf_fine，旋转到实轴，判决 rx_bits = sign(real(·))" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#F8CECC;strokeColor=#B85450;strokeWidth=2;shadow=1;spacing=8;fontSize=11;" parent="1" vertex="1">
                     <mxGeometry x="35" y="516" width="610" height="80" as="geometry"/>
                 </mxCell>
-                <mxCell id="ol_3d" value="④ 多维评分函数（综合四项指标选最优候选）&#xa;score = 1e6 × match_rate  +  1e3 × projection_margin&#xa;        +  10 × bpsk_cluster_strength  +  1e−3 × mean_bit_energy&#xa;ambiguity_flag: top1 与 top2 score 差 &lt; 2e4  或  match_rate 差 &lt; 1%" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE6E6;strokeColor=#B85450;fontSize=11;" parent="1" vertex="1">
+                <mxCell id="ol_3d" value="&lt;b&gt;④ 多维评分函数（综合四项指标选最优候选）&lt;/b&gt;&#xa;score = 1e6 × match_rate  +  1e3 × projection_margin&#xa;        +  10 × bpsk_cluster_strength  +  1e−3 × mean_bit_energy&#xa;ambiguity_flag: top1 与 top2 score 差 &lt; 2e4  或  match_rate 差 &lt; 1%" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#FFE6E6;strokeColor=#B85450;strokeWidth=2;shadow=1;spacing=8;fontSize=11;" parent="1" vertex="1">
                     <mxGeometry x="35" y="614" width="610" height="84" as="geometry"/>
                 </mxCell>
-                <mxCell id="ol_3e" value="⑤ 最优候选输出  open_loop_result&#xa;bit_offset_ms · pattern_offset · polarity · rx_bits · ref_bits&#xa;match_rate · ambiguity_flag · score_components · diagnostics" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#D6B656;fontSize=11;" parent="1" vertex="1">
+                <mxCell id="ol_3e" value="&lt;b&gt;⑤ 最优候选输出  open_loop_result&lt;/b&gt;&#xa;bit_offset_ms · pattern_offset · polarity · rx_bits · ref_bits&#xa;match_rate · ambiguity_flag · score_components · diagnostics" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#FFE6CC;strokeColor=#D6B656;strokeWidth=2;shadow=1;spacing=8;fontSize=11;" parent="1" vertex="1">
                     <mxGeometry x="35" y="716" width="610" height="68" as="geometry"/>
                 </mxCell>
-                <mxCell id="tr_outer" value="Step 4: Tracked 主链（track_nav_bits）— 接近真实接收机工作方式" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#B85450;strokeWidth=2;dashed=1;verticalAlign=top;fontSize=13;fontStyle=1;align=left;" parent="1" vertex="1">
+                <mxCell id="tr_outer" value="Step 4: Tracked 主链（track_nav_bits）— 接近真实接收机工作方式" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF8F7;strokeColor=#B85450;strokeWidth=3;dashed=1;dashPattern=12 6;verticalAlign=top;fontSize=14;fontStyle=1;align=left;spacingTop=10;spacingLeft=12;" parent="1" vertex="1">
                     <mxGeometry x="720" y="283" width="900" height="640" as="geometry"/>
                 </mxCell>
-                <mxCell id="tr_4a" value="① DLL 码跟踪  track_code_phase_ms（逐 1ms 更新 cursor）&#xa;Prompt = Σ(segment × PRN)    Early = Σ(segment × PRN_{+1chip})    Late = Σ(segment × PRN_{−1chip})&#xa;锁定度 = |P| / (|E| + |L|)    失锁 or 每 100ms 触发局部重搜 → code_reacq events" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE6E6;strokeColor=#B85450;fontSize=11;" parent="1" vertex="1">
-                    <mxGeometry x="725" y="328" width="875" height="80" as="geometry"/>
+                <mxCell id="tr_4a" value="&lt;b&gt;① DLL 码跟踪  track_code_phase_ms（逐 1ms 更新 cursor）&lt;/b&gt;&lt;br&gt;P = Σ(segment × PRN_prompt)&amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp;E = Σ(segment × PRN_early)&amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp;L = Σ(segment × PRN_late)&lt;br&gt;Δ = early_late_spacing_samples（默认 1 sample）    锁定度 = |P| / max(|E| + |L|, eps)&lt;br&gt;锁定度低于阈值或默认每 100ms 执行局部重搜；仅当偏移修正非 0 时记录 code_reacq" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#FFE6E6;strokeColor=#B85450;strokeWidth=2;shadow=1;spacing=8;fontSize=11;" parent="1" vertex="1">
+                    <mxGeometry x="837.5" y="326" width="650" height="74" as="geometry"/>
                 </mxCell>
-                <mxCell id="tr_4b" value="② FLL-assisted PLL 载波跟踪  track_carrier_from_prompt&#xa;FLL 平滑窗 50ms，估残余 Doppler → PLL 增益 0.08 迭代修正载波相位&#xa;输出: prompt_fll · prompt_pll · fll_freq_hz · pll_phase_deg · phase_error_deg" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE6E6;strokeColor=#B85450;fontSize=11;" parent="1" vertex="1">
-                    <mxGeometry x="725" y="426" width="875" height="72" as="geometry"/>
+                <mxCell id="tr_4b" value="&lt;b&gt;② FLL-assisted PLL 载波跟踪  track_carrier_from_prompt&lt;/b&gt;&#xa;FLL 平滑窗 50ms，估残余 Doppler → PLL 增益 0.08 迭代修正载波相位&#xa;输出: prompt_fll · prompt_pll · fll_freq_hz · pll_phase_deg · phase_error_deg" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#FFE6E6;strokeColor=#B85450;strokeWidth=2;shadow=1;spacing=8;fontSize=11;" parent="1" vertex="1">
+                    <mxGeometry x="832.5" y="426" width="660" height="64" as="geometry"/>
                 </mxCell>
-                <mxCell id="tr_4c" value="③ 初始比特对齐  estimate_initial_bit_alignment（在训练段上搜索）&#xa;训练段: 前 2000ms 的 prompt_pll 序列    联合搜索方式同 open-loop（但基于已跟踪的 prompt）&#xa;输出: bit_offset_ms · pattern_offset · polarity · match_rate · ambiguity_flag" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11;" parent="1" vertex="1">
-                    <mxGeometry x="725" y="524" width="875" height="80" as="geometry"/>
+                <mxCell id="tr_4c" value="&lt;b&gt;③ 初始比特对齐  estimate_initial_bit_alignment（在训练段上搜索）&lt;/b&gt;&#xa;训练段: 前 2000ms 的 prompt_pll 序列    联合搜索方式同 open-loop（但基于已跟踪的 prompt）&#xa;输出: bit_offset_ms · pattern_offset · polarity · match_rate · ambiguity_flag" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#F8CECC;strokeColor=#B85450;strokeWidth=2;shadow=1;spacing=8;fontSize=11;" parent="1" vertex="1">
+                    <mxGeometry x="832.5" y="516" width="660" height="74" as="geometry"/>
                 </mxCell>
-                <mxCell id="tr_4d" value="④ 比特时序稳定性检查  check_bit_timing_stability&#xa;每 1000ms 检查一次（观测窗 2000ms）；边界漂移 → bit_timing_events 重对齐" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE6E6;strokeColor=#B85450;fontSize=11;" parent="1" vertex="1">
-                    <mxGeometry x="725" y="622" width="875" height="62" as="geometry"/>
+                <mxCell id="tr_4d" value="&lt;b&gt;④ 比特时序稳定性检查  check_bit_timing_stability&lt;/b&gt;&#xa;每 1000ms 检查一次（观测窗 2000ms）；边界漂移 → bit_timing_events 重对齐" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#FFE6E6;strokeColor=#B85450;strokeWidth=2;shadow=1;spacing=8;fontSize=11;" parent="1" vertex="1">
+                    <mxGeometry x="832.5" y="614" width="660" height="62" as="geometry"/>
                 </mxCell>
-                <mxCell id="tr_4e" value="⑤ 20ms 积分 + BPSK 判决  integrate_bits_from_prompt&#xa;bit_corr[i] = Σ_{20ms} prompt_pll      φ = angle( Σ bit_corr² ) / 2    （BPSK 180° 翻转无关量）&#xa;rx_bits = sign( real( bit_corr × e^{−jφ} ) )" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11;" parent="1" vertex="1">
-                    <mxGeometry x="725" y="702" width="875" height="80" as="geometry"/>
+                <mxCell id="tr_4e" value="&lt;b&gt;⑤ 20ms 积分 + BPSK 判决  integrate_bits_from_prompt&lt;/b&gt;&#xa;bit_corr[i] = Σ_{20ms} prompt_pll      φ = angle( Σ bit_corr² ) / 2    （BPSK 180° 翻转无关量）&#xa;rx_bits = sign( real( bit_corr × e^{−jφ} ) )" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#F8CECC;strokeColor=#B85450;strokeWidth=2;shadow=1;spacing=8;fontSize=11;" parent="1" vertex="1">
+                    <mxGeometry x="837.5" y="716" width="650" height="58" as="geometry"/>
                 </mxCell>
-                <mxCell id="tr_4f" value="⑥ BER 与滑动窗统计&#xa;ber = mean( sign(rx_bits) ≠ sign(ref_bits) )    window_ber: 滑动 100bit 窗 + bit_lock_quality 掩码过滤失锁段" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#D6B656;fontSize=11;" parent="1" vertex="1">
-                    <mxGeometry x="725" y="800" width="875" height="62" as="geometry"/>
+                <mxCell id="tr_4f" value="&lt;b&gt;⑥ BER 与滑动窗统计&lt;/b&gt;&#xa;ber = mean( sign(rx_bits) ≠ sign(ref_bits) )    window_ber: 滑动 100bit 窗 + bit_lock_quality 掩码过滤失锁段" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#FFE6CC;strokeColor=#D6B656;strokeWidth=2;shadow=1;spacing=8;fontSize=11;" parent="1" vertex="1">
+                    <mxGeometry x="842.5" y="810" width="640" height="52" as="geometry"/>
                 </mxCell>
-                <mxCell id="select" value="Step 5: truth 一致性判决&#xa;BER_MODE=tracked_truth（默认）→ selected = tracked_result&#xa;BER_MODE=open_loop_truth → selected = open_loop_result&#xa;警告: match_rate &lt; 55% 则为 truth mismatch / bit timing 歧义" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;" parent="1" vertex="1">
+                <mxCell id="select" value="&lt;b&gt;Step 5: truth 一致性判决&lt;/b&gt;&#xa;BER_MODE=tracked_truth（默认）→ selected = tracked_result&#xa;BER_MODE=open_loop_truth → selected = open_loop_result&#xa;警告: match_rate &lt; 55% 则为 truth mismatch / bit timing 歧义" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#DAE8FC;strokeColor=#6C8EBF;strokeWidth=2;shadow=1;spacing=8;fontSize=11;" parent="1" vertex="1">
                     <mxGeometry x="50" y="960" width="370" height="86" as="geometry"/>
                 </mxCell>
-                <mxCell id="ber_stat" value="Step 6: BER 统计&#xa;errors = Σ ( sign(rx_bits[i]) ≠ sign(ref_bits[i]) )&#xa;BER = errors / total_bits&#xa;输出: errors · total_bits · ber" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;" parent="1" vertex="1">
+                <mxCell id="ber_stat" value="&lt;b&gt;Step 6: BER 统计&lt;/b&gt;&#xa;errors = Σ ( sign(rx_bits[i]) ≠ sign(ref_bits[i]) )&#xa;BER = errors / total_bits&#xa;输出: errors · total_bits · ber" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#DAE8FC;strokeColor=#6C8EBF;strokeWidth=2;shadow=1;spacing=8;fontSize=11;" parent="1" vertex="1">
                     <mxGeometry x="480" y="960" width="340" height="86" as="geometry"/>
                 </mxCell>
-                <mxCell id="plot" value="Step 7: 可视化&#xa;plot_ber_loopback(analysis_result)&#xa;open-loop vs tracked 对比&#xa;锁定质量 · 局部 window BER" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=11;" parent="1" vertex="1">
+                <mxCell id="plot" value="&lt;b&gt;Step 7: 可视化&lt;/b&gt;&#xa;plot_ber_loopback(analysis_result)&#xa;open-loop vs tracked 对比&#xa;锁定质量 · 局部 window BER" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#E1D5E7;strokeColor=#9673A6;strokeWidth=2;shadow=1;spacing=8;fontSize=11;" parent="1" vertex="1">
                     <mxGeometry x="880" y="960" width="280" height="86" as="geometry"/>
                 </mxCell>
-                <mxCell id="save" value="Step 8: 可选保存 .mat&#xa;ber_loopback_{timestamp}.mat&#xa;truth · meta · acq_result&#xa;selected_result · stage_timings" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=11;" parent="1" vertex="1">
+                <mxCell id="save" value="&lt;b&gt;Step 8: 可选保存 .mat&lt;/b&gt;&#xa;ber_loopback_{timestamp}.mat&#xa;truth · meta · acq_result&#xa;selected_result · stage_timings" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#D5E8D4;strokeColor=#82B366;strokeWidth=2;shadow=1;spacing=8;fontSize=11;" parent="1" vertex="1">
                     <mxGeometry x="1220" y="960" width="280" height="86" as="geometry"/>
                 </mxCell>
-                <mxCell id="notes" value="&lt;font style=&quot;font-size: 15px;&quot;&gt;关键约束 &amp;amp; 设计决策&lt;br&gt;1. Acquisition 只用前 100ms（ACQ_DURATION_S=0.1）&lt;br&gt;2. open-loop 内存不足时可跳过，用占位结构体代替&lt;br&gt;3. track_nav_bits 必须提供 truth.nav_bits_pattern_pm1&lt;br&gt;4. fallback truth 仅供链路排障，不适合做严格 BER 结论&lt;br&gt;5. GPU DLL 批处理：批次内近似用批首 cursor，锁定时漂移→0&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;dashed=1;fontSize=11;" parent="1" vertex="1">
+                <mxCell id="notes" value="&lt;font style=&quot;font-size: 15px;&quot;&gt;&lt;b&gt;关键约束 &amp;amp; 设计决策&lt;/b&gt;&lt;br&gt;1. Acquisition 只用前 100ms（ACQ_DURATION_S=0.1）&lt;br&gt;2. open-loop 内存不足时可跳过，用占位结构体代替&lt;br&gt;3. track_nav_bits 必须提供 truth.nav_bits_pattern_pm1&lt;br&gt;4. fallback truth 仅供链路排障，不适合做严格 BER 结论&lt;br&gt;5. GPU DLL 批处理：批次内近似用批首 cursor，锁定时漂移→0&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#F8FAFC;strokeColor=#6B7280;strokeWidth=2;dashed=1;dashPattern=6 4;shadow=1;spacing=10;fontSize=11;" parent="1" vertex="1">
                     <mxGeometry x="1690" y="320" width="470" height="178" as="geometry"/>
                 </mxCell>
-                <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;html=1;" parent="1" source="entry" target="load" edge="1">
+                <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#4B5563;strokeWidth=2;" parent="1" source="entry" target="load" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;html=1;" parent="1" source="load" target="acq" edge="1">
+                <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#4B5563;strokeWidth=2;" parent="1" source="load" target="acq" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="e3" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;&lt;b&gt;CAPTURE_PATH&lt;/b&gt;&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;fontStyle=2;strokeWidth=4;fillColor=#fff2cc;strokeColor=#d6b656;" parent="1" source="entry" target="truth" edge="1">
+                <mxCell id="e3" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;&lt;b&gt;CAPTURE_PATH&lt;/b&gt;&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;strokeWidth=4;fillColor=#FFF2CC;strokeColor=#D6B656;endArrow=block;endFill=1;" parent="1" source="entry" target="truth" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <Array as="points">
                             <mxPoint x="190" y="52"/>
@@ -87,7 +87,7 @@
                         </Array>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="e_load_ol" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;&lt;b&gt;samples&lt;/b&gt;&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;fontStyle=2;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=3;" parent="1" source="load" target="ol_3a" edge="1">
+                <mxCell id="e_load_ol" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;&lt;b&gt;samples&lt;/b&gt;&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;fillColor=#DAE8FC;strokeColor=#6C8EBF;strokeWidth=4;endArrow=block;endFill=1;" parent="1" source="load" target="ol_3a" edge="1">
                     <mxGeometry x="-0.5412" relative="1" as="geometry">
                         <Array as="points">
                             <mxPoint x="440" y="268"/>
@@ -96,7 +96,7 @@
                         <mxPoint as="offset"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="e_load_tr" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;&lt;b&gt;samples&lt;/b&gt;&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;fontStyle=2;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=3;" parent="1" source="load" target="tr_4a" edge="1">
+                <mxCell id="e_load_tr" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;&lt;b&gt;samples&lt;/b&gt;&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;fillColor=#DAE8FC;strokeColor=#6C8EBF;strokeWidth=4;endArrow=block;endFill=1;" parent="1" source="load" target="tr_4a" edge="1">
                     <mxGeometry x="0.0061" relative="1" as="geometry">
                         <Array as="points">
                             <mxPoint x="660" y="260"/>
@@ -105,7 +105,7 @@
                         <mxPoint as="offset"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="e_acq_ol" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;&lt;b&gt;acq_result&lt;/b&gt;&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;fontStyle=2;strokeWidth=3;fillColor=#d5e8d4;strokeColor=#82b366;" parent="1" source="acq" target="ol_3a" edge="1">
+                <mxCell id="e_acq_ol" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;&lt;b&gt;acq_result&lt;/b&gt;&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;strokeWidth=4;fillColor=#D5E8D4;strokeColor=#82B366;endArrow=block;endFill=1;" parent="1" source="acq" target="ol_3a" edge="1">
                     <mxGeometry x="0.3577" relative="1" as="geometry">
                         <Array as="points">
                             <mxPoint x="940" y="240"/>
@@ -114,7 +114,7 @@
                         <mxPoint as="offset"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="e_acq_tr" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;&lt;b&gt;acq_result&lt;/b&gt;&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;fontStyle=2;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=3;" parent="1" source="acq" target="tr_4a" edge="1">
+                <mxCell id="e_acq_tr" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;&lt;b&gt;acq_result&lt;/b&gt;&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;fillColor=#D5E8D4;strokeColor=#82B366;strokeWidth=4;endArrow=block;endFill=1;" parent="1" source="acq" target="tr_4a" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <Array as="points">
                             <mxPoint x="940" y="240"/>
@@ -122,7 +122,7 @@
                         </Array>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="e_truth_ol" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;&lt;b&gt;truth_pattern&lt;/b&gt;&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;fontStyle=2;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=3;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" parent="1" source="truth" target="ol_3c" edge="1">
+                <mxCell id="e_truth_ol" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;&lt;b&gt;truth_pattern&lt;/b&gt;&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;fillColor=#E1D5E7;strokeColor=#9673A6;strokeWidth=4;endArrow=block;endFill=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" parent="1" source="truth" target="ol_3c" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <Array as="points">
                             <mxPoint x="1390" y="210"/>
@@ -132,7 +132,7 @@
                         <mxPoint x="1380" y="230" as="sourcePoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="e_truth_tr" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;&lt;b&gt;truth_pattern&lt;/b&gt;&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;fontStyle=2;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=3;" parent="1" source="truth" target="tr_4c" edge="1">
+                <mxCell id="e_truth_tr" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;&lt;b&gt;truth_pattern&lt;/b&gt;&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;fillColor=#E1D5E7;strokeColor=#9673A6;strokeWidth=4;endArrow=block;endFill=1;" parent="1" source="truth" target="tr_4c" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <Array as="points">
                             <mxPoint x="1390" y="210"/>
@@ -141,55 +141,55 @@
                         </Array>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="e_ol_ab" style="edgeStyle=orthogonalEdgeStyle;html=1;" parent="1" source="ol_3a" target="ol_3b" edge="1">
+                <mxCell id="e_ol_ab" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#B85450;strokeWidth=2;" parent="1" source="ol_3a" target="ol_3b" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="e_ol_bc" style="edgeStyle=orthogonalEdgeStyle;html=1;" parent="1" source="ol_3b" target="ol_3c" edge="1">
+                <mxCell id="e_ol_bc" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#B85450;strokeWidth=2;" parent="1" source="ol_3b" target="ol_3c" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="e_ol_cd" style="edgeStyle=orthogonalEdgeStyle;html=1;" parent="1" source="ol_3c" target="ol_3d" edge="1">
+                <mxCell id="e_ol_cd" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#B85450;strokeWidth=2;" parent="1" source="ol_3c" target="ol_3d" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="e_ol_de" style="edgeStyle=orthogonalEdgeStyle;html=1;" parent="1" source="ol_3d" target="ol_3e" edge="1">
+                <mxCell id="e_ol_de" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#B85450;strokeWidth=2;" parent="1" source="ol_3d" target="ol_3e" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="e_tr_ab" style="edgeStyle=orthogonalEdgeStyle;html=1;" parent="1" source="tr_4a" target="tr_4b" edge="1">
+                <mxCell id="e_tr_ab" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#B85450;strokeWidth=2;" parent="1" source="tr_4a" target="tr_4b" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="e_tr_bc" style="edgeStyle=orthogonalEdgeStyle;html=1;" parent="1" source="tr_4b" target="tr_4c" edge="1">
+                <mxCell id="e_tr_bc" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#B85450;strokeWidth=2;" parent="1" source="tr_4b" target="tr_4c" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="e_tr_cd" style="edgeStyle=orthogonalEdgeStyle;html=1;" parent="1" source="tr_4c" target="tr_4d" edge="1">
+                <mxCell id="e_tr_cd" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#B85450;strokeWidth=2;" parent="1" source="tr_4c" target="tr_4d" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="e_tr_de" style="edgeStyle=orthogonalEdgeStyle;html=1;" parent="1" source="tr_4d" target="tr_4e" edge="1">
+                <mxCell id="e_tr_de" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#B85450;strokeWidth=2;" parent="1" source="tr_4d" target="tr_4e" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="e_tr_ef" style="edgeStyle=orthogonalEdgeStyle;html=1;" parent="1" source="tr_4e" target="tr_4f" edge="1">
+                <mxCell id="e_tr_ef" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#B85450;strokeWidth=2;" parent="1" source="tr_4e" target="tr_4f" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="e_ol_select" style="edgeStyle=orthogonalEdgeStyle;html=1;" parent="1" source="ol_3e" target="select" edge="1">
+                <mxCell id="e_ol_select" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#4B5563;strokeWidth=2.5;" parent="1" source="ol_3e" target="select" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <Array as="points">
                             <mxPoint x="235" y="940"/>
                         </Array>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="e_tr_select" style="edgeStyle=orthogonalEdgeStyle;html=1;" parent="1" source="tr_4f" target="select" edge="1">
+                <mxCell id="e_tr_select" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#4B5563;strokeWidth=2.5;" parent="1" source="tr_4f" target="select" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <Array as="points">
                             <mxPoint x="1160" y="935"/>
-                            <mxPoint x="235" y="935"/>
+                            <mxPoint x="290" y="935"/>
                         </Array>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="e10" style="edgeStyle=orthogonalEdgeStyle;html=1;" parent="1" source="select" target="ber_stat" edge="1">
+                <mxCell id="e10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#6C8EBF;strokeWidth=2;" parent="1" source="select" target="ber_stat" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="e11" style="edgeStyle=orthogonalEdgeStyle;html=1;" parent="1" source="ber_stat" target="plot" edge="1">
+                <mxCell id="e11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#9673A6;strokeWidth=2;" parent="1" source="ber_stat" target="plot" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="e12" style="edgeStyle=orthogonalEdgeStyle;html=1;" parent="1" source="plot" target="save" edge="1">
+                <mxCell id="e12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#82B366;strokeWidth=2;" parent="1" source="plot" target="save" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
             </root>

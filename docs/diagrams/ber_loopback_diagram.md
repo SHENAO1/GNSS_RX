@@ -89,7 +89,7 @@
 
 | 子步骤 | 内容 |
 |--------|------|
-| ① DLL 码跟踪 | `track_code_phase_ms`（逐 1ms）：Prompt/Early(+1chip)/Late(−1chip) 三路相关；锁定度 = \|P\|/(\|E\|+\|L\|)；失锁或每 100ms 触发局部重搜 |
+| ① DLL 码跟踪 | `track_code_phase_ms`（逐 1ms）：分别计算 `P/E/L` 三路相关；`early_late_spacing_samples` 默认 `1 sample`；锁定度 = \|P\|/max(\|E\|+\|L\|, eps)；锁定度低于阈值或默认每 100ms 执行局部重搜，且仅在偏移修正非 0 时记录 `code_reacq` |
 | ② FLL-assisted PLL | `track_carrier_from_prompt`：FLL 平滑窗 50ms，PLL 增益 0.08；输出 `prompt_pll`、`fll_freq_hz`、`pll_phase_deg` |
 | ③ 初始比特对齐 | `estimate_initial_bit_alignment`：在前 2000ms 训练段上做联合搜索（方式同 open-loop，但基于已跟踪的 prompt） |
 | ④ 时序稳定性 | `check_bit_timing_stability`：每 1000ms 检查一次（观测窗 2000ms），边界漂移则重对齐 |

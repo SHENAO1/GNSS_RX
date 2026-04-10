@@ -1,216 +1,204 @@
-<mxfile host="app.diagrams.net" modified="2026-04-08T00:00:00.000Z" agent="Claude" version="24.7.17">
-  <diagram id="module-dependency" name="软件模块依赖图">
-    <mxGraphModel dx="1900" dy="1060" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2200" pageHeight="1100" math="0" shadow="0" adaptiveColors="auto">
-      <root>
-        <mxCell id="0"/>
-        <mxCell id="1" parent="0"/>
-
-        <!-- Title -->
-        <mxCell id="title" value="GNSS TX/RX 软件模块依赖图" style="text;html=1;fontStyle=1;fontSize=20;align=center;verticalAlign=middle;" vertex="1" parent="1">
-          <mxGeometry x="400" y="20" width="1400" height="35" as="geometry"/>
-        </mxCell>
-
-        <!-- ===== LEFT: gnss_tx project ===== -->
-        <mxCell id="tx_container" value="gnss_tx 项目" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FB;strokeColor=#6C8EBF;fontStyle=1;fontSize=15;verticalAlign=top;" vertex="1" parent="1">
-          <mxGeometry x="40" y="70" width="900" height="980" as="geometry"/>
-        </mxCell>
-
-        <!-- Layer labels -->
-        <mxCell id="tx_layer_base" value="基础层" style="text;html=1;fontStyle=2;fontSize=11;align=left;fillColor=#FFFFFF;strokeColor=#6C8EBF;rounded=1;" vertex="1" parent="1">
-          <mxGeometry x="60" y="140" width="80" height="25" as="geometry"/>
-        </mxCell>
-        <mxCell id="tx_layer_signal" value="信号处理层" style="text;html=1;fontStyle=2;fontSize=11;align=left;fillColor=#FFFFFF;strokeColor=#6C8EBF;rounded=1;" vertex="1" parent="1">
-          <mxGeometry x="60" y="380" width="90" height="25" as="geometry"/>
-        </mxCell>
-        <mxCell id="tx_layer_gr" value="GNU Radio层" style="text;html=1;fontStyle=2;fontSize=11;align=left;fillColor=#FFFFFF;strokeColor=#6C8EBF;rounded=1;" vertex="1" parent="1">
-          <mxGeometry x="60" y="640" width="90" height="25" as="geometry"/>
-        </mxCell>
-        <mxCell id="tx_layer_entry" value="入口层" style="text;html=1;fontStyle=2;fontSize=11;align=left;fillColor=#FFFFFF;strokeColor=#6C8EBF;rounded=1;" vertex="1" parent="1">
-          <mxGeometry x="60" y="820" width="80" height="25" as="geometry"/>
-        </mxCell>
-
-        <!-- Base layer: ca & nav -->
-        <mxCell id="tx_prn" value="ca/prn_generator.py&#xa;generate_ca_code()&#xa;1023 chips/ms, LFSR dual&#xa;PRN 1-32, int8(±1)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontStyle=0;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="100" y="175" width="240" height="90" as="geometry"/>
-        </mxCell>
-        <mxCell id="tx_nav" value="nav/nav_bits.py&#xa;CyclicNavBitSource&#xa;50 bps, 20ms/bit&#xa;normalize_nav_bits()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontStyle=0;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="390" y="175" width="240" height="90" as="geometry"/>
-        </mxCell>
-        <mxCell id="tx_utils" value="utils/io.py&#xa;load_yaml_file()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontStyle=0;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="660" y="175" width="240" height="60" as="geometry"/>
-        </mxCell>
-
-        <!-- Signal processing layer -->
-        <mxCell id="tx_spreader" value="signal/spreader.py&#xa;GpsL1CaBpskGenerator&#xa;stateful: code_phase, nav_epoch&#xa;generate_samples() → complex64" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#6C8EBF;strokeColor=#4E6E9C;fontColor=#ffffff;fontStyle=1;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="100" y="415" width="240" height="90" as="geometry"/>
-        </mxCell>
-        <mxCell id="tx_modulator" value="signal/modulator.py&#xa;chips_to_complex_baseband()&#xa;int8(±1) → complex64" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontStyle=0;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="390" y="415" width="240" height="75" as="geometry"/>
-        </mxCell>
-        <mxCell id="tx_iqbuilder" value="signal/iq_builder.py&#xa;generate_complex_tone()&#xa;校准单音模式" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontStyle=0;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="660" y="415" width="240" height="75" as="geometry"/>
-        </mxCell>
-        <mxCell id="tx_multicomb" value="signal/multi_sat_combiner.py&#xa;build_multi_sat_replay_samples()&#xa;多星线性叠加 + √N 归一化&#xa;最多32星同时合成" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#6C8EBF;strokeColor=#4E6E9C;fontColor=#ffffff;fontStyle=1;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="245" y="545" width="280" height="85" as="geometry"/>
-        </mxCell>
-
-        <!-- GNU Radio layer -->
-        <mxCell id="tx_topblock" value="gr/top_block.py&#xa;GpsL1CaTxTopBlock&#xa;vector_source_c → multiply_const_cc&#xa;→ qtgui(可选) → uhd.usrp_sink" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#82B366;strokeColor=#5A8040;fontColor=#ffffff;fontStyle=1;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="200" y="675" width="320" height="90" as="geometry"/>
-        </mxCell>
-        <mxCell id="tx_b210sink" value="usrp/b210_sink.py&#xa;create_b210_sink()&#xa;UHD USRP sink 工厂" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontStyle=0;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="570" y="675" width="220" height="75" as="geometry"/>
-        </mxCell>
-
-        <!-- Entry layer -->
-        <mxCell id="tx_controller" value="usrp/tx_controller.py&#xa;TxRuntimeConfig（frozen dataclass）&#xa;load_tx_runtime_config() + apply_overrides()&#xa;参数验证、实验报告" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontStyle=1;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="150" y="855" width="310" height="90" as="geometry"/>
-        </mxCell>
-        <mxCell id="tx_entry" value="scripts/run_tx.py&#xa;CLI 主入口&#xa;--config --prn-ids --dry-run --duration" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontStyle=1;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="520" y="855" width="280" height="75" as="geometry"/>
-        </mxCell>
-
-        <!-- ===== RIGHT: gnss_rx project ===== -->
-        <mxCell id="rx_container" value="GNSS_RX 项目" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF8EE;strokeColor=#82B366;fontStyle=1;fontSize=15;verticalAlign=top;" vertex="1" parent="1">
-          <mxGeometry x="980" y="70" width="780" height="980" as="geometry"/>
-        </mxCell>
-
-        <!-- RX layer labels -->
-        <mxCell id="rx_layer_base" value="基础层" style="text;html=1;fontStyle=2;fontSize=11;align=left;fillColor=#FFFFFF;strokeColor=#82B366;rounded=1;" vertex="1" parent="1">
-          <mxGeometry x="1000" y="140" width="80" height="25" as="geometry"/>
-        </mxCell>
-        <mxCell id="rx_layer_core" value="核心模块层" style="text;html=1;fontStyle=2;fontSize=11;align=left;fillColor=#FFFFFF;strokeColor=#82B366;rounded=1;" vertex="1" parent="1">
-          <mxGeometry x="1000" y="340" width="90" height="25" as="geometry"/>
-        </mxCell>
-        <mxCell id="rx_layer_top" value="顶层（GNU Radio）" style="text;html=1;fontStyle=2;fontSize=11;align=left;fillColor=#FFFFFF;strokeColor=#82B366;rounded=1;" vertex="1" parent="1">
-          <mxGeometry x="1000" y="640" width="130" height="25" as="geometry"/>
-        </mxCell>
-        <mxCell id="rx_layer_entry" value="入口层" style="text;html=1;fontStyle=2;fontSize=11;align=left;fillColor=#FFFFFF;strokeColor=#82B366;rounded=1;" vertex="1" parent="1">
-          <mxGeometry x="1000" y="820" width="80" height="25" as="geometry"/>
-        </mxCell>
-
-        <!-- RX base -->
-        <mxCell id="rx_utils" value="utils/io.py&#xa;load_yaml_file()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontStyle=0;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="1050" y="175" width="220" height="60" as="geometry"/>
-        </mxCell>
-
-        <!-- RX core -->
-        <mxCell id="rx_runtime" value="runtime.py&#xa;RxRuntimeConfig（frozen dataclass）&#xa;load_rx_runtime_config()&#xa;apply_overrides() + resolve_paths()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontStyle=0;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="1010" y="375" width="250" height="95" as="geometry"/>
-        </mxCell>
-        <mxCell id="rx_writer" value="writer.py&#xa;complex_to_sc16_interleaved()&#xa;Sc16CaptureSink(gr.sync_block)&#xa;clip→×32767→int16 交织" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontStyle=0;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="1290" y="375" width="250" height="95" as="geometry"/>
-        </mxCell>
-        <mxCell id="rx_metadata" value="metadata.py&#xa;CaptureMetadata（frozen dataclass）&#xa;build_capture_metadata()&#xa;write_metadata_json() → .json" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontStyle=0;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="1150" y="510" width="260" height="95" as="geometry"/>
-        </mxCell>
-
-        <!-- RX top -->
-        <mxCell id="rx_flowgraph" value="flowgraph.py&#xa;build_capture_top_block()&#xa;uhd.usrp_source → head → file_sink&#xa;CaptureSinkHandle 抽象" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#82B366;strokeColor=#5A8040;fontColor=#ffffff;fontStyle=1;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="1100" y="675" width="320" height="90" as="geometry"/>
-        </mxCell>
-
-        <!-- RX entry -->
-        <mxCell id="rx_entry" value="scripts/record_rx.py&#xa;CLI 主入口&#xa;--config --prn-id --dry-run&#xa;单段 / 分块 (chunked) 采集" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontStyle=1;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="1000" y="855" width="260" height="90" as="geometry"/>
-        </mxCell>
-        <mxCell id="rx_synth" value="scripts/gen_synthetic_capture.py&#xa;无硬件仿真入口&#xa;--snr-db --duration" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;dashed=1;fontStyle=2;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="1310" y="855" width="240" height="75" as="geometry"/>
-        </mxCell>
-
-        <!-- ===== EDGES: gnss_tx internal ===== -->
-        <!-- ca → spreader -->
-        <mxCell id="e_prn_sp" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;strokeColor=#6C8EBF;" edge="1" parent="1" source="tx_prn" target="tx_spreader">
-          <mxGeometry relative="1" as="geometry"/>
-        </mxCell>
-        <!-- nav → spreader -->
-        <mxCell id="e_nav_sp" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;strokeColor=#6C8EBF;" edge="1" parent="1" source="tx_nav" target="tx_spreader">
-          <mxGeometry relative="1" as="geometry"/>
-        </mxCell>
-        <!-- spreader → multicomb -->
-        <mxCell id="e_sp_mc" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;strokeColor=#6C8EBF;" edge="1" parent="1" source="tx_spreader" target="tx_multicomb">
-          <mxGeometry relative="1" as="geometry"/>
-        </mxCell>
-        <!-- spreader → topblock -->
-        <mxCell id="e_sp_top" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;strokeColor=#82B366;" edge="1" parent="1" source="tx_spreader" target="tx_topblock">
-          <mxGeometry relative="1" as="geometry"/>
-        </mxCell>
-        <!-- multicomb → topblock -->
-        <mxCell id="e_mc_top" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;strokeColor=#82B366;" edge="1" parent="1" source="tx_multicomb" target="tx_topblock">
-          <mxGeometry relative="1" as="geometry"/>
-        </mxCell>
-        <!-- iqbuilder → topblock -->
-        <mxCell id="e_iq_top" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;strokeColor=#82B366;" edge="1" parent="1" source="tx_iqbuilder" target="tx_topblock">
-          <mxGeometry relative="1" as="geometry"/>
-        </mxCell>
-        <!-- b210sink → topblock -->
-        <mxCell id="e_b210_top" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;strokeColor=#82B366;" edge="1" parent="1" source="tx_b210sink" target="tx_topblock">
-          <mxGeometry relative="1" as="geometry"/>
-        </mxCell>
-        <!-- topblock → controller -->
-        <mxCell id="e_top_ctrl" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;strokeColor=#D6B656;" edge="1" parent="1" source="tx_topblock" target="tx_controller">
-          <mxGeometry relative="1" as="geometry"/>
-        </mxCell>
-        <!-- controller → entry -->
-        <mxCell id="e_ctrl_entry" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;strokeColor=#D6B656;" edge="1" parent="1" source="tx_controller" target="tx_entry">
-          <mxGeometry relative="1" as="geometry"/>
-        </mxCell>
-        <!-- utils → controller -->
-        <mxCell id="e_utils_ctrl" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;strokeColor=#6C8EBF;" edge="1" parent="1" source="tx_utils" target="tx_controller">
-          <mxGeometry relative="1" as="geometry"/>
-        </mxCell>
-
-        <!-- ===== EDGES: gnss_rx internal ===== -->
-        <mxCell id="e_rutils_rrt" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;strokeColor=#82B366;" edge="1" parent="1" source="rx_utils" target="rx_runtime">
-          <mxGeometry relative="1" as="geometry"/>
-        </mxCell>
-        <mxCell id="e_rrt_rfg" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;strokeColor=#82B366;" edge="1" parent="1" source="rx_runtime" target="rx_flowgraph">
-          <mxGeometry relative="1" as="geometry"/>
-        </mxCell>
-        <mxCell id="e_rwr_rfg" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;strokeColor=#82B366;" edge="1" parent="1" source="rx_writer" target="rx_flowgraph">
-          <mxGeometry relative="1" as="geometry"/>
-        </mxCell>
-        <mxCell id="e_rmt_rfg" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;strokeColor=#82B366;" edge="1" parent="1" source="rx_metadata" target="rx_flowgraph">
-          <mxGeometry relative="1" as="geometry"/>
-        </mxCell>
-        <mxCell id="e_rfg_entry" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;strokeColor=#D6B656;" edge="1" parent="1" source="rx_flowgraph" target="rx_entry">
-          <mxGeometry relative="1" as="geometry"/>
-        </mxCell>
-
-        <!-- ===== CROSS-PROJECT DEPENDENCY ===== -->
-        <!-- gen_synthetic_capture.py → gnss_tx multicomb (cross-project) -->
-        <mxCell id="e_cross" value="跨项目依赖&#xa;import gnss_tx" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;strokeColor=#B85450;strokeWidth=2;dashed=1;fontStyle=2;fontSize=10;" edge="1" parent="1" source="rx_synth" target="tx_multicomb">
-          <mxGeometry relative="1" as="geometry">
-            <Array as="points">
-              <mxPoint x="1430" y="990"/>
-              <mxPoint x="1430" y="1060"/>
-              <mxPoint x="385" y="1060"/>
-              <mxPoint x="385" y="587"/>
-            </Array>
-          </mxGeometry>
-        </mxCell>
-
-        <!-- Legend -->
-        <mxCell id="legend_title" value="图例" style="text;html=1;fontStyle=1;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="1810" y="80" width="60" height="25" as="geometry"/>
-        </mxCell>
-        <mxCell id="leg1" value="核心信号处理模块" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#6C8EBF;fontColor=#ffffff;strokeColor=#4E6E9C;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="1800" y="115" width="180" height="35" as="geometry"/>
-        </mxCell>
-        <mxCell id="leg2" value="辅助/工具模块" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="1800" y="160" width="180" height="35" as="geometry"/>
-        </mxCell>
-        <mxCell id="leg3" value="GNU Radio 集成层" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#82B366;fontColor=#ffffff;strokeColor=#5A8040;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="1800" y="205" width="180" height="35" as="geometry"/>
-        </mxCell>
-        <mxCell id="leg4" value="入口/配置层" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="1800" y="250" width="180" height="35" as="geometry"/>
-        </mxCell>
-        <mxCell id="leg5" value="跨项目依赖（虚线）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;dashed=1;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="1800" y="295" width="180" height="35" as="geometry"/>
-        </mxCell>
-
-      </root>
-    </mxGraphModel>
-  </diagram>
+<mxfile host="65bd71144e">
+    <diagram id="module-dependency" name="软件模块依赖图">
+        <mxGraphModel dx="1994" dy="1006" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2200" pageHeight="1100" math="0" shadow="0" adaptiveColors="auto">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="title" value="GNSS TX/RX 软件模块依赖图" style="text;html=1;fontStyle=1;fontSize=22;align=center;verticalAlign=middle;fontColor=#1F2937;" parent="1" vertex="1">
+                    <mxGeometry x="400" y="20" width="1400" height="35" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_container" value="gnss_tx&amp;nbsp;&lt;div&gt;&lt;br&gt;&lt;/div&gt;" style="rounded=1;arcSize=28;whiteSpace=wrap;html=1;fillColor=#EEF5FD;strokeColor=#6C8EBF;strokeWidth=2;fontStyle=1;fontSize=15;verticalAlign=top;shadow=1;" parent="1" vertex="1">
+                    <mxGeometry x="30" y="70" width="910" height="980" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_layer_base" value="&lt;b&gt;基础层&lt;/b&gt;" style="text;html=1;fontStyle=2;fontSize=11;align=left;fillColor=#FFFFFF;strokeColor=#6C8EBF;strokeWidth=1.5;rounded=1;spacingLeft=8;fontColor=#334155;" parent="1" vertex="1">
+                    <mxGeometry x="60" y="140" width="80" height="25" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_layer_signal" value="&lt;b&gt;信号处理层&lt;/b&gt;" style="text;html=1;fontStyle=2;fontSize=11;align=left;fillColor=#FFFFFF;strokeColor=#6C8EBF;strokeWidth=1.5;rounded=1;spacingLeft=8;fontColor=#334155;" parent="1" vertex="1">
+                    <mxGeometry x="60" y="380" width="95" height="25" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_layer_gr" value="&lt;b&gt;GNU Radio层&lt;/b&gt;" style="text;html=1;fontStyle=2;fontSize=11;align=left;fillColor=#FFFFFF;strokeColor=#6C8EBF;strokeWidth=1.5;rounded=1;spacingLeft=8;fontColor=#334155;" parent="1" vertex="1">
+                    <mxGeometry x="45" y="650" width="95" height="25" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_layer_entry" value="&lt;b&gt;入口层&lt;/b&gt;" style="text;html=1;fontStyle=2;fontSize=11;align=left;fillColor=#FFFFFF;strokeColor=#6C8EBF;strokeWidth=1.5;rounded=1;spacingLeft=8;fontColor=#334155;" parent="1" vertex="1">
+                    <mxGeometry x="45" y="820" width="80" height="25" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_prn" value="&lt;b&gt;ca/prn_generator.py&lt;br&gt;generate_ca_code()&lt;br&gt;1023 chips/ms, LFSR dual&lt;br&gt;PRN 1-32, int8(±1)&lt;/b&gt;" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#DCEBFD;strokeColor=#6C8EBF;strokeWidth=1.5;fontStyle=0;fontSize=11;shadow=1;" parent="1" vertex="1">
+                    <mxGeometry x="90" y="175" width="230" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_nav" value="nav/nav_bits.py&#xa;CyclicNavBitSource&#xa;50 bps, 20ms/bit&#xa;normalize_nav_bits()" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#DCEBFD;strokeColor=#6C8EBF;strokeWidth=1.5;fontStyle=1;fontSize=11;shadow=1;" parent="1" vertex="1">
+                    <mxGeometry x="350" y="175" width="230" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_utils" value="utils/io.py&#xa;load_yaml_file()" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#DCEBFD;strokeColor=#6C8EBF;strokeWidth=1.5;fontStyle=1;fontSize=11;shadow=1;" parent="1" vertex="1">
+                    <mxGeometry x="620" y="175" width="230" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_spreader" value="signal/spreader.py&#xa;GpsL1CaBpskGenerator&#xa;stateful: code_phase, nav_epoch&#xa;generate_samples() → complex64" style="rounded=1;arcSize=14;whiteSpace=wrap;html=1;fillColor=#5E82B8;strokeColor=#476488;strokeWidth=2;fontColor=#ffffff;fontStyle=1;fontSize=11;shadow=1;" parent="1" vertex="1">
+                    <mxGeometry x="140" y="420" width="260" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_modulator" value="signal/modulator.py&#xa;chips_to_complex_baseband()&#xa;int8(±1) → complex64" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#DCEBFD;strokeColor=#6C8EBF;strokeWidth=1.5;fontStyle=1;fontSize=11;shadow=1;" parent="1" vertex="1">
+                    <mxGeometry x="510" y="400" width="250" height="75" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_iqbuilder" value="signal/iq_builder.py&#xa;generate_complex_tone()&#xa;校准单音模式" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#DCEBFD;strokeColor=#6C8EBF;strokeWidth=1.5;fontStyle=1;fontSize=11;shadow=1;" parent="1" vertex="1">
+                    <mxGeometry x="570" y="540" width="250" height="75" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_multicomb" value="signal/multi_sat_combiner.py&#xa;build_multi_sat_replay_samples()&#xa;多星线性叠加 + √N 归一化&#xa;最多32星同时合成" style="rounded=1;arcSize=14;whiteSpace=wrap;html=1;fillColor=#5E82B8;strokeColor=#476488;strokeWidth=2;fontColor=#ffffff;fontStyle=1;fontSize=11;shadow=1;" parent="1" vertex="1">
+                    <mxGeometry x="120" y="545" width="300" height="85" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_topblock" value="gr/top_block.py&#xa;GpsL1CaTxTopBlock&#xa;vector_source_c → multiply_const_cc&#xa;→ qtgui(可选) → uhd.usrp_sink" style="rounded=1;arcSize=14;whiteSpace=wrap;html=1;fillColor=#7AA95B;strokeColor=#54763D;strokeWidth=2;fontColor=#ffffff;fontStyle=1;fontSize=11;shadow=1;" parent="1" vertex="1">
+                    <mxGeometry x="230" y="700" width="330" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_b210sink" value="usrp/b210_sink.py&lt;br&gt;create_b210_sink()&lt;br&gt;UHD USRP sink&amp;nbsp;" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#DCEBFD;strokeColor=#6C8EBF;strokeWidth=1.5;fontStyle=1;fontSize=11;shadow=1;" parent="1" vertex="1">
+                    <mxGeometry x="610" y="702.5" width="220" height="75" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_controller" value="usrp/tx_controller.py&lt;br&gt;TxRuntimeConfig（frozen dataclass）&lt;br&gt;load_tx_runtime_config() + apply_overrides()&lt;br&gt;参数验证、测试报告" style="rounded=1;arcSize=14;whiteSpace=wrap;html=1;fillColor=#FFF4D8;strokeColor=#D6B656;strokeWidth=1.5;fontStyle=1;fontSize=11;shadow=1;" parent="1" vertex="1">
+                    <mxGeometry x="230" y="850" width="330" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="tx_entry" value="scripts/run_tx.py&#xa;CLI 主入口&#xa;--config --prn-ids --dry-run --duration" style="rounded=1;arcSize=14;whiteSpace=wrap;html=1;fillColor=#FFF4D8;strokeColor=#D6B656;strokeWidth=1.5;fontStyle=1;fontSize=11;shadow=1;" parent="1" vertex="1">
+                    <mxGeometry x="620" y="857.5" width="250" height="75" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_container" value="GNSS_RX&amp;nbsp;" style="rounded=1;arcSize=28;whiteSpace=wrap;html=1;fillColor=#EEF8F1;strokeColor=#82B366;strokeWidth=2;fontStyle=1;fontSize=15;verticalAlign=top;shadow=1;" parent="1" vertex="1">
+                    <mxGeometry x="980" y="70" width="780" height="980" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_layer_base" value="&lt;b&gt;基础层&lt;/b&gt;" style="text;html=1;fontStyle=2;fontSize=11;align=left;fillColor=#FFFFFF;strokeColor=#82B366;strokeWidth=1.5;rounded=1;spacingLeft=8;fontColor=#334155;" parent="1" vertex="1">
+                    <mxGeometry x="1000" y="140" width="80" height="25" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_layer_core" value="&lt;b&gt;核心模块层&lt;/b&gt;" style="text;html=1;fontStyle=2;fontSize=11;align=left;fillColor=#FFFFFF;strokeColor=#82B366;strokeWidth=1.5;rounded=1;spacingLeft=8;fontColor=#334155;" parent="1" vertex="1">
+                    <mxGeometry x="1000" y="340" width="95" height="25" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_layer_top" value="&lt;b&gt;顶层（GNU Radio）&lt;/b&gt;" style="text;html=1;fontStyle=2;fontSize=11;align=left;fillColor=#FFFFFF;strokeColor=#82B366;strokeWidth=1.5;rounded=1;spacingLeft=8;fontColor=#334155;" parent="1" vertex="1">
+                    <mxGeometry x="1000" y="640" width="130" height="25" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_layer_entry" value="&lt;b&gt;入口层&lt;/b&gt;" style="text;html=1;fontStyle=2;fontSize=11;align=left;fillColor=#FFFFFF;strokeColor=#82B366;strokeWidth=1.5;rounded=1;spacingLeft=8;fontColor=#334155;" parent="1" vertex="1">
+                    <mxGeometry x="1000" y="820" width="80" height="25" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_utils" value="utils/io.py&#xa;load_yaml_file()" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#DCEFD8;strokeColor=#82B366;strokeWidth=1.5;fontStyle=1;fontSize=11;shadow=1;" parent="1" vertex="1">
+                    <mxGeometry x="1040" y="175" width="220" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_runtime" value="runtime.py&#xa;RxRuntimeConfig（frozen dataclass）&#xa;load_rx_runtime_config()&#xa;apply_overrides() + resolve_paths()" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#DCEFD8;strokeColor=#82B366;strokeWidth=1.5;fontStyle=1;fontSize=11;shadow=1;" parent="1" vertex="1">
+                    <mxGeometry x="1025" y="380" width="250" height="95" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_writer" value="writer.py&#xa;complex_to_sc16_interleaved()&#xa;Sc16CaptureSink(gr.sync_block)&#xa;clip→×32767→int16 交织" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#DCEFD8;strokeColor=#82B366;strokeWidth=1.5;fontStyle=1;fontSize=11;shadow=1;" parent="1" vertex="1">
+                    <mxGeometry x="1350" y="380" width="250" height="95" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_metadata" value="metadata.py&#xa;CaptureMetadata（frozen dataclass）&#xa;build_capture_metadata()&#xa;write_metadata_json() → .json" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#DCEFD8;strokeColor=#82B366;strokeWidth=1.5;fontStyle=1;fontSize=11;shadow=1;" parent="1" vertex="1">
+                    <mxGeometry x="1180" y="520" width="210" height="95" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_flowgraph" value="flowgraph.py&#xa;build_capture_top_block()&#xa;uhd.usrp_source → head → file_sink&#xa;CaptureSinkHandle 抽象" style="rounded=1;arcSize=14;whiteSpace=wrap;html=1;fillColor=#7AA95B;strokeColor=#54763D;strokeWidth=2;fontColor=#ffffff;fontStyle=1;fontSize=11;shadow=1;" parent="1" vertex="1">
+                    <mxGeometry x="1125" y="690" width="320" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_entry" value="scripts/record_rx.py&#xa;CLI 主入口&#xa;--config --prn-id --dry-run&#xa;单段 / 分块 (chunked) 采集" style="rounded=1;arcSize=14;whiteSpace=wrap;html=1;fillColor=#FFF4D8;strokeColor=#D6B656;strokeWidth=1.5;fontStyle=1;fontSize=11;shadow=1;" parent="1" vertex="1">
+                    <mxGeometry x="1150" y="855" width="270" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="rx_synth" value="scripts/gen_synthetic_capture.py&#xa;无硬件仿真入口&#xa;--snr-db --duration" style="rounded=1;arcSize=14;whiteSpace=wrap;html=1;fillColor=#FFF8E8;strokeColor=#D6B656;strokeWidth=1.5;dashed=1;fontStyle=3;fontSize=11;shadow=1;" parent="1" vertex="1">
+                    <mxGeometry x="1470" y="862.5" width="250" height="75" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_prn_sp" style="edgeStyle=orthogonalEdgeStyle;rounded=1;arcSize=10;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#6C8EBF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" parent="1" source="tx_prn" target="tx_spreader" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_nav_sp" style="edgeStyle=orthogonalEdgeStyle;rounded=1;arcSize=10;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#6C8EBF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.75;entryY=0;entryDx=0;entryDy=0;" parent="1" source="tx_nav" target="tx_spreader" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_sp_mc" style="edgeStyle=orthogonalEdgeStyle;rounded=1;arcSize=10;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#6C8EBF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" parent="1" source="tx_spreader" target="tx_multicomb" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_sp_top" style="edgeStyle=orthogonalEdgeStyle;rounded=1;arcSize=10;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#82B366;" parent="1" source="tx_spreader" target="tx_topblock" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="450" y="520"/>
+                            <mxPoint x="450" y="650"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_mc_top" style="edgeStyle=orthogonalEdgeStyle;rounded=1;arcSize=10;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#82B366;exitX=0.7;exitY=1;exitDx=0;exitDy=0;entryX=0.35;entryY=0;entryDx=0;entryDy=0;" parent="1" source="tx_multicomb" target="tx_topblock" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="330" y="700"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_iq_top" style="edgeStyle=orthogonalEdgeStyle;rounded=1;arcSize=10;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#82B366;" parent="1" source="tx_iqbuilder" target="tx_topblock" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="695" y="650"/>
+                            <mxPoint x="510" y="650"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_b210_top" style="edgeStyle=orthogonalEdgeStyle;rounded=1;arcSize=10;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#82B366;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="tx_b210sink" target="tx_topblock" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_top_ctrl" style="edgeStyle=orthogonalEdgeStyle;rounded=1;arcSize=10;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#D6B656;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="tx_topblock" target="tx_controller" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_ctrl_entry" style="edgeStyle=orthogonalEdgeStyle;rounded=1;arcSize=10;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#D6B656;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="tx_controller" target="tx_entry" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_utils_ctrl" style="edgeStyle=orthogonalEdgeStyle;rounded=1;arcSize=10;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#6C8EBF;entryX=0.75;entryY=0;entryDx=0;entryDy=0;" parent="1" source="tx_utils" target="tx_controller" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="735" y="260"/>
+                            <mxPoint x="880" y="260"/>
+                            <mxPoint x="880" y="815"/>
+                            <mxPoint x="478" y="815"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_rutils_rrt" style="edgeStyle=orthogonalEdgeStyle;rounded=1;arcSize=10;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#82B366;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="rx_utils" target="rx_runtime" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_rrt_rfg" style="edgeStyle=orthogonalEdgeStyle;rounded=1;arcSize=10;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#82B366;exitX=0.7;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" parent="1" source="rx_runtime" target="rx_flowgraph" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1150" y="475"/>
+                            <mxPoint x="1150" y="690"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_rwr_rfg" style="edgeStyle=orthogonalEdgeStyle;rounded=1;arcSize=10;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#82B366;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="rx_writer" target="rx_flowgraph" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1480" y="475"/>
+                            <mxPoint x="1480" y="735"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_rmt_rfg" style="edgeStyle=orthogonalEdgeStyle;rounded=1;arcSize=10;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#82B366;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="rx_metadata" target="rx_flowgraph" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_rfg_entry" style="edgeStyle=orthogonalEdgeStyle;rounded=1;arcSize=10;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#D6B656;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="rx_flowgraph" target="rx_entry" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1285" y="855"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_cross" value="跨项目依赖&#xa;import gnss_tx" style="edgeStyle=orthogonalEdgeStyle;rounded=1;arcSize=10;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#B85450;strokeWidth=2;dashed=1;fontStyle=2;fontSize=10;fontColor=#7F1D1D;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" parent="1" source="rx_synth" target="tx_multicomb" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1595" y="1005"/>
+                            <mxPoint x="10" y="1005"/>
+                            <mxPoint x="10" y="588"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="legend_title" value="图例" style="text;html=1;fontStyle=1;fontSize=13;fontColor=#1F2937;" parent="1" vertex="1">
+                    <mxGeometry x="1810" y="80" width="60" height="25" as="geometry"/>
+                </mxCell>
+                <mxCell id="leg1" value="核心信号处理模块" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#5E82B8;fontColor=#ffffff;strokeColor=#476488;strokeWidth=1.5;fontSize=10;shadow=1;fontStyle=1" parent="1" vertex="1">
+                    <mxGeometry x="1800" y="115" width="180" height="35" as="geometry"/>
+                </mxCell>
+                <mxCell id="leg2" value="辅助/工具模块" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#DCEBFD;strokeColor=#6C8EBF;strokeWidth=1.5;fontSize=10;shadow=1;fontStyle=1" parent="1" vertex="1">
+                    <mxGeometry x="1800" y="160" width="180" height="35" as="geometry"/>
+                </mxCell>
+                <mxCell id="leg3" value="GNU Radio 集成层" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#7AA95B;fontColor=#ffffff;strokeColor=#54763D;strokeWidth=1.5;fontSize=10;shadow=1;fontStyle=1" parent="1" vertex="1">
+                    <mxGeometry x="1800" y="205" width="180" height="35" as="geometry"/>
+                </mxCell>
+                <mxCell id="leg4" value="入口/配置层" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#FFF4D8;strokeColor=#D6B656;strokeWidth=1.5;fontSize=10;shadow=1;fontStyle=1" parent="1" vertex="1">
+                    <mxGeometry x="1800" y="250" width="180" height="35" as="geometry"/>
+                </mxCell>
+                <mxCell id="leg5" value="跨项目依赖（虚线）" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#F8D9D7;strokeColor=#B85450;strokeWidth=1.5;dashed=1;fontSize=10;shadow=1;fontStyle=1" parent="1" vertex="1">
+                    <mxGeometry x="1800" y="295" width="180" height="35" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
 </mxfile>
